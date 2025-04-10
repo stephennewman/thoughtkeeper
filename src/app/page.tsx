@@ -87,12 +87,15 @@ export default function Home() {
         // Ensure tag filter is cleared if searching
         tag = null; 
         
-        // --- DEBUG: Temporarily search ONLY content --- 
-        supabaseQuery = supabaseQuery.textSearch('content', trimmedQuery, {
-          type: 'websearch',
-          config: 'english'
-        });
+        // --- DEBUG: Temporarily use basic ILIKE search ONLY on content --- 
+        supabaseQuery = supabaseQuery.ilike('content', `%${trimmedQuery}%`);
         // --- END DEBUG --- 
+
+        // Original FTS commented out:
+        // supabaseQuery = supabaseQuery.textSearch('content', trimmedQuery, {
+        //   type: 'websearch',
+        //   config: 'english'
+        // });
 
         // Original .or() logic commented out:
         // const filterString = `content.fts.${trimmedQuery},tags.cs.${JSON.stringify(trimmedQuery)}`;
