@@ -8,6 +8,8 @@ import { Header } from '@/components/Header';
 import * as React from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import debounce from 'lodash.debounce';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
 // Define a type matching the Supabase table structure
 // Assuming tags will be stored as string[] in jsonb
@@ -54,9 +56,21 @@ export default function Home() {
   const [isSavingEntry, setIsSavingEntry] = useState<boolean>(false);
   const [generatingTagsForId, setGeneratingTagsForId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterTag, setFilterTag] = useState<string | null>(null);
+
+  // Re-add tag frequency calculation
+  const tagCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    entries.forEach(entry => {
+      entry.tags?.forEach(tag => {
+        counts[tag] = (counts[tag] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [entries]);
 
   // Fetch entries - simplified to only handle search query
-  const fetchEntries = useCallback(async (query: string) => {
+  const fetchEntries = useCallback(async (query: string, tag: string | null) => {
     setIsLoadingEntries(true);
     setErrorLoadingEntries(null);
     try {
@@ -68,12 +82,18 @@ export default function Home() {
 
       const trimmedQuery = query.trim();
 
-      // Apply text search filter if query exists (using FTS initially, fallback to ilike if needed)
+      // Apply text search filter if query exists
       if (trimmedQuery) {
-        supabaseQuery = supabaseQuery.textSearch('content', trimmedQuery, {
-          type: 'websearch',
-          config: 'english'
-        });
+        // Ensure tag filter is cleared if searching
+        tag = null; 
+        // Use combined search (ilike + contains)
+        const filterString = `content.ilike.%${trimmedQuery}%,tags.cs.${JSON.stringify(trimmedQuery)}`;
+        supabaseQuery = supabaseQuery.or(filterString);
+      } 
+      // Apply tag filter only if tag exists AND search query is empty
+      else if (tag) {
+        // Use contains operator for jsonb array
+        supabaseQuery = supabaseQuery.contains('tags', JSON.stringify(tag));
       }
 
       const { data, error } = await supabaseQuery;
@@ -109,28 +129,48 @@ export default function Home() {
 
   // Debounced version - only pass query
   const debouncedFetchEntries = useMemo(() => {
-    return debounce(fetchEntries, 300);
+    // Pass tag state to debounced function
+    const debouncedFn = debounce((currentQuery: string, currentTag: string | null) => {
+       fetchEntries(currentQuery, currentTag);
+    }, 300);
+    return debouncedFn;
   }, [fetchEntries]);
 
   // Load entries on initial mount
   useEffect(() => {
-    fetchEntries(''); // Pass empty query
+    fetchEntries('', null); // Pass empty query and null tag
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
   // Effect for search query changes
   useEffect(() => {
-    debouncedFetchEntries(searchQuery);
+    debouncedFetchEntries(searchQuery, filterTag);
     return () => {
       debouncedFetchEntries.cancel();
     };
-  }, [searchQuery, debouncedFetchEntries]);
+  }, [searchQuery, filterTag, debouncedFetchEntries]);
 
   // Update currentContent when selectedDate changes
   useEffect(() => {
     setCurrentContent({ html: '', text: '' }); // Reset editor state
     setMacroSummary(undefined);
   }, [selectedDate]);
+
+  // Re-add effect for filterTag changes
+  useEffect(() => {
+    fetchEntries(searchQuery, filterTag);
+  }, [filterTag, fetchEntries]);
+
+  // Re-add handler for clicking a tag
+  const handleTagClick = useCallback((tag: string) => {
+    setSearchQuery(''); // Clear search query
+    setFilterTag(tag); // Set the filter tag
+  }, []);
+
+  // Re-add handler for clearing the tag filter
+  const handleClearFilter = useCallback(() => {
+    setFilterTag(null);
+  }, []);
 
   const handleSave = async () => {
     // Use state directly
@@ -326,7 +366,10 @@ export default function Home() {
     <div className="flex flex-col min-h-screen">
       <Header 
         searchQuery={searchQuery} 
-        onSearchChange={setSearchQuery} 
+        onSearchChange={(query) => {
+          setFilterTag(null);
+          setSearchQuery(query);
+        }}
       />
       <main className="flex flex-1 overflow-hidden">
         <JournalSidebar
@@ -338,14 +381,25 @@ export default function Home() {
           onGenerateMacroSummary={handleGenerateMacroSummary}
         />
         <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
+          {filterTag && (
+            <div className="flex-shrink-0">
+              <Button variant="secondary" size="sm" onClick={handleClearFilter}>
+                Filtering by: "{filterTag}"
+                <X className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          )}
           <div className="flex-grow overflow-y-auto">
             {isLoadingEntries && <p className="p-4 text-center">Loading entries...</p>}
             {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}
-            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && !searchQuery && (
+            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && !searchQuery && !filterTag && (
               <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
             )}
-            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && searchQuery && (
+            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && searchQuery && !filterTag && (
               <p className="p-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
+            )}
+            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && filterTag && (
+              <p className="p-4 text-center text-gray-500">No entries found tagged with "{filterTag}".</p>
             )}
             {!isLoadingEntries && !errorLoadingEntries && entries.length > 0 && (
               <JournalEntry
@@ -358,6 +412,8 @@ export default function Home() {
                 onDeleteEntry={handleDeleteEntry}
                 isSavingEntry={isSavingEntry}
                 generatingTagsForId={generatingTagsForId}
+                onTagClick={handleTagClick}
+                tagCounts={tagCounts}
               />
             )}
           </div>
