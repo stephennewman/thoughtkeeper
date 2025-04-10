@@ -381,21 +381,19 @@ export default function Home() {
           isGeneratingMacroSummary={isGeneratingMacroSummary}
           onGenerateMacroSummary={handleGenerateMacroSummary}
         />
-        <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
-          <div className="flex flex-col gap-2 flex-shrink-0 min-h-[2rem]">
-              {filterTag && (
-                <div className="flex items-center">
-                  <Button variant="secondary" size="sm" onClick={handleClearFilter}>
-                    Filtering by: "{filterTag}"
-                    <X className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              )}
-              {errorLoadingEntries && 
-                  <p className="text-red-600 text-sm">Error: {errorLoadingEntries}</p>
-              }
-          </div>
-          <div className="flex-grow overflow-y-auto">
+        <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
+          {filterTag && (
+            <div className="flex-shrink-0">
+              <Button variant="secondary" size="sm" onClick={handleClearFilter}>
+                Filtering by: "{filterTag}"
+                <X className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          )}
+          {errorLoadingEntries && 
+              <p className="text-red-600 text-sm flex-shrink-0">Error: {errorLoadingEntries}</p>
+          }
+          <div className="flex-grow overflow-y-auto pr-2">
             {isInitialLoading && (
                 <div className="flex justify-center items-center p-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -403,11 +401,11 @@ export default function Home() {
             )}
             {!isInitialLoading && !errorLoadingEntries && (
                 entries.length === 0 && !searchQuery && !filterTag ? (
-                    <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
+                    <p className="pt-4 text-center text-gray-500">No entries yet. Start writing!</p>
                 ) : entries.length === 0 && searchQuery && !filterTag ? (
-                    <p className="p-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
+                    <p className="pt-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
                 ) : entries.length === 0 && filterTag ? (
-                    <p className="p-4 text-center text-gray-500">No entries found tagged with "{filterTag}".</p>
+                    <p className="pt-4 text-center text-gray-500">No entries found tagged with "{filterTag}".</p>
                 ) : (
                     <JournalEntry
                         selectedDate={selectedDate}
