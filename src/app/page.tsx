@@ -86,10 +86,17 @@ export default function Home() {
       if (trimmedQuery) {
         // Ensure tag filter is cleared if searching
         tag = null; 
-        // Construct the filter string for .or()
-        // Format: "filter1,filter2"
-        const filterString = `content.fts.${trimmedQuery},tags.cs.${JSON.stringify(trimmedQuery)}`;
-        supabaseQuery = supabaseQuery.or(filterString);
+        
+        // --- DEBUG: Temporarily search ONLY content --- 
+        supabaseQuery = supabaseQuery.textSearch('content', trimmedQuery, {
+          type: 'websearch',
+          config: 'english'
+        });
+        // --- END DEBUG --- 
+
+        // Original .or() logic commented out:
+        // const filterString = `content.fts.${trimmedQuery},tags.cs.${JSON.stringify(trimmedQuery)}`;
+        // supabaseQuery = supabaseQuery.or(filterString);
       } 
       // Apply tag filter only if tag exists AND search query is empty
       else if (tag) {
