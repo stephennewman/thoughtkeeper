@@ -87,19 +87,12 @@ export default function Home() {
         // Ensure tag filter is cleared if searching
         tag = null; 
         
-        // --- DEBUG: Temporarily use basic ILIKE search ONLY on content --- 
-        supabaseQuery = supabaseQuery.ilike('content', `%${trimmedQuery}%`);
-        // --- END DEBUG --- 
+        // --- Restore combined search using .or() --- 
+        // Combine ilike on content AND contains on tags
+        const filterString = `content.ilike.%${trimmedQuery}%,tags.cs.${JSON.stringify(trimmedQuery)}`;
+        supabaseQuery = supabaseQuery.or(filterString);
+        // --- End combined search --- 
 
-        // Original FTS commented out:
-        // supabaseQuery = supabaseQuery.textSearch('content', trimmedQuery, {
-        //   type: 'websearch',
-        //   config: 'english'
-        // });
-
-        // Original .or() logic commented out:
-        // const filterString = `content.fts.${trimmedQuery},tags.cs.${JSON.stringify(trimmedQuery)}`;
-        // supabaseQuery = supabaseQuery.or(filterString);
       } 
       // Apply tag filter only if tag exists AND search query is empty
       else if (tag) {
