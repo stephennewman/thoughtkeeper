@@ -95,7 +95,7 @@ export function JournalEntry({
 
       <div className="space-y-4">
         {selectedEntries.map((entry) => (
-          <div key={entry.id} className="border bg-card text-card-foreground shadow-sm rounded-lg p-4">
+          <div key={entry.id} className="border bg-card text-card-foreground shadow-sm rounded-lg p-4 group">
             {editingEntryId === entry.id ? (
               <div className="space-y-4">
                 <RichTextEditor
@@ -153,7 +153,7 @@ export function JournalEntry({
                         {format(parseISO(entry.created_at), 'p')}
                       </p>
                     )}
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <Button
                         variant="ghost"
                         size="sm"
