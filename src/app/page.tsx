@@ -80,24 +80,33 @@ export default function Home() {
         .order('date', { ascending: false })
         .order('created_at', { ascending: false });
 
-      // Apply text search filter if query exists
-      if (query.trim()) {
+      const trimmedQuery = query.trim();
+
+      // Apply text search OR tag filter if query exists
+      if (trimmedQuery) {
         // Ensure tag filter is cleared if searching
         tag = null; 
-        supabaseQuery = supabaseQuery.textSearch('content', query, {
-          type: 'websearch',
-          config: 'english'
-        });
+        // Construct the .or() condition
+        // Search in content using FTS OR check if tags array contains the query string
+        supabaseQuery = supabaseQuery.or(
+          `content.fts.${trimmedQuery}`, // Search content using full-text search index
+          `tags.cs.${JSON.stringify(trimmedQuery)}` // Check if tags array contains the query string
+        );
       } 
-      // Apply tag filter if tag exists (and search query is empty)
+      // Apply tag filter only if tag exists AND search query is empty
       else if (tag) {
-        // Use contains operator, ensuring the tag is treated as a JSON string element
         supabaseQuery = supabaseQuery.contains('tags', JSON.stringify(tag));
       }
 
       const { data, error } = await supabaseQuery;
 
       if (error) {
+        // Special handling for FTS syntax error if index isn't ready/configured
+        if (error.message.includes('syntax error in tsquery')) {
+          console.warn('Full-text search might not be configured properly on `content` column.');
+          // Fallback: Maybe search only tags or show a different error?
+          // For now, just rethrow or clear results
+        }
         throw error;
       }
       setEntries((data as Entry[]) || []);
