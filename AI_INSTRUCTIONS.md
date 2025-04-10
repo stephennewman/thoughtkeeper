@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.0
+**Document Version:** 2.1
 **Date:** 2024-06-09
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
@@ -21,26 +21,28 @@
 *   Code Storage: GitHub
 
 **Core Features Implemented:**
+*   **Layout:** Three-column layout on large screens (Sidebar Navigation, Main Content, Static Analysis).
 *   Date-based journal entry creation, viewing, editing, and deletion via **Dialog Modal**.
 *   Multiple entries allowed per day.
 *   Basic sidebar navigation showing dates with entries (sorted chronologically).
 *   Data persistence using **Supabase** database.
 *   Dual Tagging System:
-    *   **Meta Tags:** Topic/life domain (e.g., Work, Health), auto-generated, stored in `meta_tag` (case preserved).
+    *   **Meta Tags:** Topic/life domain (e.g., Work, Health), auto-generated, stored in `meta_tag` (case preserved, rendered uppercase).
     *   **Intent Tags:** Entry purpose (e.g., Action Item, Log), auto-generated, stored in `intent_tag` (case preserved).
     *   **Content Tags:** Keyword tags based on content, auto-generated, stored **lowercase** in `tags` (jsonb array).
-*   Full-Text Search (FTS) across `content`, `meta_tag`, `intent_tag`, and content `tags` using a `tsvector` column (`search_vector`) and Supabase `textSearch`.
+*   Full-Text Search (FTS) across `content`, `meta_tag`, `intent_tag`, and content `tags`.
 *   Conditional tag display & filtering based on frequency (case-insensitive counting).
 *   **Unique color highlighting** for frequently occurring tags within each type (Meta, Intent, Content).
-*   Filter state displayed as dismissible badge.
-*   Integrated Header (Title, FTS Search Input, **Add Entry Button**).
+*   **Main Content Controls:** Top row includes active filter display, search input, and "+ Add Entry" button.
+*   Integrated Header (Title only).
 *   Rich Text Editor (TipTap) used within the entry editor dialog (for both Add and Edit).
 *   Entry list display using styled cards with:
-    *   Subtle hover effect.
+    *   Subtle hover effect, standard border.
     *   "More Options" (ellipsis) menu for Edit/Delete actions.
     *   Metadata footer (Time, Tags).
     *   **Loading indicator** on new entries while tags are generated.
-*   Basic mobile responsiveness (collapsible sidebar via Sheet).
+*   Basic mobile responsiveness (collapsible sidebar via Sheet, analysis column hidden).
+*   **Static Analysis Column:** Displays placeholder content (Total Entries).
 
 **AI Features Implemented / Status:**
 *   **Meta Tag Classification:** API route (`/api/classify-meta`) exists. Generated on *new* entry save and stored.
@@ -65,26 +67,28 @@
 *   **Dependency Security:** Updated `next` to patch critical vulns. Using `npm ci` in builds. Dependabot alerts enabled on GitHub repo.
 *   **Tag Interaction:** Meta/Intent/Content tags rendered distinctly. Tags appearing >1 time highlighted with unique, persistent colors per tag value *within* each type (based on case-insensitive count). Clicking filters entries. Search clears tag filters and vice-versa.
 *   **Tag Storage:** Meta/Intent tags stored with original casing. Content tags stored as **lowercase**.
-*   **UI Layout:** Integrated header with Add(+) button. Collapsible sidebar structure for mobile. Styled cards for entries. CSS overrides for RTE spacing.
+*   **UI Layout:** **Three-column layout** (Sidebar, Content, Analysis). Integrated header simplified (Title only). **Content controls (Filter status, Search, Add Button) moved to top of content column.**
 *   **Rich Text Editor (RTE):** Implemented using TipTap `StarterKit` within a shared **`EntryEditorDialog`** component for both adding and editing entries.
 *   **Search:** PostgreSQL FTS (`tsvector`) across multiple fields.
 *   **Entry Card Interactions:** Edit/Delete actions in DropdownMenu. Edit now opens the `EntryEditorDialog`.
 *   **Filtering UX:** Active tag filter displayed as dismissible badge.
-*   **Entry Input UX:** Moved from always-visible input to a **Header Button (`+`) triggering a Dialog Modal** for better mobile UX and cleaner main view.
+*   **Entry Input UX:** Moved to "+ Add Entry" button in content column.
 
 ## 3. Future Development Considerations & Improvements (Internal Risk/Value Priority)
 
 1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for security & multi-user.
-2.  **Complete Rich Text Editing:** Ensure formatting is preserved correctly when *saving edits* (currently uses basic HTML save).
-3.  **Refine AI Features:** Integrate summary saving, consider tag re-generation on edit, optimize costs.
-4.  **Improve Mobile Responsiveness:** Polish header/content layout, test across sizes.
-5.  **Robust Error Handling:** Improve user feedback, especially for API errors.
-6.  **Develop Journal Analytics.**
-7.  **Tag Management Interface.**
-8.  **Export Entries.**
-9.  **Security Hardening (CSP).**
-10. **Offline Strategy.**
-11. **State Management.**
+2.  **Populate Static Analysis Column:** Implement meaningful analysis (tag clouds, trends, etc.).
+3.  **Complete Rich Text Editing:** Ensure formatting preservation on edit save.
+4.  **Refine AI Features:** Integrate summary saving, consider tag re-gen on edit, optimize costs.
+5.  **Improve Mobile Responsiveness:** Thorough testing, potential specific layouts.
+6.  **Robust Error Handling:** User feedback, API errors.
+7.  **Sidebar Navigation:** Implement calendar or date list for navigation.
+8.  **Develop Journal Analytics.**
+9.  **Tag Management Interface.**
+10. **Export Entries.**
+11. **Security Hardening (CSP).**
+12. **Offline Strategy.**
+13. **State Management.**
 
 ## 4. Critical Information & Risks (Internal Focus - Notify User if Score >= 70)
 
@@ -92,7 +96,7 @@
 *   **AI Feature Dependency & Cost (Score: ~60/100):** Slightly reduced as tag gen only happens on new saves now.
 *   **Runaway API Cost Vulnerability (Score: ~50/100):** Risk remains but slightly lower frequency.
 *   **Error Handling Gaps (Score: ~40/100):** No major change.
-*   **Responsiveness Gaps (Score: ~35/100):** Editor now in dialog, potentially better but needs testing.
+*   **Responsiveness Gaps (Score: ~35/100):** Added 3rd column, needs mobile testing.
 *   **`OPENAI_API_KEY` / Supabase Keys Security:** Keys MUST be kept secure. Rotate periodically.
 *   **Supply Chain Attacks:** Risk reduced but present. Monitor Dependabot alerts.
 *   **XSS Risk:** Low currently. Avoid `dangerouslySetInnerHTML`.

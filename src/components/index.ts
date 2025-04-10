@@ -5,4 +5,5 @@ import { Textarea } from './ui/textarea';
 
 export { JournalSidebar, JournalEntry, Button, Textarea };
 export * from './Toolbar';
-export * from './EntryEditorDialog'; 
+export * from './EntryEditorDialog';
+export * from './StaticAnalysisColumn'; 

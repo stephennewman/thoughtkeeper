@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, parseISO, startOfDay } from 'date-fns';
-import { JournalSidebar, JournalEntry, EntryEditorDialog } from '@/components';
+import { JournalSidebar, JournalEntry, EntryEditorDialog, StaticAnalysisColumn } from '@/components';
 import { Header } from '@/components/Header';
 import * as React from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import debounce from 'lodash.debounce';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Plus } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 // Define a type matching the Supabase table structure
 // Assuming tags will be stored as string[] in jsonb
@@ -218,6 +220,7 @@ export default function Home() {
 
   // Update handleTagClick to accept tag type
   const handleTagClick = useCallback((tag: string, type: TagType) => {
+    console.log(`[Debug] handleTagClick received: tag='${tag}', type='${type}'`);
     setSearchQuery(''); // Clear search
     // Clear other tag filters and set the new one
     setFilterMetaTag(type === 'meta' ? tag : null);
@@ -374,28 +377,23 @@ export default function Home() {
     }
   }, [generatingTagsForId]);
 
+  // Log the specific state *and* the derived value
+  console.log('[Debug] filterMetaTag state:', filterMetaTag); 
+  console.log('[Debug] Active Filter Value:', activeFilterValue);
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header 
-        searchQuery={searchQuery} 
-        onSearchChange={(query) => {
-          handleClearFilters(); 
-          setSearchQuery(query);
-        }}
         entries={entries}
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         macroSummary={macroSummary}
         isGeneratingMacroSummary={isGeneratingMacroSummary}
         onGenerateMacroSummary={handleGenerateMacroSummary}
-        onEntryAdded={handleEntryAdded}
-        onEntryTagsUpdated={handleEntryTagsUpdated}
-        generatingTagsForId={generatingTagsForId}
-        onAddClick={handleAddClick}
       />
       <main className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Hidden on smaller than lg screens */}
-        <div className="hidden lg:block">
+        {/* Sidebar - Hidden on smaller than lg screens, add right border */}
+        <div className="hidden lg:block border-r">
           <JournalSidebar
             entries={entries}
             selectedDate={selectedDate}
@@ -405,35 +403,59 @@ export default function Home() {
             onGenerateMacroSummary={handleGenerateMacroSummary}
           />
         </div>
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
-          {/* Filter/Loader/Error Area */}
-          <div className="flex flex-col gap-2 flex-shrink-0 h-8"> {/* Use fixed height */}
-              {/* Display Active Filter as a dismissible Badge */}
-              {activeFilterValue && (
-                <Badge variant="secondary" className="inline-flex items-center gap-1 w-fit">
-                  {activeFilterValue} {/* Display only the tag value */}
-                  <button 
-                    onClick={handleClearFilters} 
-                    className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    aria-label="Clear filter"
-                   >
-                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                  </button>
-                </Badge>
-              )}
-              {/* Error Message (only show if no filter active?) */}
-              {!activeFilterValue && errorLoadingEntries && 
-                  <p className="text-red-600 text-sm">Error: {errorLoadingEntries}</p>
-              }
-              {/* Initial Loader Placeholder */}
-               {isInitialLoading && !activeFilterValue && !errorLoadingEntries && (
-                   <div className="flex items-center justify-start h-8"> 
-                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                   </div>
-               )}
+        {/* Main Content Area - Use equal horizontal padding */}
+        <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2"> {/* Reverted back to p-4 */}
+          {/* Combined Controls Row - Adjust spacing */} 
+          {/* Use gap-4 between main sections, items-center for vertical alignment */} 
+          <div className="flex justify-between items-center mb-2 flex-shrink-0 gap-4"> 
+              {/* Left side: Filter/Status Indicators */}
+              <div className="flex items-center gap-2 h-8 flex-shrink-0">
+                {/* Display Active Filter as a dismissible Badge */}
+                {activeFilterValue && (
+                  <Badge variant="secondary" className="inline-flex items-center gap-1 w-fit">
+                    {activeFilterValue} 
+                    <button 
+                      onClick={handleClearFilters} 
+                      className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      aria-label="Clear filter"
+                     >
+                      <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                    </button>
+                  </Badge>
+                )}
+                {/* Error Message */}
+                {!activeFilterValue && errorLoadingEntries && 
+                    <p className="text-red-600 text-sm">Error: {errorLoadingEntries}</p>
+                }
+                {/* Initial Loader Placeholder */}
+                 {isInitialLoading && !activeFilterValue && !errorLoadingEntries && (
+                     <div className="flex items-center justify-start h-8"> 
+                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                     </div>
+                 )}
+              </div>
+
+             {/* Right side: Search Input and Add Button - Use gap-2 within this group */}
+             <div className="flex items-center gap-2"> 
+                 <Input
+                    type="search"
+                    placeholder="Search entries..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full max-w-xs"
+                  />
+                 <Button 
+                    onClick={handleAddClick} 
+                    size="sm" 
+                    className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity flex-shrink-0"
+                 > 
+                    <Plus className="mr-2 h-4 w-4" /> Add Entry
+                 </Button>
+             </div>
           </div>
-          <div className="flex-grow overflow-y-auto pr-2">
+
+          {/* Entries List - No horizontal padding needed here */}
+          <div className="flex-grow overflow-y-auto"> {/* Ensure no pr- or px- */} 
             {isInitialLoading && (
                 <div className="flex justify-center items-center p-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -460,6 +482,10 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* Right Analysis Column */} 
+        <StaticAnalysisColumn entries={entries} /> 
+
       </main>
       {/* Render the Dialog */}
       <EntryEditorDialog 

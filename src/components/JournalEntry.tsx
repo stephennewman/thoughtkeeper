@@ -67,49 +67,35 @@ export function JournalEntry({
     }
   };
 
-  // Helper function to get tag classes
   const getTagClasses = (tag: string, type: TagType): string => {
       const lowerTag = tag.toLowerCase();
       const count = tagCounts[lowerTag] || 0;
       const isHighlighted = count > 1;
       const assignedColor = highlightedTagColors[lowerTag];
-      const canClick = !!onTagClick; // Clickable if handler exists
+      const canClick = !!onTagClick; 
 
       if (isHighlighted && assignedColor && canClick) {
-          // Use assigned unique highlight color
           return clsx(assignedColor.base, assignedColor.hover, 'transition-colors');
       } else if (isHighlighted && canClick) {
-          // Fallback highlight color (bright yellow)
           return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:hover:bg-yellow-800/70 transition-colors';
       } else {
-          // Default muted style for non-highlighted tags
           return 'bg-muted text-muted-foreground opacity-75 cursor-default';
       }
   };
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-semibold">
-          {format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')}
-        </h2>
-        {selectedEntries.length > 0 && (
-          <p className="text-gray-500">{selectedEntries.length} {selectedEntries.length === 1 ? 'entry' : 'entries'} for this date</p>
-        )}
-      </div>
-
       <div className="space-y-4">
         {selectedEntries.map((entry) => {
           const isGenerating = generatingTagsForId === entry.id;
-          const hasMetaTag = !!entry.meta_tag;
-          
+
           return (
             <div 
               key={entry.id} 
               className={clsx(
                 "border rounded-lg p-4 group transition-colors", 
                 "hover:bg-accent/70 dark:hover:bg-accent/50",
-                hasMetaTag ? "border-purple-400 dark:border-purple-600 bg-purple-50/30 dark:bg-purple-900/10" : "bg-background text-card-foreground border-border/60"
+                 "bg-background text-card-foreground border-border/60"
               )}
               style={{ cursor: 'default' }}
             >
@@ -128,10 +114,14 @@ export function JournalEntry({
                         return (
                           <TagComponent
                             key={`meta-${entry.meta_tag}`}
-                            onClick={isClickable ? (e) => { e.stopPropagation(); onTagClick!(entry.meta_tag!, 'meta'); } : undefined}
+                            onClick={isClickable ? (e) => { 
+                              e.stopPropagation(); 
+                              console.log('[Debug JournalEntry] Clicking Meta Tag:', entry.meta_tag);
+                              onTagClick!(entry.meta_tag!, 'meta'); 
+                            } : undefined}
                             className={clsx(
                               "px-1.5 py-0.5 rounded text-xs font-medium uppercase", 
-                              getTagClasses(entry.meta_tag, 'meta')
+                              getTagClasses(entry.meta_tag, 'meta') 
                             )}
                             disabled={!isClickable}
                           >
@@ -141,16 +131,16 @@ export function JournalEntry({
                       })()}
 
                       {entry.intent_tag && (() => {
-                        const lowerTag = entry.intent_tag.toLowerCase();
-                        const isClickable = (tagCounts[lowerTag] || 0) > 1 && !!onTagClick;
-                        const TagComponent = isClickable ? 'button' : 'span';
+                         const lowerTag = entry.intent_tag.toLowerCase();
+                         const isClickable = (tagCounts[lowerTag] || 0) > 1 && !!onTagClick;
+                         const TagComponent = isClickable ? 'button' : 'span';
                         return (
                            <TagComponent
                             key={`intent-${entry.intent_tag}`}
                             onClick={isClickable ? (e) => { e.stopPropagation(); onTagClick!(entry.intent_tag!, 'intent'); } : undefined}
                             className={clsx(
                               "px-1.5 py-0.5 rounded text-xs font-medium", 
-                              getTagClasses(entry.intent_tag, 'intent')
+                              getTagClasses(entry.intent_tag, 'intent') 
                             )}
                             disabled={!isClickable}
                           >
@@ -170,14 +160,13 @@ export function JournalEntry({
                             entry.tags.map((tag) => {
                               const isClickable = (tagCounts[tag] || 0) > 1 && !!onTagClick;
                               const TagComponent = isClickable ? 'button' : 'span';
-                              
                               return (
                                 <TagComponent
                                   key={tag}
                                   onClick={isClickable ? (e) => { e.stopPropagation(); onTagClick!(tag, 'content'); } : undefined}
                                   className={clsx(
-                                    "px-1.5 py-0.5 rounded text-xs", 
-                                    getTagClasses(tag, 'content')
+                                    "px-1.5 py-0.5 rounded text-xs font-medium", 
+                                    getTagClasses(tag, 'content') 
                                   )}
                                   disabled={!isClickable}
                                 >
