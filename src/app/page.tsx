@@ -80,8 +80,8 @@ export default function Home() {
       } 
       // Apply tag filter if tag exists (and search query is empty)
       else if (tag) {
-        // Use contains operator for jsonb array
-        supabaseQuery = supabaseQuery.contains('tags', [tag]);
+        // Use overlaps operator for jsonb array as a test
+        supabaseQuery = supabaseQuery.overlaps('tags', [tag]);
       }
 
       const { data, error } = await supabaseQuery;
