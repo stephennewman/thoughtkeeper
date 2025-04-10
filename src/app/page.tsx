@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { JournalSidebar, JournalEntry } from '@/components';
+import { Input } from '@/components/ui/input';
 import * as React from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import debounce from 'lodash.debounce';
 
 // Define a type matching the Supabase table structure
 // Assuming tags will be stored as string[] in jsonb
@@ -44,38 +46,58 @@ export default function Home() {
   const [isGeneratingMacroSummary, setIsGeneratingMacroSummary] = useState<boolean>(false);
   const [isSavingEntry, setIsSavingEntry] = useState<boolean>(false);
   const [generatingTagsForId, setGeneratingTagsForId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch entries from Supabase
-  const fetchEntries = useCallback(async () => {
+  // Fetch entries from Supabase, now including search
+  const fetchEntries = useCallback(async (query: string) => {
     setIsLoadingEntries(true);
     setErrorLoadingEntries(null);
     try {
-      // Fetch all entries for now, ordered by date then creation time
-      // Later, you might filter by date range for performance
-      const { data, error } = await supabase
+      let supabaseQuery = supabase
         .from('entries')
         .select('*')
         .order('date', { ascending: false })
         .order('created_at', { ascending: false });
 
+      // Apply text search filter if query exists
+      if (query.trim()) {
+        // Use Supabase full-text search (fts)
+        // Assumes you might want to search content primarily
+        // For multi-column search, or tsvector setup, see Supabase docs
+        supabaseQuery = supabaseQuery.textSearch('content', query, {
+          type: 'websearch', // 'websearch' is good for user queries
+          config: 'english'
+        });
+      }
+
+      const { data, error } = await supabaseQuery;
+
       if (error) {
         throw error;
       }
-      // Ensure data conforms to Entry type (adjust if Supabase returns different structure)
       setEntries((data as Entry[]) || []);
     } catch (error: any) {
       console.error('Error loading entries:', error);
       setErrorLoadingEntries(`Failed to load entries: ${error.message}`);
-      setEntries([]); // Clear entries on error
+      setEntries([]);
     } finally {
       setIsLoadingEntries(false);
     }
   }, []);
 
-  // Load entries on initial mount
-  useEffect(() => {
-    fetchEntries();
+  // Debounced version of fetchEntries
+  const debouncedFetchEntries = useMemo(() => {
+    return debounce(fetchEntries, 300); // 300ms delay
   }, [fetchEntries]);
+
+  // Effect to trigger debounced search when searchQuery changes
+  useEffect(() => {
+    debouncedFetchEntries(searchQuery);
+    // Cleanup function to cancel debounced call if component unmounts or query changes quickly
+    return () => {
+      debouncedFetchEntries.cancel();
+    };
+  }, [searchQuery, debouncedFetchEntries]);
 
   // Update currentContent when selectedDate changes
   useEffect(() => {
@@ -274,30 +296,46 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen">
-      {/* TODO: Pass loading/error states to Sidebar if needed */}
       <JournalSidebar
         entries={entries}
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         macroSummary={macroSummary ?? undefined}
         isGeneratingMacroSummary={isGeneratingMacroSummary}
-        onGenerateMacroSummary={handleGenerateMacroSummary} // Assuming sidebar has button
+        onGenerateMacroSummary={handleGenerateMacroSummary}
       />
-      <div className="flex-1">
-        {isLoadingEntries && <p className="p-4">Loading entries...</p>}
-        {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}
-        {!isLoadingEntries && !errorLoadingEntries && (
-          <JournalEntry
-            selectedDate={selectedDate}
-            content={currentContent}
-            onSave={handleSave}
-            entries={entries} // Pass all entries for now, JournalEntry filters by date
-            onUpdateEntry={handleUpdateEntry}
-            onDeleteEntry={handleDeleteEntry}
-            isSavingEntry={isSavingEntry}
-            generatingTagsForId={generatingTagsForId}
+      <div className="flex-1 flex flex-col p-4 gap-4">
+        <div>
+          <Input
+            type="search"
+            placeholder="Search entries..."
+            value={searchQuery}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+            className="w-full md:w-1/2 lg:w-1/3"
           />
-        )}
+        </div>
+        <div className="flex-grow overflow-y-auto">
+          {isLoadingEntries && <p className="p-4 text-center">Loading entries...</p>}
+          {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}
+          {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && searchQuery && (
+            <p className="p-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
+          )}
+          {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && !searchQuery && (
+            <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
+          )}
+          {!isLoadingEntries && !errorLoadingEntries && entries.length > 0 && (
+            <JournalEntry
+              selectedDate={selectedDate}
+              content={currentContent}
+              onSave={handleSave}
+              entries={entries}
+              onUpdateEntry={handleUpdateEntry}
+              onDeleteEntry={handleDeleteEntry}
+              isSavingEntry={isSavingEntry}
+              generatingTagsForId={generatingTagsForId}
+            />
+          )}
+        </div>
       </div>
     </main>
   );
