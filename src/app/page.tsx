@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import debounce from 'lodash.debounce';
 import { Button } from '@/components/ui/button';
 import { X, Loader2 } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
 
 // Define a type matching the Supabase table structure
 // Assuming tags will be stored as string[] in jsonb
@@ -84,6 +85,11 @@ export default function Home() {
     });
     return counts;
   }, [entries]);
+
+  // Calculate active filter (for cleaner rendering)
+  const activeFilterValue = useMemo(() => {
+      return filterMetaTag || filterIntentTag || filterContentTag;
+  }, [filterMetaTag, filterIntentTag, filterContentTag]);
 
   // Fetch entries - Using tsvector column for search
   const fetchEntries = useCallback(async (query: string, metaTag: string | null, intentTag: string | null, contentTag: string | null) => {
@@ -432,21 +438,32 @@ export default function Home() {
         </div>
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
-          {/* Update Clear Filter UI */}
-          {(filterMetaTag || filterIntentTag || filterContentTag) && (
-            <div className="flex-shrink-0">
-              <Button variant="secondary" size="sm" onClick={handleClearFilters}>
-                Filtering by: 
-                {filterMetaTag && ` [Meta: ${filterMetaTag}]`}
-                {filterIntentTag && ` [Intent: ${filterIntentTag}]`}
-                {filterContentTag && ` [Tag: ${filterContentTag}]`}
-                <X className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          )}
-          {errorLoadingEntries && 
-              <p className="text-red-600 text-sm flex-shrink-0">Error: {errorLoadingEntries}</p>
-          }
+          {/* Filter/Loader/Error Area */}
+          <div className="flex flex-col gap-2 flex-shrink-0 h-8"> {/* Use fixed height */}
+              {/* Display Active Filter as a dismissible Badge */}
+              {activeFilterValue && (
+                <Badge variant="secondary" className="inline-flex items-center gap-1 w-fit">
+                  {activeFilterValue} {/* Display only the tag value */}
+                  <button 
+                    onClick={handleClearFilters} 
+                    className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    aria-label="Clear filter"
+                   >
+                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                  </button>
+                </Badge>
+              )}
+              {/* Error Message (only show if no filter active?) */}
+              {!activeFilterValue && errorLoadingEntries && 
+                  <p className="text-red-600 text-sm">Error: {errorLoadingEntries}</p>
+              }
+              {/* Initial Loader Placeholder */}
+               {isInitialLoading && !activeFilterValue && !errorLoadingEntries && (
+                   <div className="flex items-center justify-start h-8"> 
+                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                   </div>
+               )}
+          </div>
           <div className="flex-grow overflow-y-auto pr-2">
             {isInitialLoading && (
                 <div className="flex justify-center items-center p-8">

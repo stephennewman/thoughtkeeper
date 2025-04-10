@@ -2,7 +2,14 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "./RichTextEditor";
 import { format, parseISO } from 'date-fns';
-import { Pencil, Save, X, Trash2, Loader2 } from 'lucide-react';
+import { Pencil, Save, X, Trash2, Loader2, MoreVertical } from 'lucide-react';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 import clsx from 'clsx';
 
 // Define Entry type based on Supabase structure
@@ -117,13 +124,10 @@ export function JournalEntry({
               key={entry.id} 
               className={clsx(
                 "border rounded-lg p-4 group transition-colors", 
-                // Keep existing hover style for non-editing
                 editingEntryId !== entry.id ? "hover:bg-accent/70 dark:hover:bg-accent/50" : "",
-                // Base style - highlight if it has a meta tag?
                 hasMetaTag ? "border-purple-400 dark:border-purple-600 bg-purple-50/30 dark:bg-purple-900/10" : "bg-background text-card-foreground border-border/60"
               )}
-              onClick={editingEntryId !== entry.id ? () => handleStartEdit(entry) : undefined}
-              style={{ cursor: editingEntryId !== entry.id ? 'pointer' : 'default' }}
+              style={{ cursor: 'default' }}
             >
               {editingEntryId === entry.id ? (
                 <div className="space-y-4">
@@ -241,37 +245,38 @@ export function JournalEntry({
                       </div>
                     </div>
                     <div className="flex items-center gap-3 order-2 flex-shrink-0">
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartEdit(entry);
-                          }}
-                          className="h-7 w-7 p-1"
-                          aria-label="Edit"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(entry.id);
-                          }}
-                          className="h-7 w-7 p-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          aria-label="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
                       {entry.created_at && (
                         <p className="text-xs text-muted-foreground">
                           {format(parseISO(entry.created_at), 'p')}
                         </p>
                       )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 data-[state=open]:bg-muted"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">More options</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem 
+                            onSelect={() => handleStartEdit(entry)} 
+                          >
+                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            onSelect={() => handleDelete(entry.id)}
+                          >
+                             <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </>
