@@ -377,44 +377,47 @@ export default function Home() {
           onGenerateMacroSummary={handleGenerateMacroSummary}
         />
         <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
-          {filterTag && (
-            <div className="flex-shrink-0">
-              <Button variant="secondary" size="sm" onClick={handleClearFilter}>
-                Filtering by: "{filterTag}"
-                <X className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          )}
-          <div className="flex-grow overflow-y-auto">
-            {isLoadingEntries && (
-                <div className="flex justify-center items-center p-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex flex-col gap-2 flex-shrink-0">
+              {filterTag && (
+                <div>
+                  <Button variant="secondary" size="sm" onClick={handleClearFilter}>
+                    Filtering by: "{filterTag}"
+                    <X className="h-4 w-4 ml-2" />
+                  </Button>
                 </div>
-            )}
-            {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}
-            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && !searchQuery && !filterTag && (
-              <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
-            )}
-            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && searchQuery && !filterTag && (
-              <p className="p-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
-            )}
-            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && filterTag && (
-              <p className="p-4 text-center text-gray-500">No entries found tagged with "{filterTag}".</p>
-            )}
-            {!isLoadingEntries && !errorLoadingEntries && entries.length > 0 && (
-              <JournalEntry
-                selectedDate={selectedDate}
-                content={currentContent.html}
-                onChange={setCurrentContent}
-                onSave={handleSave}
-                entries={entries}
-                onUpdateEntry={handleUpdateEntry}
-                onDeleteEntry={handleDeleteEntry}
-                isSavingEntry={isSavingEntry}
-                generatingTagsForId={generatingTagsForId}
-                onTagClick={handleTagClick}
-                tagCounts={tagCounts}
-              />
+              )}
+              {isLoadingEntries && (
+                  <div className="flex items-center justify-center h-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+              )}
+              {errorLoadingEntries && 
+                  <p className="text-red-600 text-sm">Error: {errorLoadingEntries}</p>
+              }
+          </div>
+          <div className="flex-grow overflow-y-auto">
+            {!errorLoadingEntries && (
+                entries.length === 0 && !searchQuery && !filterTag ? (
+                    <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
+                ) : entries.length === 0 && searchQuery && !filterTag ? (
+                    <p className="p-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
+                ) : entries.length === 0 && filterTag ? (
+                    <p className="p-4 text-center text-gray-500">No entries found tagged with "{filterTag}".</p>
+                ) : (
+                    <JournalEntry
+                        selectedDate={selectedDate}
+                        content={currentContent.html}
+                        onChange={setCurrentContent}
+                        onSave={handleSave}
+                        entries={entries}
+                        onUpdateEntry={handleUpdateEntry}
+                        onDeleteEntry={handleDeleteEntry}
+                        isSavingEntry={isSavingEntry}
+                        generatingTagsForId={generatingTagsForId}
+                        onTagClick={handleTagClick}
+                        tagCounts={tagCounts}
+                    />
+                )
             )}
           </div>
         </div>
