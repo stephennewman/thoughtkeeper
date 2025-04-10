@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "./RichTextEditor";
 import { format, parseISO } from 'date-fns';
 import { Pencil, Save, X, Trash2, Loader2 } from 'lucide-react';
+import clsx from 'clsx';
 
 // Type definition from page.tsx (or move to a shared types file)
 interface EditorState {
@@ -94,91 +95,100 @@ export function JournalEntry({
       </div>
 
       <div className="space-y-4">
-        {selectedEntries.map((entry) => (
-          <div key={entry.id} className="border bg-card text-card-foreground shadow-sm rounded-lg p-4 group">
-            {editingEntryId === entry.id ? (
-              <div className="space-y-4">
-                <RichTextEditor
-                  content={editEntryContent}
-                  onChange={(state) => setEditEntryContent(state.html)}
-                />
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => handleSaveEdit(entry.id)}
-                    className="flex items-center gap-2"
-                    disabled={!editEntryContent.trim()}
-                  >
-                    <Save className="h-4 w-4" />
-                    Save Changes
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={handleCancelEdit}
-                    className="flex items-center gap-2"
-                  >
-                    <X className="h-4 w-4" />
-                    Cancel
-                  </Button>
+        {selectedEntries.map((entry) => {
+          const hasMultipleTags = entry.tags && entry.tags.length > 1;
+          return (
+            <div 
+              key={entry.id} 
+              className={clsx(
+                "border shadow-sm rounded-lg p-4 group",
+                hasMultipleTags ? "border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-900/10" : "bg-card text-card-foreground"
+              )}
+            >
+              {editingEntryId === entry.id ? (
+                <div className="space-y-4">
+                  <RichTextEditor
+                    content={editEntryContent}
+                    onChange={(state) => setEditEntryContent(state.html)}
+                  />
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => handleSaveEdit(entry.id)}
+                      className="flex items-center gap-2"
+                      disabled={!editEntryContent.trim()}
+                    >
+                      <Save className="h-4 w-4" />
+                      Save Changes
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={handleCancelEdit}
+                      className="flex items-center gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <>
-                <div
-                  className="prose dark:prose-invert prose-sm max-w-none mb-4"
-                  dangerouslySetInnerHTML={{ __html: entry.content }}
-                />
+              ) : (
+                <>
+                  <div
+                    className="prose dark:prose-invert prose-sm max-w-none mb-4"
+                    dangerouslySetInnerHTML={{ __html: entry.content }}
+                  />
 
-                <div className="mt-3 pt-3 border-t flex flex-wrap justify-between items-center gap-x-4 gap-y-2">
-                  <div className="flex-grow min-w-0 order-1">
-                    {generatingTagsForId === entry.id ? (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Generating tags...
-                      </div>
-                    ) : (
-                      entry.tags && entry.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {entry.tags.map((tag, index) => (
-                            <span key={index} className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs">
-                              {tag}
-                            </span>
-                          ))}
+                  <div className="mt-3 pt-3 border-t flex flex-wrap justify-between items-center gap-x-4 gap-y-2">
+                    <div className="flex-grow min-w-0 order-1">
+                      {generatingTagsForId === entry.id ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Generating tags...
                         </div>
-                      )
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 order-2 flex-shrink-0">
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStartEdit(entry)}
-                        className="h-7 w-7 p-1"
-                        aria-label="Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(entry.id)}
-                        className="h-7 w-7 p-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      ) : (
+                        entry.tags && entry.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {entry.tags.map((tag, index) => (
+                              <span key={index} className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )
+                      )}
                     </div>
-                    {entry.created_at && (
-                      <p className="text-xs text-muted-foreground">
-                        {format(parseISO(entry.created_at), 'p')}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-3 order-2 flex-shrink-0">
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleStartEdit(entry)}
+                          className="h-7 w-7 p-1"
+                          aria-label="Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(entry.id)}
+                          className="h-7 w-7 p-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {entry.created_at && (
+                        <p className="text-xs text-muted-foreground">
+                          {format(parseISO(entry.created_at), 'p')}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
