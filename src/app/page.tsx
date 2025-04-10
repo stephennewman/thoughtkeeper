@@ -8,6 +8,8 @@ import { Header } from '@/components/Header';
 import * as React from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import debounce from 'lodash.debounce';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
 // Define a type matching the Supabase table structure
 // Assuming tags will be stored as string[] in jsonb
@@ -54,9 +56,10 @@ export default function Home() {
   const [isSavingEntry, setIsSavingEntry] = useState<boolean>(false);
   const [generatingTagsForId, setGeneratingTagsForId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterTag, setFilterTag] = useState<string | null>(null);
 
-  // Fetch entries from Supabase, now including search
-  const fetchEntries = useCallback(async (query: string) => {
+  // Fetch entries from Supabase, now including search and tag filters
+  const fetchEntries = useCallback(async (query: string, tag: string | null) => {
     setIsLoadingEntries(true);
     setErrorLoadingEntries(null);
     try {
@@ -68,13 +71,17 @@ export default function Home() {
 
       // Apply text search filter if query exists
       if (query.trim()) {
-        // Use Supabase full-text search (fts)
-        // Assumes you might want to search content primarily
-        // For multi-column search, or tsvector setup, see Supabase docs
+        // Ensure tag filter is cleared if searching
+        tag = null; 
         supabaseQuery = supabaseQuery.textSearch('content', query, {
-          type: 'websearch', // 'websearch' is good for user queries
+          type: 'websearch',
           config: 'english'
         });
+      } 
+      // Apply tag filter if tag exists (and search query is empty)
+      else if (tag) {
+        // Use contains operator for jsonb array
+        supabaseQuery = supabaseQuery.contains('tags', [tag]);
       }
 
       const { data, error } = await supabaseQuery;
@@ -99,12 +106,19 @@ export default function Home() {
 
   // Effect to trigger debounced search when searchQuery changes
   useEffect(() => {
-    debouncedFetchEntries(searchQuery);
+    debouncedFetchEntries(searchQuery, filterTag);
     // Cleanup function to cancel debounced call if component unmounts or query changes quickly
     return () => {
       debouncedFetchEntries.cancel();
     };
   }, [searchQuery, debouncedFetchEntries]);
+
+  // Effect to fetch entries when filterTag changes
+  useEffect(() => {
+    // Fetch immediately when filter tag changes (no debounce needed?)
+    // Pass both query and tag, let fetchEntries decide priority
+    fetchEntries(searchQuery, filterTag); 
+  }, [filterTag, fetchEntries]); // Add fetchEntries dependency
 
   // Update currentContent when selectedDate changes
   useEffect(() => {
@@ -302,11 +316,27 @@ export default function Home() {
     }
   };
 
+  // Handler for clicking a tag
+  const handleTagClick = useCallback((tag: string) => {
+    setSearchQuery(''); // Clear search query
+    setFilterTag(tag); // Set the filter tag
+    // The useEffect watching filterTag will trigger the fetch
+  }, []); // Empty dependency array ok, only uses setters
+
+  // Handler for clearing the tag filter
+  const handleClearFilter = useCallback(() => {
+    setFilterTag(null); // Clear the filter tag
+    // The useEffect watching filterTag will trigger the fetch
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header 
         searchQuery={searchQuery} 
-        onSearchChange={setSearchQuery} 
+        onSearchChange={(query) => {
+          setFilterTag(null); // Clear tag filter when searching
+          setSearchQuery(query);
+        }}
       />
       <main className="flex flex-1 overflow-hidden">
         <JournalSidebar
@@ -318,6 +348,15 @@ export default function Home() {
           onGenerateMacroSummary={handleGenerateMacroSummary}
         />
         <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
+          {/* Show Clear Filter button if a tag is active */}
+          {filterTag && (
+            <div className="flex-shrink-0">
+              <Button variant="secondary" size="sm" onClick={handleClearFilter}>
+                Filtering by: "{filterTag}"
+                <X className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          )}
           <div className="flex-grow overflow-y-auto">
             {isLoadingEntries && <p className="p-4 text-center">Loading entries...</p>}
             {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}
@@ -327,6 +366,9 @@ export default function Home() {
             {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && !searchQuery && (
               <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
             )}
+            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && filterTag && (
+                 <p className="p-4 text-center text-gray-500">No entries found tagged with "{filterTag}".</p>
+             )}
             {!isLoadingEntries && !errorLoadingEntries && entries.length > 0 && (
               <JournalEntry
                 selectedDate={selectedDate}
@@ -338,7 +380,7 @@ export default function Home() {
                 onDeleteEntry={handleDeleteEntry}
                 isSavingEntry={isSavingEntry}
                 generatingTagsForId={generatingTagsForId}
-                onTagClick={(tag) => console.log('Tag clicked:', tag)}
+                onTagClick={handleTagClick}
               />
             )}
           </div>
