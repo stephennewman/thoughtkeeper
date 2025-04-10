@@ -227,7 +227,7 @@ export default function Home() {
         entries={entries}
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
-        macroSummary={macroSummary}
+        macroSummary={macroSummary ?? undefined}
         isGeneratingMacroSummary={isGeneratingMacroSummary}
       />
       <div className="flex-1">
