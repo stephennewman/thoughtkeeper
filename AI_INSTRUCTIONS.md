@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 1.3
+**Document Version:** 1.4
 **Date:** 2024-06-08
 
 ## 1. Project Overview & Current State
@@ -23,6 +23,8 @@
 *   Multiple entries allowed per day.
 *   Basic sidebar navigation showing dates with entries (sorted chronologically).
 *   Data persistence using **Supabase** database (replaces previous `localStorage` implementation).
+*   Basic text search across entry content and tags.
+*   Conditional tag display: Tags appearing on multiple currently loaded entries are highlighted and clickable for filtering.
 
 **AI Features Implemented / Status:**
 *   **Automatic Tag Generation:** Backend API (`/api/tags`) exists. Frontend generates tags on save and updates the Supabase entry. Includes loading state.
@@ -42,17 +44,20 @@
 *   **Deployment (Netlify):** Using CI/CD from `main` branch with `npm ci`.
 *   **Security Headers (CSP):** Implemented via `next.config.js`. Includes Supabase URL. `unsafe-eval`/`unsafe-inline` still present.
 *   **Dependency Security:** Updated `next` to patch critical vulns. Using `npm ci` in builds. Dependabot alerts enabled on GitHub repo.
+*   **Tag Interaction:** Tags are displayed conditionally. Only tags appearing >1 time in the current result set are highlighted (blue) and clickable. Clicking filters entries by that tag using `supabase.contains()`. Search clears tag filters and vice-versa.
 
 ## 3. Future Development Considerations & Improvements (Internal Risk Priority)
 
-1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for multi-user support and proper data security. Highest internal security priority when multi-user is desired.
-2.  **Implement Search Functionality:** Add search capability. (Chosen as next functional step).
-3.  **Refine AI Features (Cost/UX/Completion):** Consider cost optimization (caching, settings), reliability improvements (error handling), and feature completion (integrate individual summary saving).
-4.  **Robust Error Handling:** Improve user feedback for Supabase and AI API operations.
+1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for multi-user support and proper data security.
+2.  **Refine AI Features (Cost/UX/Completion):** Integrate individual summary saving, consider cost optimization.
+3.  **Robust Error Handling:** Improve user feedback for Supabase and AI API operations.
+4.  **Implement Full-Text Search Properly:** Set up `tsvector` column and triggers in Supabase for more robust/performant search across content and tags (currently using `ilike` + `contains`).
 5.  **Develop Journal Analytics:** Build analytics features.
-6.  **Security Hardening (CSP):** Work towards removing `unsafe-eval`/`unsafe-inline` from CSP.
-7.  **Offline Strategy:** Define offline behavior.
-8.  **State Management:** Consider refactoring state management if complexity grows.
+6.  **Tag Management Interface:** Allow viewing all tags, editing/deleting tags on entries.
+7.  **Complete Rich Text Editing:** Refactor edit mode to fully support RTE.
+8.  **Security Hardening (CSP):** Work towards removing `unsafe-eval`/`unsafe-inline`.
+9.  **Offline Strategy:** Define offline behavior.
+10. **State Management:** Consider refactoring.
 
 ## 4. Critical Information & Risks (Internal Focus)
 
@@ -63,3 +68,4 @@
 *   **Supply Chain Attacks:** Risk reduced by patching `next`, using `npm ci`, and enabling Dependabot alerts. Continue monitoring alerts and vetting dependencies.
 *   **XSS Risk:** Low currently due to React defaults + CSP. Avoid `dangerouslySetInnerHTML`.
 *   **CSP Maintenance:** Update CSP if new external resources are added.
+*   **Search Performance/Accuracy:** Current search uses `ilike` + `contains`. Consider implementing proper FTS with `tsvector` for better performance and relevance, especially as data grows.
