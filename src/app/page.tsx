@@ -44,7 +44,6 @@ interface EditorState {
 
 export default function Home() {
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [isLoadingEntries, setIsLoadingEntries] = useState(true);
   const [errorLoadingEntries, setErrorLoadingEntries] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
@@ -57,6 +56,7 @@ export default function Home() {
   const [generatingTagsForId, setGeneratingTagsForId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Re-add tag frequency calculation
   const tagCounts = useMemo(() => {
@@ -71,7 +71,6 @@ export default function Home() {
 
   // Fetch entries - simplified to only handle search query
   const fetchEntries = useCallback(async (query: string, tag: string | null) => {
-    setIsLoadingEntries(true);
     setErrorLoadingEntries(null);
     try {
       let supabaseQuery = supabase
@@ -122,8 +121,6 @@ export default function Home() {
       console.error('Error loading entries:', error);
       setErrorLoadingEntries(`Failed to load entries: ${error.message}`);
       setEntries([]);
-    } finally {
-      setIsLoadingEntries(false);
     }
   }, []);
 
@@ -136,11 +133,19 @@ export default function Home() {
     return debouncedFn;
   }, [fetchEntries]);
 
-  // Load entries on initial mount
+  // Load entries on initial mount - Needs initial loading state handling
+  // Option 1: Add back setIsLoadingEntries just for initial load
+  // Option 2: Add a separate initialFetch function
+  // Let's try Option 1 for simplicity
   useEffect(() => {
-    fetchEntries('', null); // Pass empty query and null tag
+    const initialFetch = async () => {
+        setIsInitialLoading(true); // Use separate initial loading state
+        await fetchEntries('', null); 
+        setIsInitialLoading(false);
+    }
+    initialFetch();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, [fetchEntries]); // fetchEntries needed here
 
   // Effect for search query changes
   useEffect(() => {
@@ -377,7 +382,7 @@ export default function Home() {
           onGenerateMacroSummary={handleGenerateMacroSummary}
         />
         <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
-          <div className="flex flex-col gap-2 flex-shrink-0">
+          <div className="flex flex-col gap-2 flex-shrink-0 min-h-[2rem]">
               {filterTag && (
                 <div className="flex items-center">
                   <Button variant="secondary" size="sm" onClick={handleClearFilter}>
@@ -386,17 +391,17 @@ export default function Home() {
                   </Button>
                 </div>
               )}
-              {isLoadingEntries && (
-                  <div className="flex items-center justify-start h-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-              )}
               {errorLoadingEntries && 
                   <p className="text-red-600 text-sm">Error: {errorLoadingEntries}</p>
               }
           </div>
           <div className="flex-grow overflow-y-auto">
-            {!errorLoadingEntries && (
+            {isInitialLoading && (
+                <div className="flex justify-center items-center p-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+            )}
+            {!isInitialLoading && !errorLoadingEntries && (
                 entries.length === 0 && !searchQuery && !filterTag ? (
                     <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
                 ) : entries.length === 0 && searchQuery && !filterTag ? (
