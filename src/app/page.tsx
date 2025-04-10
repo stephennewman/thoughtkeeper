@@ -43,6 +43,7 @@ export default function Home() {
   const [macroSummary, setMacroSummary] = useState<MacroSummary | undefined>(undefined);
   const [isGeneratingMacroSummary, setIsGeneratingMacroSummary] = useState<boolean>(false);
   const [isSavingEntry, setIsSavingEntry] = useState<boolean>(false);
+  const [generatingTagsForId, setGeneratingTagsForId] = useState<string | null>(null);
 
   // Fetch entries from Supabase
   const fetchEntries = useCallback(async () => {
@@ -87,45 +88,86 @@ export default function Home() {
 
   const handleSave = async (content: string) => {
     const trimmedContent = content.trim();
-    if (!trimmedContent || isSavingEntry) return;
+    if (!trimmedContent || isSavingEntry || generatingTagsForId) return;
 
     setIsSavingEntry(true);
+    let newEntryId: string | null = null;
+
     try {
       // Insert minimal data first
       const newEntryData = {
         date: selectedDate,
         content: trimmedContent,
-        // tags: null, // Explicitly set optional fields if needed by RLS later
-        // summary: null
       };
 
-      const { data, error } = await supabase
+      const { data: insertedData, error: insertError } = await supabase
         .from('entries')
         .insert(newEntryData)
-        .select() // Select the newly created row
-        .single(); // Expecting a single row back
+        .select()
+        .single();
 
-      if (error) {
-        throw error;
+      if (insertError) {
+        throw insertError;
+      }
+      if (!insertedData) {
+        throw new Error("Failed to get inserted entry data.");
       }
 
-      // Add the new entry to the beginning of the local state
-      // Or refetch all entries: await fetchEntries();
-      if (data) {
-        setEntries([data as Entry, ...entries]);
+      newEntryId = insertedData.id;
+      // Add the new entry (without tags yet) to the beginning of the local state
+      // So it appears immediately
+      setEntries([insertedData as Entry, ...entries]);
+      setCurrentContent(''); // Clear the input after initial save
+
+      // --- Start Tag Generation (async, don't block UI further) ---
+      setGeneratingTagsForId(newEntryId); // Show loader for this ID
+      try {
+        const tagsResponse = await fetch('/api/tags', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content: trimmedContent }),
+        });
+
+        if (!tagsResponse.ok) {
+          // Log error but don't block the main flow
+          console.error('Error generating tags:', await tagsResponse.text());
+        } else {
+          const { tags } = await tagsResponse.json();
+          if (tags && Array.isArray(tags) && tags.length > 0) {
+            // Update the entry in Supabase with the generated tags
+            const { error: updateError } = await supabase
+              .from('entries')
+              .update({ tags: tags })
+              .eq('id', newEntryId);
+
+            if (updateError) {
+              console.error('Error saving tags to Supabase:', updateError);
+            } else {
+              // Update the local state with tags after successful DB update
+              setEntries(prevEntries =>
+                prevEntries.map(entry =>
+                  entry.id === newEntryId ? { ...entry, tags: tags } : entry
+                )
+              );
+            }
+          }
+        }
+      } catch (tagError: any) {
+        console.error('Error during tag generation/saving process:', tagError);
+      } finally {
+        setGeneratingTagsForId(null); // Hide loader for this ID
       }
-
-      setCurrentContent(''); // Clear the input after saving
-
-      // TODO LATER: Add back tag generation - perhaps call a separate function
-      // handleGenerateTagsForEntry(data.id, trimmedContent);
+      // --- End Tag Generation ---
 
     } catch (error: any) {
       console.error('Error saving entry:', error);
-      // TODO: Add user-facing error notification
       alert(`Failed to save entry: ${error.message}`);
+      // If insert failed, maybe remove the entry if we added it optimistically?
+      // Or handle differently.
     } finally {
-      setIsSavingEntry(false);
+      setIsSavingEntry(false); // Reset main saving state
     }
   };
 
@@ -253,6 +295,7 @@ export default function Home() {
             onUpdateEntry={handleUpdateEntry}
             onDeleteEntry={handleDeleteEntry}
             isSavingEntry={isSavingEntry}
+            generatingTagsForId={generatingTagsForId}
           />
         )}
       </div>

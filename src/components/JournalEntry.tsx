@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format, parseISO } from 'date-fns';
-import { Pencil, Save, X, Trash2 } from 'lucide-react';
+import { Pencil, Save, X, Trash2, Loader2 } from 'lucide-react';
 
 interface JournalEntryProps {
   selectedDate: string;
@@ -18,6 +18,7 @@ interface JournalEntryProps {
   onUpdateEntry: (id: string, content: string) => void;
   onDeleteEntry: (id: string) => void;
   isSavingEntry?: boolean;
+  generatingTagsForId?: string | null;
 }
 
 export function JournalEntry({
@@ -28,6 +29,7 @@ export function JournalEntry({
   onUpdateEntry,
   onDeleteEntry,
   isSavingEntry,
+  generatingTagsForId,
 }: JournalEntryProps) {
   const [editContent, setEditContent] = React.useState(content);
   const [editingEntryId, setEditingEntryId] = React.useState<string | null>(null);
@@ -145,14 +147,21 @@ export function JournalEntry({
                     <p className="text-sm text-gray-600">{entry.summary}</p>
                   </div>
                 )}
-                {entry.tags && entry.tags.length > 0 && (
-                  <div className="flex gap-2 mt-2">
-                    {entry.tags.map((tag, index) => (
-                      <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                        {tag}
-                      </span>
-                    ))}
+                {generatingTagsForId === entry.id ? (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-500 italic">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating smart tags...
                   </div>
+                ) : (
+                  entry.tags && entry.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {entry.tags.map((tag, index) => (
+                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )
                 )}
               </>
             )}
