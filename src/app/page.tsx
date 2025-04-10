@@ -377,7 +377,7 @@ export default function Home() {
           onGenerateMacroSummary={handleGenerateMacroSummary}
         />
         <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
-          <div className="flex flex-col gap-2 flex-shrink-0 min-h-[2rem]">
+          <div className="flex flex-col gap-2 flex-shrink-0">
               {filterTag && (
                 <div className="flex items-center">
                   <Button variant="secondary" size="sm" onClick={handleClearFilter}>
@@ -387,7 +387,7 @@ export default function Home() {
                 </div>
               )}
               {isLoadingEntries && (
-                  <div className={`flex items-center h-8 ${filterTag ? 'justify-start' : 'justify-center'}`}>
+                  <div className="flex items-center justify-start h-8">
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
               )}
