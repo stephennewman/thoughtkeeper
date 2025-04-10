@@ -14,6 +14,7 @@ interface JournalEntryProps {
     content: string;
     summary?: string | null;
     tags?: string[] | null;
+    created_at?: string | null;
   }>;
   onUpdateEntry: (id: string, content: string) => void;
   onDeleteEntry: (id: string) => void;
@@ -142,6 +143,12 @@ export function JournalEntry({
                   </Button>
                 </div>
                 <p className="whitespace-pre-wrap">{entry.content}</p>
+                {/* Display Saved Time */}
+                {entry.created_at && (
+                  <p className="text-xs text-gray-400 mt-1 text-right">
+                    Saved: {format(parseISO(entry.created_at), 'p')} {/* 'p' = short time format */}
+                  </p>
+                )}
                 {entry.summary && (
                   <div className="mt-2 p-2 bg-gray-100 rounded">
                     <p className="text-sm text-gray-600">{entry.summary}</p>
