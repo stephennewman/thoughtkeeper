@@ -338,6 +338,7 @@ export default function Home() {
                 onDeleteEntry={handleDeleteEntry}
                 isSavingEntry={isSavingEntry}
                 generatingTagsForId={generatingTagsForId}
+                onTagClick={(tag) => console.log('Tag clicked:', tag)}
               />
             )}
           </div>

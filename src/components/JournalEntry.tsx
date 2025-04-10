@@ -28,6 +28,7 @@ interface JournalEntryProps {
   onDeleteEntry: (id: string) => void;
   isSavingEntry?: boolean;
   generatingTagsForId?: string | null;
+  onTagClick?: (tag: string) => void; // Add callback prop for tag clicks
 }
 
 export function JournalEntry({
@@ -40,6 +41,7 @@ export function JournalEntry({
   onDeleteEntry,
   isSavingEntry,
   generatingTagsForId,
+  onTagClick, // Destructure the new prop
 }: JournalEntryProps) {
   // State for editing existing entries (still uses string for HTML)
   const [editEntryContent, setEditEntryContent] = React.useState('');
@@ -147,10 +149,15 @@ export function JournalEntry({
                       ) : (
                         entry.tags && entry.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1">
-                            {entry.tags.map((tag, index) => (
-                              <span key={index} className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs">
+                            {entry.tags.map((tag) => (
+                              <button
+                                key={tag} 
+                                onClick={() => onTagClick && onTagClick(tag)}
+                                disabled={!onTagClick}
+                                className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs hover:bg-primary hover:text-primary-foreground disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                              >
                                 {tag}
-                              </span>
+                              </button>
                             ))}
                           </div>
                         )
