@@ -13,13 +13,15 @@ import { X, Loader2 } from 'lucide-react';
 
 // Define a type matching the Supabase table structure
 // Assuming tags will be stored as string[] in jsonb
-interface SupabaseEntry {
+export interface SupabaseEntry {
   id: string;         // uuid
   created_at: string; // timestamptz
   date: string;         // date (YYYY-MM-DD)
   content: string;      // text
   summary?: string | null; // text
   tags?: string[] | null; // jsonb
+  meta_tag?: string | null; // Add meta_tag
+  intent_tag?: string | null; // Add intent_tag
 }
 
 // Keep the existing Entry type for simplicity or merge later if needed
@@ -174,23 +176,20 @@ export default function Home() {
   }, []);
 
   const handleSave = async () => {
-    // Use state directly
-    const { html: trimmedHtml, text: trimmedText } = {
-      html: currentContent.html.trim(), // Trim HTML? Maybe not necessary if TipTap handles it.
-      text: currentContent.text.trim(),
-    };
+    const { html: editorHtml, text: editorText } = currentContent;
+    const trimmedText = editorText.trim();
     
-    // Basic check if editor is effectively empty (might need refinement)
     if (!trimmedText || isSavingEntry || generatingTagsForId) return;
 
     setIsSavingEntry(true);
+    setGeneratingTagsForId('new'); // Use a generic indicator for new entry AI processing
     let newEntryId: string | null = null;
 
     try {
-      // Insert HTML content into Supabase
+      // Insert basic entry data first
       const newEntryData = {
         date: selectedDate,
-        content: currentContent.html, // Save the HTML
+        content: editorHtml, // Save HTML
       };
 
       const { data: insertedData, error: insertError } = await supabase
@@ -199,66 +198,98 @@ export default function Home() {
         .select()
         .single();
 
-      if (insertError) {
-        throw insertError;
-      }
-      if (!insertedData) {
-        throw new Error("Failed to get inserted entry data.");
-      }
+      if (insertError) throw insertError;
+      if (!insertedData) throw new Error("Failed to get inserted entry data.");
 
       newEntryId = insertedData.id;
-      setEntries([insertedData as Entry, ...entries]);
-      setCurrentContent({ html: '', text: '' }); // Reset editor state
+      const entryToDisplay = { ...insertedData, tags: [], meta_tag: null, intent_tag: null } as Entry;
+      
+      // Add entry immediately (without AI tags yet)
+      setEntries([entryToDisplay, ...entries]);
+      setCurrentContent({ html: '', text: '' });
 
-      // --- Start Tag Generation (using plain text) ---
-      setGeneratingTagsForId(newEntryId);
+      // --- Start AI Tag Generation (Meta, Intent, Content) in Parallel ---
       try {
-        const tagsResponse = await fetch('/api/tags', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ content: trimmedText }), // Send PLAIN TEXT
-        });
+        const results = await Promise.allSettled([
+          fetch('/api/classify-meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) }),
+          fetch('/api/classify-intent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) }),
+          fetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) })
+        ]);
 
-        if (!tagsResponse.ok) {
-          // Log error but don't block the main flow
-          console.error('Error generating tags:', await tagsResponse.text());
+        let metaTag: string | null = null;
+        let intentTag: string | null = null;
+        let tags: string[] | null = null;
+
+        // Process Meta Tag result
+        if (results[0].status === 'fulfilled' && results[0].value.ok) {
+          try { metaTag = (await results[0].value.json()).metaTag; } catch (e) { console.error('Failed parsing meta tag'); }
+        } else if (results[0].status === 'fulfilled') {
+           console.error('Meta Tag API Error:', await results[0].value.text());
         } else {
-          const { tags } = await tagsResponse.json();
-          if (tags && Array.isArray(tags) && tags.length > 0) {
-            // Update the entry in Supabase with the generated tags
-            const { error: updateError } = await supabase
-              .from('entries')
-              .update({ tags: tags })
-              .eq('id', newEntryId);
+           console.error('Meta Tag Fetch Error:', results[0].reason);
+        }
 
-            if (updateError) {
-              console.error('Error saving tags to Supabase:', updateError);
-            } else {
-              // Update the local state with tags after successful DB update
-              setEntries(prevEntries =>
-                prevEntries.map(entry =>
-                  entry.id === newEntryId ? { ...entry, tags: tags } : entry
-                )
-              );
-            }
+        // Process Intent Tag result
+        if (results[1].status === 'fulfilled' && results[1].value.ok) {
+          try { intentTag = (await results[1].value.json()).intentTag; } catch (e) { console.error('Failed parsing intent tag'); }
+        } else if (results[1].status === 'fulfilled') {
+           console.error('Intent Tag API Error:', await results[1].value.text());
+        } else {
+           console.error('Intent Tag Fetch Error:', results[1].reason);
+        }
+
+        // Process Content Tags result
+        if (results[2].status === 'fulfilled' && results[2].value.ok) {
+          try { 
+              const tagsResult = (await results[2].value.json()).tags; 
+              if (tagsResult && Array.isArray(tagsResult)) tags = tagsResult;
+          } catch (e) { console.error('Failed parsing content tags'); }
+        } else if (results[2].status === 'fulfilled') {
+           console.error('Content Tag API Error:', await results[2].value.text());
+        } else {
+           console.error('Content Tag Fetch Error:', results[2].reason);
+        }
+
+        // Check if we have any new tags to save
+        if (metaTag || intentTag || (tags && tags.length > 0)) {
+          const updatePayload: Partial<Entry> = {};
+          if (metaTag) updatePayload.meta_tag = metaTag;
+          if (intentTag) updatePayload.intent_tag = intentTag;
+          if (tags) updatePayload.tags = tags;
+
+          // Update the entry in Supabase with all generated tags
+          const { error: updateError } = await supabase
+            .from('entries')
+            .update(updatePayload)
+            .eq('id', newEntryId);
+
+          if (updateError) {
+            console.error('Error saving generated tags to Supabase:', updateError);
+          } else {
+            // Update the local state with all tags after successful DB update
+            setEntries(prevEntries =>
+              prevEntries.map(entry =>
+                entry.id === newEntryId ? { ...entry, ...updatePayload } : entry
+              )
+            );
           }
         }
       } catch (tagError: any) {
-        console.error('Error during tag generation/saving process:', tagError);
+        console.error('Error during AI tag generation process:', tagError);
       } finally {
-        setGeneratingTagsForId(null); // Hide loader for this ID
+        setGeneratingTagsForId(null); // Hide loader
       }
-      // --- End Tag Generation ---
+      // --- End AI Tag Generation ---
 
     } catch (error: any) {
       console.error('Error saving entry:', error);
       alert(`Failed to save entry: ${error.message}`);
-      // If insert failed, maybe remove the entry if we added it optimistically?
-      // Or handle differently.
+      // Consider removing the optimistically added entry if insert failed
+      if (newEntryId) {
+         setEntries(prev => prev.filter(e => e.id !== newEntryId));
+      }
     } finally {
-      setIsSavingEntry(false); // Reset main saving state
+      setIsSavingEntry(false);
     }
   };
 

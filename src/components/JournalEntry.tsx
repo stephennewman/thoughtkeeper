@@ -5,7 +5,19 @@ import { format, parseISO } from 'date-fns';
 import { Pencil, Save, X, Trash2, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
-// Type definition from page.tsx (or move to a shared types file)
+// Define Entry type based on Supabase structure
+interface Entry {
+  id: string;
+  created_at: string;
+  date: string;
+  content: string;
+  summary?: string | null;
+  tags?: string[] | null;
+  meta_tag?: string | null;
+  intent_tag?: string | null;
+}
+
+// Type definition for editor state (ensure consistency if moved)
 interface EditorState {
   html: string;
   text: string;
@@ -16,34 +28,27 @@ interface JournalEntryProps {
   content: string; // Initial HTML content for new entry editor
   onChange: (state: EditorState) => void; // Handler for new entry editor changes
   onSave: () => void; // onSave now takes no arguments
-  entries: Array<{
-    id: string;
-    date: string;
-    content: string;
-    summary?: string | null;
-    tags?: string[] | null;
-    created_at?: string | null;
-  }>;
+  entries: Array<Entry>;
   onUpdateEntry: (id: string, content: string) => void;
   onDeleteEntry: (id: string) => void;
   isSavingEntry?: boolean;
   generatingTagsForId?: string | null;
-  onTagClick?: (tag: string) => void; // Re-add prop
-  tagCounts?: { [key: string]: number }; // Re-add prop
+  onTagClick?: (tag: string) => void;
+  tagCounts?: { [key: string]: number };
 }
 
 export function JournalEntry({
   selectedDate,
-  content, // This is the initial HTML for NEW entries
-  onChange, // This is the handler for the NEW entry editor
+  content,
+  onChange,
   onSave,
   entries,
   onUpdateEntry,
   onDeleteEntry,
   isSavingEntry,
   generatingTagsForId,
-  onTagClick, // Re-add prop
-  tagCounts, // Re-add prop
+  onTagClick,
+  tagCounts,
 }: JournalEntryProps) {
   // State for editing existing entries (still uses string for HTML)
   const [editEntryContent, setEditEntryContent] = React.useState('');
@@ -100,14 +105,19 @@ export function JournalEntry({
 
       <div className="space-y-4">
         {selectedEntries.map((entry) => {
-          const hasMultipleTags = entry.tags && entry.tags.length > 1;
+          const hasMultipleContentTags = entry.tags && entry.tags.length > 1;
+          // Example: Highlight based on meta tag presence?
+          const hasMetaTag = !!entry.meta_tag;
+          
           return (
             <div 
               key={entry.id} 
               className={clsx(
-                "border rounded-lg p-4 group transition-colors",
-                hasMultipleTags ? "border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-900/10" : "bg-background text-card-foreground border-border/60",
-                editingEntryId !== entry.id ? "hover:bg-accent/70 dark:hover:bg-accent/50" : ""
+                "border rounded-lg p-4 group transition-colors", 
+                // Keep existing hover style for non-editing
+                editingEntryId !== entry.id ? "hover:bg-accent/70 dark:hover:bg-accent/50" : "",
+                // Base style - highlight if it has a meta tag?
+                hasMetaTag ? "border-purple-400 dark:border-purple-600 bg-purple-50/30 dark:bg-purple-900/10" : "bg-background text-card-foreground border-border/60"
               )}
               onClick={editingEntryId !== entry.id ? () => handleStartEdit(entry) : undefined}
               style={{ cursor: editingEntryId !== entry.id ? 'pointer' : 'default' }}
@@ -151,42 +161,52 @@ export function JournalEntry({
                   />
 
                   <div className="mt-3 pt-3 border-t flex flex-wrap justify-between items-center gap-x-4 gap-y-2">
-                    <div className="flex-grow min-w-0 order-1">
-                      {generatingTagsForId === entry.id ? (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Generating tags...
-                        </div>
-                      ) : (
-                        entry.tags && entry.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                             {entry.tags.map((tag) => {
-                               const count = tagCounts?.[tag] || 0;
-                               const isClickable = count > 1 && !!onTagClick;
-                               
-                               return isClickable ? (
-                                 <button
-                                   key={tag}
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     onTagClick && onTagClick(tag);
-                                   }}
-                                   className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900 transition-colors"
-                                 >
-                                   {tag}
-                                 </button>
-                               ) : (
-                                 <span
-                                   key={tag}
-                                   className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs opacity-75"
-                                 >
-                                   {tag}
-                                 </span>
-                               );
-                             })}
-                           </div>
-                        )
+                    <div className="flex flex-wrap items-center gap-1 order-1 flex-grow min-w-0">
+                      {entry.meta_tag && (
+                        <span className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                          {entry.meta_tag}
+                        </span>
                       )}
+                      {entry.intent_tag && (
+                        <span className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs font-medium">
+                          {entry.intent_tag}
+                        </span>
+                      )}
+                      <div className="inline-flex flex-wrap gap-1">
+                        {generatingTagsForId === entry.id || (generatingTagsForId === 'new' && entry.id === entries[0]?.id) ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Generating tags...
+                          </div>
+                        ) : (
+                          entry.tags && entry.tags.length > 0 && (
+                            entry.tags.map((tag) => {
+                              const count = tagCounts?.[tag] || 0;
+                              const isClickable = count > 1 && !!onTagClick;
+                              
+                              return isClickable ? (
+                                <button
+                                  key={tag}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onTagClick && onTagClick(tag);
+                                  }}
+                                  className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900 transition-colors"
+                                >
+                                  {tag}
+                                </button>
+                              ) : (
+                                <span
+                                  key={tag}
+                                  className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs opacity-75"
+                                >
+                                  {tag}
+                                </span>
+                              );
+                            })
+                          )
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 order-2 flex-shrink-0">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
