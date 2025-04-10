@@ -100,13 +100,14 @@ export function JournalEntry({
 
       <div className="space-y-4">
         {selectedEntries.map((entry) => {
-          const hasMultipleTags = entry.tags && entry.tags.length > 1; // Re-add this check
+          const hasMultipleTags = entry.tags && entry.tags.length > 1;
           return (
             <div 
               key={entry.id} 
               className={clsx(
-                "border shadow-sm rounded-lg p-4 group",
-                hasMultipleTags ? "border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-900/10" : "bg-card text-card-foreground"
+                "border shadow-sm rounded-lg p-4 group transition-colors",
+                hasMultipleTags ? "border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-900/10" : "bg-card text-card-foreground",
+                editingEntryId !== entry.id ? "hover:bg-muted/40 dark:hover:bg-muted/20" : ""
               )}
               onClick={editingEntryId !== entry.id ? () => handleStartEdit(entry) : undefined}
               style={{ cursor: editingEntryId !== entry.id ? 'pointer' : 'default' }}
