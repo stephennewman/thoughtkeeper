@@ -123,6 +123,12 @@ export default function Home() {
     return debounce(fetchEntries, 300); // 300ms delay
   }, [fetchEntries]);
 
+  // Load entries on initial mount
+  useEffect(() => {
+    fetchEntries('', null); // Fetch all entries initially
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once
+
   // Effect to trigger debounced search when searchQuery changes
   useEffect(() => {
     debouncedFetchEntries(searchQuery, filterTag);
