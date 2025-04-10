@@ -31,7 +31,7 @@ export default function Home() {
     return format(now, 'yyyy-MM-dd');
   });
   const [currentContent, setCurrentContent] = useState('');
-  const [macroSummary, setMacroSummary] = useState<MacroSummary | null>(null);
+  const [macroSummary, setMacroSummary] = useState<MacroSummary | undefined>(undefined);
   const [isGeneratingMacroSummary, setIsGeneratingMacroSummary] = useState<boolean>(false);
 
   // Load entries from localStorage on mount
