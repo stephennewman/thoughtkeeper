@@ -58,6 +58,17 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<string | null>(null);
 
+  // Calculate tag frequencies across all entries
+  const tagCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    entries.forEach(entry => {
+      entry.tags?.forEach(tag => {
+        counts[tag] = (counts[tag] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [entries]); // Recalculate only when entries change
+
   // Fetch entries from Supabase, now including search and tag filters
   const fetchEntries = useCallback(async (query: string, tag: string | null) => {
     setIsLoadingEntries(true);
@@ -381,6 +392,7 @@ export default function Home() {
                 isSavingEntry={isSavingEntry}
                 generatingTagsForId={generatingTagsForId}
                 onTagClick={handleTagClick}
+                tagCounts={tagCounts}
               />
             )}
           </div>
