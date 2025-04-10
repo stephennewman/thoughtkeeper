@@ -148,11 +148,6 @@ export function JournalEntry({
                     )}
                   </div>
                   <div className="flex items-center gap-3 order-2 flex-shrink-0">
-                    {entry.created_at && (
-                      <p className="text-xs text-muted-foreground">
-                        {format(parseISO(entry.created_at), 'p')}
-                      </p>
-                    )}
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <Button
                         variant="ghost"
@@ -173,6 +168,11 @@ export function JournalEntry({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
+                    {entry.created_at && (
+                      <p className="text-xs text-muted-foreground">
+                        {format(parseISO(entry.created_at), 'p')}
+                      </p>
+                    )}
                   </div>
                 </div>
               </>
