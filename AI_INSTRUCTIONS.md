@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 1.7
+**Document Version:** 1.8
 **Date:** 2024-06-08
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
@@ -29,11 +29,11 @@
     *   **Meta Tags:** Topic/life domain (e.g., Work, Health), auto-generated, stored in `meta_tag`.
     *   **Intent Tags:** Entry purpose (e.g., Action Item, Log), auto-generated, stored in `intent_tag`.
     *   **Content Tags:** Keyword tags based on content, auto-generated, stored in `tags` (jsonb array).
-*   Basic text search across entry `content` and content `tags`.
-*   Conditional tag display & filtering: All tag types (Meta, Intent, Content) appearing >1 time in the current list are styled distinctly and clickable for filtering.
-*   Integrated Header (Title, Search).
-*   Rich Text Editor (TipTap) for *new* entries w/ basic toolbar & spacing fixes.
-*   Entry list display using styled cards w/ hover actions & metadata footer (displays Meta, Intent, Content tags).
+*   Full-Text Search (FTS) across `content`, `meta_tag`, `intent_tag`, and content `tags` using a `tsvector` column (`search_vector`) and Supabase `textSearch`.
+*   Conditional tag display & filtering based on frequency for all tag types.
+*   Integrated Header (Title, FTS Search Input).
+*   Rich Text Editor (TipTap) for *new* entries w/ basic toolbar & styling.
+*   Styled entry cards w/ hover actions & metadata footer.
 *   Basic mobile responsiveness (collapsible sidebar).
 
 **AI Features Implemented / Status:**
@@ -59,22 +59,21 @@
 *   **Tag Interaction:** Meta, Intent, and Content tags rendered distinctly. Tags appearing >1 time in current list are highlighted (different colors per type) and clickable. Clicking filters entries by that specific tag and type using `supabase.eq()` (for Meta/Intent) or `supabase.contains()` (for Content). Search clears tag filters and vice-versa.
 *   **UI Layout:** Integrated header. Collapsible sidebar structure for mobile. Styled cards for entries. CSS overrides for RTE spacing.
 *   **Rich Text Editor (RTE):** Implemented using TipTap `StarterKit` for new entries.
+*   **Search:** Implemented using PostgreSQL Full-Text Search (`tsvector`) across multiple fields (`content`, `meta_tag`, `intent_tag`, `tags`) for performance and accuracy. Trigger automatically updates `search_vector` column.
 
 ## 3. Future Development Considerations & Improvements (Internal Risk/Value Priority)
 
 1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for security & multi-user.
-2.  **Complete Rich Text Editing:** Refactor edit mode. Add toolbar options.
-3.  **Refine AI Features:** Integrate summary saving, optimize costs, potentially allow manual tag editing.
-4.  **Refine Filtering:** Allow combining filters (e.g., Meta + Intent)? Improve UI.
-5.  **Robust Error Handling:** Improve user feedback.
-6.  **Improve Mobile Responsiveness:** Polish layout.
-7.  **Implement Full-Text Search Properly:** Use `tsvector`.
-8.  **Develop Journal Analytics:** Build data insights (now richer with Meta/Intent tags).
-9.  **Tag Management Interface:** Add tag editing/browsing.
-10. **Export Entries:** Add data export.
-11. **Security Hardening (CSP):** Remove `unsafe-eval`/`unsafe-inline`.
-12. **Offline Strategy:** Define offline behavior.
-13. **State Management:** Consider refactoring.
+2.  **Complete Rich Text Editing:** Refactor edit mode.
+3.  **Refine AI Features:** Integrate summary saving, optimize costs.
+4.  **Robust Error Handling:** Improve user feedback.
+5.  **Improve Mobile Responsiveness:** Polish layout.
+6.  **Develop Journal Analytics.**
+7.  **Tag Management Interface.**
+8.  **Export Entries.**
+9.  **Security Hardening (CSP).**
+10. **Offline Strategy.**
+11. **State Management.**
 
 ## 4. Critical Information & Risks (Internal Focus - Notify User if Score >= 70)
 
@@ -87,5 +86,5 @@
 *   **Supply Chain Attacks:** Risk reduced but present. Monitor Dependabot alerts.
 *   **XSS Risk:** Low currently. Avoid `dangerouslySetInnerHTML`.
 *   **CSP Maintenance:** Update if new external resources added.
-*   **Search Performance/Accuracy:** Current search uses `ilike` + `contains`. Consider FTS.
+*   **Search:** Performance greatly improved with FTS. Accuracy depends on FTS configuration ('english') and query type ('websearch').
 *   **RTE Edit Mode:** Saving edits will currently strip formatting.
