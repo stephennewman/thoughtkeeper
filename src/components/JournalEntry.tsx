@@ -105,9 +105,9 @@ export function JournalEntry({
             <div 
               key={entry.id} 
               className={clsx(
-                "border shadow-sm rounded-lg p-4 group transition-colors",
-                hasMultipleTags ? "border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-900/10" : "bg-card text-card-foreground",
-                editingEntryId !== entry.id ? "hover:bg-muted/40 dark:hover:bg-muted/20" : ""
+                "border rounded-lg p-4 group transition-colors",
+                hasMultipleTags ? "border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-900/10" : "bg-background text-card-foreground border-border/60",
+                editingEntryId !== entry.id ? "hover:bg-accent/70 dark:hover:bg-accent/50" : ""
               )}
               onClick={editingEntryId !== entry.id ? () => handleStartEdit(entry) : undefined}
               style={{ cursor: editingEntryId !== entry.id ? 'pointer' : 'default' }}
