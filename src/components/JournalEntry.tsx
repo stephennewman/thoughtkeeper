@@ -12,8 +12,8 @@ interface JournalEntryProps {
     id: string;
     date: string;
     content: string;
-    summary?: string;
-    tags?: string[];
+    summary?: string | null;
+    tags?: string[] | null;
   }>;
   onUpdateEntry: (id: string, content: string) => void;
   onDeleteEntry: (id: string) => void;

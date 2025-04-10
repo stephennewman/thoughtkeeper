@@ -19,8 +19,8 @@ interface JournalSidebarProps {
     id: string;
     date: string;
     content: string;
-    summary?: string;
-    tags?: string[];
+    summary?: string | null;
+    tags?: string[] | null;
   }>;
   selectedDate: string;
   onSelectDate: (date: string) => void;
