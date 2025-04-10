@@ -17,6 +17,7 @@ interface JournalEntryProps {
   }>;
   onUpdateEntry: (id: string, content: string) => void;
   onDeleteEntry: (id: string) => void;
+  isSavingEntry?: boolean;
 }
 
 export function JournalEntry({
@@ -26,6 +27,7 @@ export function JournalEntry({
   entries,
   onUpdateEntry,
   onDeleteEntry,
+  isSavingEntry,
 }: JournalEntryProps) {
   const [editContent, setEditContent] = React.useState(content);
   const [editingEntryId, setEditingEntryId] = React.useState<string | null>(null);
@@ -77,7 +79,11 @@ export function JournalEntry({
           placeholder="Write your journal entry here..."
           className="min-h-[200px] p-4"
         />
-        <Button onClick={handleSave} className="w-fit" disabled={!editContent.trim()}>
+        <Button 
+          onClick={handleSave} 
+          className="w-fit" 
+          disabled={!editContent.trim() || isSavingEntry}
+        >
           Save Entry
         </Button>
       </div>

@@ -33,6 +33,7 @@ export default function Home() {
   const [currentContent, setCurrentContent] = useState('');
   const [macroSummary, setMacroSummary] = useState<MacroSummary | undefined>(undefined);
   const [isGeneratingMacroSummary, setIsGeneratingMacroSummary] = useState<boolean>(false);
+  const [isSavingEntry, setIsSavingEntry] = useState<boolean>(false);
 
   // Load entries from localStorage on mount
   useEffect(() => {
@@ -52,41 +53,46 @@ export default function Home() {
   }, [selectedDate]);
 
   const handleSave = async (content: string) => {
-    if (!content.trim()) return; // Don't save empty entries
+    if (!content.trim() || isSavingEntry) return;
 
-    const newEntry: Entry = {
-      id: crypto.randomUUID(),
-      date: selectedDate,
-      content: content.trim()
-    };
-
-    // Generate tags
+    setIsSavingEntry(true);
     try {
-      const response = await fetch('/api/tags', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content: content.trim() }),
-      });
+      const newEntry: Entry = {
+        id: crypto.randomUUID(),
+        date: selectedDate,
+        content: content.trim()
+      };
 
-      if (response.ok) {
-        const { tags } = await response.json();
-        newEntry.tags = tags;
+      // Generate tags
+      try {
+        const response = await fetch('/api/tags', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content: content.trim() }),
+        });
+
+        if (response.ok) {
+          const { tags } = await response.json();
+          newEntry.tags = tags;
+        }
+      } catch (error) {
+        console.error('Error generating tags:', error);
       }
-    } catch (error) {
-      console.error('Error generating tags:', error);
-    }
 
-    // Add the new entry to the beginning of the list
-    const updatedEntries = [newEntry, ...entries];
-    setEntries(updatedEntries);
-    try {
-      localStorage.setItem('journal_entries', JSON.stringify(updatedEntries));
-    } catch (error) {
-      console.error('Error saving entries:', error);
+      // Add the new entry to the beginning of the list
+      const updatedEntries = [newEntry, ...entries];
+      setEntries(updatedEntries);
+      try {
+        localStorage.setItem('journal_entries', JSON.stringify(updatedEntries));
+      } catch (error) {
+        console.error('Error saving entries:', error);
+      }
+      setCurrentContent('');
+    } finally {
+      setIsSavingEntry(false);
     }
-    setCurrentContent(''); // Clear the input after saving
   };
 
   const handleUpdateEntry = async (id: string, content: string) => {
@@ -238,6 +244,7 @@ export default function Home() {
           entries={entries}
           onUpdateEntry={handleUpdateEntry}
           onDeleteEntry={handleDeleteEntry}
+          isSavingEntry={isSavingEntry}
         />
       </div>
     </main>
