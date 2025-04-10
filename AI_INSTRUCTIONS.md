@@ -1,7 +1,9 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 1.5
+**Document Version:** 1.6
 **Date:** 2024-06-08
+
+**AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
 
 ## 1. Project Overview & Current State
 
@@ -24,10 +26,11 @@
 *   Basic sidebar navigation showing dates with entries (sorted chronologically).
 *   Data persistence using **Supabase** database (replaces previous `localStorage` implementation).
 *   Basic text search across entry content and tags.
-*   Conditional tag display: Tags appearing on multiple currently loaded entries are highlighted and clickable for filtering.
-*   Integrated Header with Title and Search Input.
-*   Rich Text Editor (TipTap) for new entries with basic toolbar (Bold, Italic, Strike, Lists).
-*   Entry list display using subtle cards with hover actions (Edit/Delete) and metadata footer (Time, Tags).
+*   Conditional tag display & filtering based on frequency.
+*   Integrated Header (Title, Search).
+*   Rich Text Editor (TipTap) for *new* entries w/ basic toolbar & spacing fixes.
+*   Entry list display using styled cards w/ hover actions & metadata footer.
+*   Basic mobile responsiveness (collapsible sidebar structure via Sheet).
 
 **AI Features Implemented / Status:**
 *   **Automatic Tag Generation:** Backend API (`/api/tags`) exists. Frontend generates tags on save and updates the Supabase entry. Includes loading state.
@@ -48,31 +51,34 @@
 *   **Security Headers (CSP):** Implemented via `next.config.js`. Includes Supabase URL. `unsafe-eval`/`unsafe-inline` still present.
 *   **Dependency Security:** Updated `next` to patch critical vulns. Using `npm ci` in builds. Dependabot alerts enabled on GitHub repo.
 *   **Tag Interaction:** Tags are displayed conditionally. Only tags appearing >1 time in the current result set are highlighted (blue) and clickable. Clicking filters entries by that tag using `supabase.contains()`. Search clears tag filters and vice-versa.
-*   **UI Layout:** Integrated header for search/global actions. Main view uses sidebar + content area. Entry list uses subtle bordered cards with hover actions and footer metadata. CSS overrides applied to `prose` for tighter list/paragraph spacing.
-*   **Rich Text Editor (RTE):** Implemented using TipTap `StarterKit` for new entries. Basic toolbar added. Edit mode still uses plain text (needs refactor).
+*   **UI Layout:** Integrated header. Collapsible sidebar structure for mobile. Styled cards for entries. CSS overrides for RTE spacing.
+*   **Rich Text Editor (RTE):** Implemented using TipTap `StarterKit` for new entries.
 
-## 3. Future Development Considerations & Improvements (Internal Risk Priority)
+## 3. Future Development Considerations & Improvements (Internal Risk/Value Priority)
 
-1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for multi-user support and proper data security.
-2.  **Complete Rich Text Editing:** Refactor edit mode to fully support RTE. Add more toolbar options (headings, links?).
-3.  **Refine AI Features (Cost/UX/Completion):** Integrate individual summary saving, consider cost optimization.
-4.  **Robust Error Handling:** Improve user feedback for Supabase and AI API operations.
-5.  **Implement Full-Text Search Properly:** Set up `tsvector` column/triggers.
-6.  **Develop Journal Analytics:** Build analytics features.
-7.  **Tag Management Interface:** Allow viewing all tags, editing/deleting tags.
-8.  **Export Entries:** Add data export functionality.
-9.  **Security Hardening (CSP):** Work towards removing `unsafe-eval`/`unsafe-inline`.
-10. **Offline Strategy:** Define offline behavior.
-11. **State Management:** Consider refactoring.
+1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for security & multi-user.
+2.  **Complete Rich Text Editing:** Refactor edit mode. Add toolbar options.
+3.  **Refine AI Features:** Integrate summary saving, optimize costs.
+4.  **Robust Error Handling:** Improve user feedback.
+5.  **Improve Mobile Responsiveness:** Polish header/content layout on small screens, ensure usability.
+6.  **Implement Full-Text Search Properly:** Use `tsvector`.
+7.  **Develop Journal Analytics:** Build data insights.
+8.  **Tag Management Interface:** Add tag editing/browsing.
+9.  **Export Entries:** Add data export.
+10. **Security Hardening (CSP):** Remove `unsafe-eval`/`unsafe-inline`.
+11. **Offline Strategy:** Define offline behavior.
+12. **State Management:** Consider refactoring.
 
-## 4. Critical Information & Risks (Internal Focus)
+## 4. Critical Information & Risks (Internal Focus - Notify User if Score >= 70)
 
-*   **Row Level Security (RLS): INTENTIONALLY DISABLED.** Top internal risk. Acceptable temporarily for personal use, but **MUST BE ENABLED** with Auth/policies before sharing or multi-user. Exposes all data via anon key.
-*   **API Costs / Runaway Calls (OpenAI):** Monitor usage, ensure OpenAI limits/alerts set. Client-side guards partially mitigate runaway calls; consider server-side rate limiting for more robustness.
-*   **Error Handling Gaps:** Potential for confusing user experience if Supabase or AI calls fail silently or with poor feedback.
-*   **`OPENAI_API_KEY` / Supabase Keys Security:** Keys MUST be kept secure (Netlify env vars / `.env.local`). **NEVER commit keys.** Rotate periodically.
-*   **Supply Chain Attacks:** Risk reduced by patching `next`, using `npm ci`, and enabling Dependabot alerts. Continue monitoring alerts and vetting dependencies.
-*   **XSS Risk:** Low currently due to React defaults + CSP. Avoid `dangerouslySetInnerHTML`.
-*   **CSP Maintenance:** Update CSP if new external resources are added.
-*   **Search Performance/Accuracy:** Current search uses `ilike` + `contains`. Consider implementing proper FTS with `tsvector` for better performance and relevance, especially as data grows.
-*   **RTE Edit Mode:** Editing existing entries currently doesn't use the rich text editor; saving edits might strip formatting.
+*   **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100).** Top internal risk. Exposes all data via anon key. MUST BE ENABLED with Auth/policies before sharing or multi-user.
+*   **AI Feature Dependency & Cost (Score: ~65/100):** Reliance on OpenAI introduces cost, reliability, latency factors.
+*   **Runaway API Cost Vulnerability (Score: ~55/100):** Risk of excessive calls. Partially mitigated by client-side guards & external OpenAI limits.
+*   **Error Handling Gaps (Score: ~45/100):** Potential for confusing UX on failures.
+*   **Responsiveness Gaps (Score: ~40/100):** Basic structure exists, but needs refinement for mobile usability (header, content flow).
+*   **`OPENAI_API_KEY` / Supabase Keys Security:** Keys MUST be kept secure. Rotate periodically.
+*   **Supply Chain Attacks:** Risk reduced but present. Monitor Dependabot alerts.
+*   **XSS Risk:** Low currently. Avoid `dangerouslySetInnerHTML`.
+*   **CSP Maintenance:** Update if new external resources added.
+*   **Search Performance/Accuracy:** Current search uses `ilike` + `contains`. Consider FTS.
+*   **RTE Edit Mode:** Saving edits will currently strip formatting.
