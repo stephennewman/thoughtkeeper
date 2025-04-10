@@ -86,12 +86,10 @@ export default function Home() {
       if (trimmedQuery) {
         // Ensure tag filter is cleared if searching
         tag = null; 
-        // Construct the .or() condition
-        // Search in content using FTS OR check if tags array contains the query string
-        supabaseQuery = supabaseQuery.or(
-          `content.fts.${trimmedQuery}`, // Search content using full-text search index
-          `tags.cs.${JSON.stringify(trimmedQuery)}` // Check if tags array contains the query string
-        );
+        // Construct the filter string for .or()
+        // Format: "filter1,filter2"
+        const filterString = `content.fts.${trimmedQuery},tags.cs.${JSON.stringify(trimmedQuery)}`;
+        supabaseQuery = supabaseQuery.or(filterString);
       } 
       // Apply tag filter only if tag exists AND search query is empty
       else if (tag) {
