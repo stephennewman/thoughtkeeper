@@ -32,7 +32,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     editorProps: {
       attributes: {
         class:
-          'prose dark:prose-invert prose-sm max-w-none focus:outline-none border border-input bg-background shadow-sm rounded-md min-h-[150px] p-4',
+          'prose dark:prose-invert max-w-none focus:outline-none border border-input bg-background shadow-sm rounded-md min-h-[150px] p-4',
       },
     },
     onUpdate: ({ editor }) => {

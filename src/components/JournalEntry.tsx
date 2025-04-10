@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import clsx from 'clsx';
+import { Badge } from "@/components/ui/badge";
 
 // Define Entry type based on Supabase structure
 interface Entry {
@@ -101,31 +102,27 @@ export function JournalEntry({
             >
               <>
                   <div
-                    className="prose dark:prose-invert prose-sm max-w-none mb-4"
+                    className="prose dark:prose-invert max-w-none mb-4"
                     dangerouslySetInnerHTML={{ __html: entry.content }}
                   />
 
                   <div className="mt-3 pt-3 border-t flex flex-wrap justify-between items-center gap-x-4 gap-y-2">
-                    <div className="flex flex-wrap items-center gap-1 order-1 flex-grow min-w-0">
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 order-1 flex-grow min-w-0">
                       {entry.meta_tag && (() => {
-                        const lowerTag = entry.meta_tag.toLowerCase();
-                        const isClickable = (tagCounts[lowerTag] || 0) > 1 && !!onTagClick;
-                        const TagComponent = isClickable ? 'button' : 'span';
+                         const lowerTag = entry.meta_tag.toLowerCase();
+                         const isClickable = (tagCounts[lowerTag] || 0) > 1 && !!onTagClick;
+                         const TagComponent = isClickable ? 'button' : 'span';
                         return (
-                          <TagComponent
+                           <TagComponent
                             key={`meta-${entry.meta_tag}`}
-                            onClick={isClickable ? (e) => { 
-                              e.stopPropagation(); 
-                              console.log('[Debug JournalEntry] Clicking Meta Tag:', entry.meta_tag);
-                              onTagClick!(entry.meta_tag!, 'meta'); 
-                            } : undefined}
+                            onClick={isClickable ? (e) => { e.stopPropagation(); onTagClick!(entry.meta_tag!, 'meta'); } : undefined}
                             className={clsx(
-                              "px-1.5 py-0.5 rounded text-xs font-medium uppercase", 
-                              getTagClasses(entry.meta_tag, 'meta') 
+                              "px-1.5 py-0.5 rounded text-xs font-medium", 
+                              getTagClasses(entry.meta_tag, 'meta')
                             )}
                             disabled={!isClickable}
                           >
-                            {entry.meta_tag}
+                            {entry.meta_tag.toUpperCase()}
                           </TagComponent>
                         );
                       })()}
@@ -158,17 +155,15 @@ export function JournalEntry({
                         ) : (
                           entry.tags && entry.tags.length > 0 && (
                             entry.tags.map((tag) => {
-                              const isClickable = (tagCounts[tag] || 0) > 1 && !!onTagClick;
-                              const TagComponent = isClickable ? 'button' : 'span';
+                              const isClickable = false;
+                              const TagComponent = 'span';
                               return (
                                 <TagComponent
-                                  key={tag}
-                                  onClick={isClickable ? (e) => { e.stopPropagation(); onTagClick!(tag, 'content'); } : undefined}
+                                  key={`${tag}-content`}
                                   className={clsx(
                                     "px-1.5 py-0.5 rounded text-xs font-medium", 
                                     getTagClasses(tag, 'content') 
                                   )}
-                                  disabled={!isClickable}
                                 >
                                   {tag}
                                 </TagComponent>

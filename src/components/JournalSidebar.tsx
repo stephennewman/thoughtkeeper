@@ -1,18 +1,6 @@
 import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
-
-interface MacroSummary {
-  mood: string;
-  moodEmoji: string;
-  focusAreas: {
-    category: string;
-    icon: string;
-    highlight: string;
-  }[];
-  keyTakeaway: string;
-}
 
 interface JournalSidebarProps {
   entries: Array<{
@@ -24,17 +12,12 @@ interface JournalSidebarProps {
   }>;
   selectedDate: string;
   onSelectDate: (date: string) => void;
-  macroSummary?: MacroSummary | null;
-  isGeneratingMacroSummary?: boolean;
-  onGenerateMacroSummary?: () => void;
 }
 
 export function JournalSidebar({
   entries,
   selectedDate,
   onSelectDate,
-  macroSummary,
-  isGeneratingMacroSummary
 }: JournalSidebarProps) {
   // Group entries by date
   const entriesByDate = entries.reduce((acc, entry) => {
@@ -51,42 +34,33 @@ export function JournalSidebar({
   });
 
   return (
-    <div className="w-64 border-gray-200 bg-gray-50 p-4 overflow-y-auto h-full">
-      <div className="space-y-4">
+    <div className="w-64 border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-700 p-4 overflow-y-auto h-full flex flex-col">
+      <img 
+        src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523"
+        alt="ThoughtKeeper Logo" 
+        className="w-56 mx-auto mb-6"
+      />
+      <div className="space-y-4 flex-grow overflow-y-auto">
         {sortedDates.map((date) => {
           const dateEntries = entriesByDate[date];
           const isSelected = date === selectedDate;
-          const dateMacroSummary = isSelected ? macroSummary : undefined;
-          const isGenerating = isSelected ? isGeneratingMacroSummary : false;
 
           return (
             <div key={date} className="space-y-2">
               <Button
                 variant={isSelected ? "default" : "ghost"}
                 className={`w-full justify-between ${
-                  isSelected ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'hover:bg-gray-100'
+                  isSelected
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
                 onClick={() => onSelectDate(date)}
               >
-                <div className="flex items-center gap-2">
-                  {isSelected && dateMacroSummary && (
-                    <span className="text-lg">{dateMacroSummary.moodEmoji}</span>
-                  )}
-                  <span>{format(parseISO(date), 'MMM d, yyyy')}</span>
-                </div>
-                <span className="text-sm text-gray-500">
+                <span>{format(parseISO(date), 'MMM d, yyyy')}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   {dateEntries.length}
                 </span>
               </Button>
-
-              {isSelected && dateMacroSummary && (
-                <div className="pl-2 space-y-1">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Sparkles className="h-3 w-3 text-purple-500" />
-                    <span className="text-gray-600">{dateMacroSummary.keyTakeaway}</span>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}

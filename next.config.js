@@ -4,7 +4,7 @@ const ContentSecurityPolicy = `
   default-src 'self';
   script-src 'self' 'unsafe-eval' 'unsafe-inline'; 
   style-src 'self' 'unsafe-inline';
-  img-src 'self' data:;
+  img-src 'self' data: s3.ca-central-1.amazonaws.com;
   font-src 'self';
   object-src 'none';
   base-uri 'self';

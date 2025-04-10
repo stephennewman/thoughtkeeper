@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { JournalSidebar, JournalEntry, EntryEditorDialog, StaticAnalysisColumn } from '@/components';
-import { Header } from '@/components/Header';
 import * as React from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import debounce from 'lodash.debounce';
@@ -40,7 +39,7 @@ export interface MacroSummary {
 }
 
 // Define tag types
-type TagType = 'meta' | 'intent' | 'content';
+export type TagType = 'meta' | 'intent' | 'content';
 
 // --- Define Color Palettes (Example - choose colors you like) ---
 // Structure: { base: 'bg-... text-... dark:...', hover: 'hover:bg-... dark:hover:bg-...' } - adjust dark modes as needed
@@ -74,23 +73,25 @@ interface TagColorMap {
 
 export default function Home() {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [allEntries, setAllEntries] = useState<Entry[]>([]);
   const [errorLoadingEntries, setErrorLoadingEntries] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     return format(now, 'yyyy-MM-dd');
   });
-  const [macroSummary, setMacroSummary] = useState<MacroSummary | undefined>(undefined);
-  const [isGeneratingMacroSummary, setIsGeneratingMacroSummary] = useState<boolean>(false);
   const [generatingTagsForId, setGeneratingTagsForId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterMetaTag, setFilterMetaTag] = useState<string | null>(null);
-  const [filterIntentTag, setFilterIntentTag] = useState<string | null>(null);
-  const [filterContentTag, setFilterContentTag] = useState<string | null>(null);
+  const [activeMetaTag, setActiveMetaTag] = useState<string | null>(null);
+  const [activeIntentTag, setActiveIntentTag] = useState<string | null>(null);
+  const [activeContentTags, setActiveContentTags] = useState<Set<string>>(new Set());
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // State for the editor dialog
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null); // null for add mode
+
+  // Ref for the scrollable main content area
+  const mainContentScrollRef = useRef<HTMLDivElement>(null);
 
   // Combined calculation for counts and highlight colors
   const { tagCounts, highlightedTagColors } = useMemo(() => {
@@ -103,7 +104,8 @@ export default function Home() {
     const assignedIntentColors: { [key: string]: boolean } = {};
     const assignedContentColors: { [key: string]: boolean } = {};
 
-    entries.forEach(entry => {
+    // Calculate counts based on ALL entries for JournalEntry highlighting
+    allEntries.forEach(entry => {
       // Count and assign color for Meta Tag
       if (entry.meta_tag) {
         const lowerTag = entry.meta_tag.toLowerCase();
@@ -136,16 +138,15 @@ export default function Home() {
       });
     });
     return { tagCounts: counts, highlightedTagColors: colors };
-  }, [entries]);
+  }, [allEntries]);
 
-  // Calculate active filter (for cleaner rendering)
-  const activeFilterValue = useMemo(() => {
-      return filterMetaTag || filterIntentTag || filterContentTag;
-  }, [filterMetaTag, filterIntentTag, filterContentTag]);
-
-  // Fetch entries - Using tsvector column for search
-  const fetchEntries = useCallback(async (query: string, metaTag: string | null, intentTag: string | null, contentTag: string | null) => {
-    // Do NOT set loading state here for filter/search actions
+  // REVISED Fetch entries: Handle single meta/intent (AND) + multi content (OR within content, AND with meta/intent)
+  const fetchEntries = useCallback(async (
+    query: string, 
+    metaTag: string | null,     // Single
+    intentTag: string | null,   // Single
+    contentTags: Set<string> 
+  ) => {
     setErrorLoadingEntries(null);
     try {
       let supabaseQuery = supabase
@@ -156,24 +157,27 @@ export default function Home() {
 
       const trimmedQuery = query.trim();
 
-      // Apply filters based on priority
+      // Apply filters
       if (trimmedQuery) {
-        // Use textSearch on the precomputed tsvector column
+        // Search overrides tag filters 
         supabaseQuery = supabaseQuery.textSearch('search_vector', trimmedQuery, {
-          type: 'websearch', // or 'plain', 'phrase' depending on desired matching
+          type: 'websearch',
           config: 'english'
         });
-      } else if (metaTag) {
-        // Filter by meta_tag (exact match)
-        supabaseQuery = supabaseQuery.eq('meta_tag', metaTag);
-      } else if (intentTag) {
-        // Filter by intent_tag (exact match)
-        supabaseQuery = supabaseQuery.eq('intent_tag', intentTag);
-      } else if (contentTag) {
-        // Filter by content tag (array contains)
-        supabaseQuery = supabaseQuery.contains('tags', JSON.stringify([contentTag])); 
+      } else {
+        // Apply tag filters (AND logic across types)
+        if (metaTag) {
+          supabaseQuery = supabaseQuery.eq('meta_tag', metaTag);
+        }
+        if (intentTag) {
+          supabaseQuery = supabaseQuery.eq('intent_tag', intentTag);
+        }
+        if (contentTags.size > 0) {
+          // Use overlaps for content tags (entry must have AT LEAST ONE of the selected tags - OR logic)
+          const tagsArray = Array.from(contentTags);
+          supabaseQuery = supabaseQuery.overlaps('tags', tagsArray);
+        }
       }
-      // If no filters, query remains unchanged (fetches all)
 
       const { data, error } = await supabaseQuery;
 
@@ -187,55 +191,85 @@ export default function Home() {
        setErrorLoadingEntries(`Failed to load entries: ${error.message}`);
        setEntries([]);
     } 
-    // No finally block needed here for loading state
   }, []);
 
-  // Debounced version - Pass all filter states
+  // Debounced version - Pass revised state
   const debouncedFetchEntries = useMemo(() => {
-    const debouncedFn = debounce((currentQuery: string, currentMeta: string | null, currentIntent: string | null, currentContent: string | null) => {
+    const debouncedFn = debounce((currentQuery: string, currentMeta: string | null, currentIntent: string | null, currentContent: Set<string>) => {
        fetchEntries(currentQuery, currentMeta, currentIntent, currentContent);
     }, 300);
     return debouncedFn;
   }, [fetchEntries]);
 
-  // Initial Load Effect
+  // Initial Load Effect - Use new Set() for all
   useEffect(() => {
     const initialFetch = async () => {
         setIsInitialLoading(true);
-        // Pass null for all filters
-        await fetchEntries('', null, null, null); 
-        setIsInitialLoading(false);
+        setErrorLoadingEntries(null);
+        try {
+          // Fetch all entries initially
+          const { data, error } = await supabase
+            .from('entries')
+            .select('*')
+            .order('date', { ascending: false })
+            .order('created_at', { ascending: false });
+            
+          if (error) throw error;
+
+          const fetchedEntries = (data as Entry[]) || [];
+          setAllEntries(fetchedEntries);
+          setEntries(fetchedEntries);
+
+        } catch(error: any) {
+          console.error('Initial error loading entries:', error);
+          setErrorLoadingEntries(`Failed to load entries: ${error.message}`);
+          setAllEntries([]);
+          setEntries([]);
+        } finally {
+          setIsInitialLoading(false);
+        }
     }
     initialFetch();
-  }, [fetchEntries]);
+    // Run only once on mount - Supabase client assumed stable
+  }, []); // Empty dependency array for initial fetch
 
-  // Effect for search/filter changes - Pass all filter states
+  // Effect for search/filter changes - Pass revised state
   useEffect(() => {
-    // Call debounced fetch whenever any filter or search changes
-    debouncedFetchEntries(searchQuery, filterMetaTag, filterIntentTag, filterContentTag);
+    debouncedFetchEntries(searchQuery, activeMetaTag, activeIntentTag, activeContentTags);
     return () => {
       debouncedFetchEntries.cancel();
     };
-  }, [searchQuery, filterMetaTag, filterIntentTag, filterContentTag, debouncedFetchEntries]);
+  }, [searchQuery, activeMetaTag, activeIntentTag, activeContentTags, debouncedFetchEntries]); // Update dependencies
 
-  // Update handleTagClick to accept tag type
+  // REVISED handleTagClick: Single toggle meta/intent, multi toggle content
   const handleTagClick = useCallback((tag: string, type: TagType) => {
-    console.log(`[Debug] handleTagClick received: tag='${tag}', type='${type}'`);
-    setSearchQuery(''); // Clear search
-    // Clear other tag filters and set the new one
-    setFilterMetaTag(type === 'meta' ? tag : null);
-    setFilterIntentTag(type === 'intent' ? tag : null);
-    setFilterContentTag(type === 'content' ? tag : null);
-  }, []);
+    setSearchQuery(''); // Clear search on tag click
 
-  // Update handleClearFilter to clear all tag filters
-  const handleClearFilters = useCallback(() => {
-    setFilterMetaTag(null);
-    setFilterIntentTag(null);
-    setFilterContentTag(null);
-    // Optionally clear search too? No, keep search independent for now.
-    // setSearchQuery(''); 
-  }, []);
+    if (type === 'meta') {
+      setActiveMetaTag(prev => (prev === tag ? null : tag)); // Toggle
+      setActiveIntentTag(null);                       // Clear other single-select
+      // DO NOT clear content tags
+    } else if (type === 'intent') {
+      setActiveIntentTag(prev => (prev === tag ? null : tag)); // Toggle
+      setActiveMetaTag(null);                         // Clear other single-select
+      // DO NOT clear content tags
+    } else { // type === 'content'
+      setActiveContentTags(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(tag)) {
+          newSet.delete(tag); // Toggle off
+        } else {
+          newSet.add(tag); // Toggle on
+        }
+        return newSet;
+      });
+      // DO NOT clear meta/intent tags
+    }
+
+    // Scroll main content to top
+    mainContentScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+
+  }, []); // Dependencies remain empty
 
   // Define callback for when AddEntryDialog adds a new entry (optimistic update)
   const handleEntryAdded = useCallback((newEntry: Entry) => {
@@ -317,42 +351,6 @@ export default function Home() {
     }
   };
 
-  const handleGenerateMacroSummary = async () => {
-    const entriesForDate = entries.filter(entry => entry.date === selectedDate);
-    if (entriesForDate.length === 0) return;
-
-    setIsGeneratingMacroSummary(true);
-    try {
-      const response = await fetch('/api/macro-summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          entries: entriesForDate.map(e => ({ content: e.content, date: e.date })),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Macro-summary API error:', errorData);
-        throw new Error(`Failed to generate macro-summary: ${errorData.error || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
-      setMacroSummary(data.macroSummary);
-    } catch (error: any) {
-      console.error('Error generating macro-summary:', error);
-      setMacroSummary({
-        mood: "Error",
-        moodEmoji: "⚠️",
-        focusAreas: [],
-        keyTakeaway: "Unable to generate overview"
-      });
-      alert(`Failed to generate overview: ${error.message}`);
-    } finally {
-      setIsGeneratingMacroSummary(false);
-    }
-  };
-
   // --- Dialog Handling Callbacks ---
   const handleAddClick = () => {
       setEditingEntry(null); // Ensure edit mode is off
@@ -377,12 +375,15 @@ export default function Home() {
     }
   }, [generatingTagsForId]);
 
-  // Log the specific state *and* the derived value
-  console.log('[Debug] filterMetaTag state:', filterMetaTag); 
-  console.log('[Debug] Active Filter Value:', activeFilterValue);
+  // Update debug logs
+  console.log('[Debug] activeMetaTag state:', activeMetaTag);
+  console.log('[Debug] activeIntentTag state:', activeIntentTag);
+  console.log('[Debug] activeContentTags state:', activeContentTags);
 
   return (
     <div className="flex flex-col min-h-screen">
+      {/* The Header component below will be removed */}
+      {/* 
       <Header 
         entries={entries}
         selectedDate={selectedDate}
@@ -390,17 +391,15 @@ export default function Home() {
         macroSummary={macroSummary}
         isGeneratingMacroSummary={isGeneratingMacroSummary}
         onGenerateMacroSummary={handleGenerateMacroSummary}
-      />
+      /> 
+      */}
       <main className="flex flex-1 overflow-hidden">
         {/* Sidebar - Hidden on smaller than lg screens, add right border */}
         <div className="hidden lg:block border-r">
           <JournalSidebar
-            entries={entries}
+            entries={allEntries}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
-            macroSummary={macroSummary ?? undefined}
-            isGeneratingMacroSummary={isGeneratingMacroSummary}
-            onGenerateMacroSummary={handleGenerateMacroSummary}
           />
         </div>
         {/* Main Content Area - Use equal horizontal padding */}
@@ -410,25 +409,12 @@ export default function Home() {
           <div className="flex justify-between items-center mb-2 flex-shrink-0 gap-4"> 
               {/* Left side: Filter/Status Indicators */}
               <div className="flex items-center gap-2 h-8 flex-shrink-0">
-                {/* Display Active Filter as a dismissible Badge */}
-                {activeFilterValue && (
-                  <Badge variant="secondary" className="inline-flex items-center gap-1 w-fit">
-                    {activeFilterValue} 
-                    <button 
-                      onClick={handleClearFilters} 
-                      className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                      aria-label="Clear filter"
-                     >
-                      <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                    </button>
-                  </Badge>
-                )}
                 {/* Error Message */}
-                {!activeFilterValue && errorLoadingEntries && 
+                {errorLoadingEntries && 
                     <p className="text-red-600 text-sm">Error: {errorLoadingEntries}</p>
                 }
                 {/* Initial Loader Placeholder */}
-                 {isInitialLoading && !activeFilterValue && !errorLoadingEntries && (
+                 {isInitialLoading && !errorLoadingEntries && (
                      <div className="flex items-center justify-start h-8"> 
                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                      </div>
@@ -455,14 +441,14 @@ export default function Home() {
           </div>
 
           {/* Entries List - No horizontal padding needed here */}
-          <div className="flex-grow overflow-y-auto"> {/* Ensure no pr- or px- */} 
+          <div ref={mainContentScrollRef} className="flex-grow overflow-y-auto pr-2"> {/* Add ref and padding-right for scrollbar */}
             {isInitialLoading && (
                 <div className="flex justify-center items-center p-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
             )}
             {!isInitialLoading && !errorLoadingEntries && (
-                entries.length === 0 && (searchQuery || filterMetaTag || filterIntentTag || filterContentTag) ? (
+                entries.length === 0 && (searchQuery || activeMetaTag || activeIntentTag || activeContentTags.size > 0) ? (
                     <p className="pt-4 text-center text-gray-500">No entries found matching filters.</p>
                 ) : entries.length === 0 ? (
                     <p className="pt-4 text-center text-gray-500">No entries yet. Click the '+' button to add one!</p>
@@ -483,8 +469,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right Analysis Column */} 
-        <StaticAnalysisColumn entries={entries} /> 
+        {/* Right Analysis Column - Pass revised state */}
+        <StaticAnalysisColumn
+          entries={entries} // Pass filtered entries
+          onTagClick={handleTagClick} // Pass updated handler
+          activeMetaTag={activeMetaTag} // Pass single string | null
+          activeIntentTag={activeIntentTag} // Pass single string | null
+          activeContentTags={activeContentTags} // Pass Set
+        />
 
       </main>
       {/* Render the Dialog */}

@@ -103,3 +103,47 @@
 *   **CSP Maintenance:** Update if new external resources added.
 *   **Search:** Performance relies on FTS config.
 *   **RTE Edit Mode:** Formatting preservation on *save* needs verification/implementation.
+
+## Known Risks / Assumptions
+
+*   **RLS Disabled (90/100 Risk):** Row Level Security is currently disabled in Supabase. This is the highest priority technical debt to address. Anyone with the anon key could potentially access or modify data.
+*   **AI Cost/Latency:** Reliance on external AI APIs (Groq, potentially others) introduces potential costs and latency. Need monitoring and potential optimization (e.g., caching, selective generation).
+*   **Scalability:** Current data fetching (all entries initially) might not scale well. Needs testing with larger datasets. Tsvector helps search, but filtering/sorting needs review.
+*   **Editor Complexity:** TipTap is powerful but can be complex. Saving HTML is straightforward, but managing complex states or custom nodes might require more effort.
+*   **API Key Security:** Ensure `NEXT_PUBLIC_` variables are appropriate and server-side keys are handled securely (e.g., in API routes, not exposed to the client).
+
+## Codebase Analysis (Quantified) - As of [Current Date/Version - Assistant to Update]
+
+This analysis was performed by the AI assistant based on a review of key files (`page.tsx`, `EntryEditorDialog.tsx`, `RichTextEditor.tsx`, `supabaseClient.ts`) on [Date].
+
+1.  **Row Level Security (RLS) Not Implemented:**
+    *   **Problem:** Critical security vulnerability. Any user could potentially access/modify other users' data via direct API interaction using the public anon key.
+    *   **Score:** **90/100** (Critical risk, data privacy/integrity).
+
+2.  **Missing/Incomplete Priority Features:**
+    *   **Problem:** Key features identified as priorities are placeholders or incomplete: Static Analysis Column (placeholder), RTE saving for edits (text conversion missing), Tag re-generation on edit (skipped), Sidebar navigation enhancements (not started).
+    *   **Score:** **70/100** (High impact on planned functionality).
+
+3.  **State Management Complexity (`page.tsx`):**
+    *   **Problem:** The main page component manages excessive state (entries, multiple loading states, multiple filter states, dialog state, editing state, derived tag counts/colors). High complexity (>500 lines) hinders maintainability and increases bug risk.
+    *   **Score:** **60/100** (Significant complexity, slows future development).
+
+4.  **Performance Considerations:**
+    *   **Problem:** Potential bottlenecks: Initial load fetches all entries; tag calculations re-run on entire dataset with any change; some filtering might be better client-side post-load.
+    *   **Score:** **55/100** (Moderate risk, potential scalability issues).
+
+5.  **Prop Drilling:**
+    *   **Problem:** State and numerous callbacks defined in `page.tsx` are passed down multiple levels, increasing coupling and refactoring difficulty.
+    *   **Score:** **50/100** (Moderate complexity).
+
+6.  **Code Duplication/Organization:**
+    *   **Problem:** Types defined within `page.tsx`; Supabase calls duplicated in UI components instead of centralized data access layer.
+    *   **Score:** **45/100** (Slight impact on maintainability).
+
+7.  **Basic Error Handling:**
+    *   **Problem:** Relies on `console.error` and `alert()`. Needs more user-friendly error feedback (e.g., toast notifications).
+    *   **Score:** **40/100** (Low-to-moderate impact, affects UX).
+
+## Next Steps / Priorities (From Highest to Lowest)
+
+1.  **Implement Row Level Security (RLS):**
