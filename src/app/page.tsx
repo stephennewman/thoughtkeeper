@@ -23,9 +23,9 @@ interface SupabaseEntry {
 }
 
 // Keep the existing Entry type for simplicity or merge later if needed
-interface Entry extends SupabaseEntry {}
+export interface Entry extends SupabaseEntry {}
 
-interface MacroSummary {
+export interface MacroSummary {
   mood: string;
   moodEmoji: string;
   focusAreas: {
@@ -371,6 +371,12 @@ export default function Home() {
           setFilterTag(null);
           setSearchQuery(query);
         }}
+        entries={entries}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        macroSummary={macroSummary}
+        isGeneratingMacroSummary={isGeneratingMacroSummary}
+        onGenerateMacroSummary={handleGenerateMacroSummary}
       />
       <main className="flex flex-1 overflow-hidden">
         {/* Sidebar - Hidden on smaller than lg screens */}

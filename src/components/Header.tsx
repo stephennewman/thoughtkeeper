@@ -8,12 +8,32 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 // Remove unused icons
 // import { Settings, Sun, Moon } from 'lucide-react';
 
+// Import necessary types 
+import type { Entry, MacroSummary } from '@/app/page'; // Use named import
+import { JournalSidebar } from './JournalSidebar'; // Import JournalSidebar
+
 interface HeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  // Sidebar Props
+  entries: Entry[];
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+  macroSummary?: MacroSummary | null;
+  isGeneratingMacroSummary?: boolean;
+  onGenerateMacroSummary?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  searchQuery, 
+  onSearchChange,
+  entries,
+  selectedDate,
+  onSelectDate,
+  macroSummary,
+  isGeneratingMacroSummary,
+  onGenerateMacroSummary
+ }) => {
 
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 w-full backdrop-blur transition-all">
@@ -30,12 +50,14 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) =
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="flex flex-col p-0 w-64"> 
-          <div className="p-4 border-b">
-             <h2 className="font-semibold">Dates</h2>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-             <p className="p-4 text-sm text-muted-foreground">Sidebar content goes here...</p>
-          </div>
+          <JournalSidebar
+            entries={entries}
+            selectedDate={selectedDate}
+            onSelectDate={onSelectDate}
+            macroSummary={macroSummary ?? undefined}
+            isGeneratingMacroSummary={isGeneratingMacroSummary}
+            onGenerateMacroSummary={onGenerateMacroSummary}
+          />
         </SheetContent>
       </Sheet>
 
