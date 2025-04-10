@@ -9,7 +9,7 @@ import * as React from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import debounce from 'lodash.debounce';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 
 // Define a type matching the Supabase table structure
 // Assuming tags will be stored as string[] in jsonb
@@ -386,7 +386,11 @@ export default function Home() {
             </div>
           )}
           <div className="flex-grow overflow-y-auto">
-            {isLoadingEntries && <p className="p-4 text-center">Loading entries...</p>}
+            {isLoadingEntries && (
+                <div className="flex justify-center items-center p-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+            )}
             {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}
             {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && !searchQuery && !filterTag && (
               <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
