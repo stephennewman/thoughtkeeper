@@ -44,6 +44,9 @@ interface EditorState {
   text: string;
 }
 
+// Define tag types
+type TagType = 'meta' | 'intent' | 'content';
+
 export default function Home() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [errorLoadingEntries, setErrorLoadingEntries] = useState<string | null>(null);
@@ -57,13 +60,24 @@ export default function Home() {
   const [isSavingEntry, setIsSavingEntry] = useState<boolean>(false);
   const [generatingTagsForId, setGeneratingTagsForId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [filterMetaTag, setFilterMetaTag] = useState<string | null>(null);
+  const [filterIntentTag, setFilterIntentTag] = useState<string | null>(null);
+  const [filterContentTag, setFilterContentTag] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // Re-add tag frequency calculation
+  // Calculate tag frequencies across all entries (including meta and intent)
   const tagCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
     entries.forEach(entry => {
+      // Count Meta Tag
+      if (entry.meta_tag) {
+        counts[entry.meta_tag] = (counts[entry.meta_tag] || 0) + 1;
+      }
+      // Count Intent Tag
+      if (entry.intent_tag) {
+        counts[entry.intent_tag] = (counts[entry.intent_tag] || 0) + 1;
+      }
+      // Count Content Tags
       entry.tags?.forEach(tag => {
         counts[tag] = (counts[tag] || 0) + 1;
       });
@@ -71,8 +85,8 @@ export default function Home() {
     return counts;
   }, [entries]);
 
-  // Fetch entries - simplified to only handle search query
-  const fetchEntries = useCallback(async (query: string, tag: string | null) => {
+  // Fetch entries - Handle all filters
+  const fetchEntries = useCallback(async (query: string, metaTag: string | null, intentTag: string | null, contentTag: string | null) => {
     setErrorLoadingEntries(null);
     try {
       let supabaseQuery = supabase
@@ -83,19 +97,22 @@ export default function Home() {
 
       const trimmedQuery = query.trim();
 
-      // Apply text search filter if query exists
+      // Apply filters based on priority
       if (trimmedQuery) {
-        // Ensure tag filter is cleared if searching
-        tag = null; 
-        // Use combined search (ilike + contains)
+        // Combined search on content/tags (using ilike/contains)
         const filterString = `content.ilike.%${trimmedQuery}%,tags.cs.${JSON.stringify(trimmedQuery)}`;
         supabaseQuery = supabaseQuery.or(filterString);
-      } 
-      // Apply tag filter only if tag exists AND search query is empty
-      else if (tag) {
-        // Use contains operator for jsonb array
-        supabaseQuery = supabaseQuery.contains('tags', JSON.stringify(tag));
+      } else if (metaTag) {
+        // Filter by meta_tag (exact match)
+        supabaseQuery = supabaseQuery.eq('meta_tag', metaTag);
+      } else if (intentTag) {
+        // Filter by intent_tag (exact match)
+        supabaseQuery = supabaseQuery.eq('intent_tag', intentTag);
+      } else if (contentTag) {
+        // Filter by content tag (array contains)
+        supabaseQuery = supabaseQuery.contains('tags', JSON.stringify(contentTag));
       }
+      // If no filters, query remains unchanged (fetches all)
 
       const { data, error } = await supabaseQuery;
 
@@ -126,36 +143,33 @@ export default function Home() {
     }
   }, []);
 
-  // Debounced version - only pass query
+  // Debounced version - Pass all filter states
   const debouncedFetchEntries = useMemo(() => {
-    // Pass tag state to debounced function
-    const debouncedFn = debounce((currentQuery: string, currentTag: string | null) => {
-       fetchEntries(currentQuery, currentTag);
+    const debouncedFn = debounce((currentQuery: string, currentMeta: string | null, currentIntent: string | null, currentContent: string | null) => {
+       fetchEntries(currentQuery, currentMeta, currentIntent, currentContent);
     }, 300);
     return debouncedFn;
   }, [fetchEntries]);
 
-  // Load entries on initial mount - Needs initial loading state handling
-  // Option 1: Add back setIsLoadingEntries just for initial load
-  // Option 2: Add a separate initialFetch function
-  // Let's try Option 1 for simplicity
+  // Initial Load Effect
   useEffect(() => {
     const initialFetch = async () => {
-        setIsInitialLoading(true); // Use separate initial loading state
-        await fetchEntries('', null); 
+        setIsInitialLoading(true);
+        // Pass null for all filters
+        await fetchEntries('', null, null, null); 
         setIsInitialLoading(false);
     }
     initialFetch();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchEntries]); // fetchEntries needed here
+  }, [fetchEntries]);
 
-  // Effect for search query changes
+  // Effect for search/filter changes - Pass all filter states
   useEffect(() => {
-    debouncedFetchEntries(searchQuery, filterTag);
+    // Call debounced fetch whenever any filter or search changes
+    debouncedFetchEntries(searchQuery, filterMetaTag, filterIntentTag, filterContentTag);
     return () => {
       debouncedFetchEntries.cancel();
     };
-  }, [searchQuery, filterTag, debouncedFetchEntries]);
+  }, [searchQuery, filterMetaTag, filterIntentTag, filterContentTag, debouncedFetchEntries]);
 
   // Update currentContent when selectedDate changes
   useEffect(() => {
@@ -163,16 +177,22 @@ export default function Home() {
     setMacroSummary(undefined);
   }, [selectedDate]);
 
-  // Handler for clicking a tag
-  const handleTagClick = useCallback((tag: string) => {
-    // setSearchQuery(''); // Remove this line - fetchEntries handles priority
-    setFilterTag(tag); // Set the filter tag
-    // The useEffect watching filterTag will trigger the fetch
+  // Update handleTagClick to accept tag type
+  const handleTagClick = useCallback((tag: string, type: TagType) => {
+    setSearchQuery(''); // Clear search
+    // Clear other tag filters and set the new one
+    setFilterMetaTag(type === 'meta' ? tag : null);
+    setFilterIntentTag(type === 'intent' ? tag : null);
+    setFilterContentTag(type === 'content' ? tag : null);
   }, []);
 
-  // Handler for clearing the tag filter
-  const handleClearFilter = useCallback(() => {
-    setFilterTag(null);
+  // Update handleClearFilter to clear all tag filters
+  const handleClearFilters = useCallback(() => {
+    setFilterMetaTag(null);
+    setFilterIntentTag(null);
+    setFilterContentTag(null);
+    // Optionally clear search too? No, keep search independent for now.
+    // setSearchQuery(''); 
   }, []);
 
   const handleSave = async () => {
@@ -399,7 +419,7 @@ export default function Home() {
       <Header 
         searchQuery={searchQuery} 
         onSearchChange={(query) => {
-          setFilterTag(null);
+          handleClearFilters(); // Clear all tag filters when searching
           setSearchQuery(query);
         }}
         entries={entries}
@@ -423,10 +443,14 @@ export default function Home() {
         </div>
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
-          {filterTag && (
+          {/* Update Clear Filter UI */}
+          {(filterMetaTag || filterIntentTag || filterContentTag) && (
             <div className="flex-shrink-0">
-              <Button variant="secondary" size="sm" onClick={handleClearFilter}>
-                Filtering by: "{filterTag}"
+              <Button variant="secondary" size="sm" onClick={handleClearFilters}>
+                Filtering by: 
+                {filterMetaTag && ` [Meta: ${filterMetaTag}]`}
+                {filterIntentTag && ` [Intent: ${filterIntentTag}]`}
+                {filterContentTag && ` [Tag: ${filterContentTag}]`}
                 <X className="h-4 w-4 ml-2" />
               </Button>
             </div>
@@ -441,12 +465,10 @@ export default function Home() {
                 </div>
             )}
             {!isInitialLoading && !errorLoadingEntries && (
-                entries.length === 0 && !searchQuery && !filterTag ? (
+                entries.length === 0 && (searchQuery || filterMetaTag || filterIntentTag || filterContentTag) ? (
+                    <p className="pt-4 text-center text-gray-500">No entries found matching filters.</p>
+                ) : entries.length === 0 ? (
                     <p className="pt-4 text-center text-gray-500">No entries yet. Start writing!</p>
-                ) : entries.length === 0 && searchQuery && !filterTag ? (
-                    <p className="pt-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
-                ) : entries.length === 0 && filterTag ? (
-                    <p className="pt-4 text-center text-gray-500">No entries found tagged with "{filterTag}".</p>
                 ) : (
                     <JournalEntry
                         selectedDate={selectedDate}

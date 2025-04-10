@@ -23,6 +23,9 @@ interface EditorState {
   text: string;
 }
 
+// Define tag types here too (or move to shared file)
+type TagType = 'meta' | 'intent' | 'content';
+
 interface JournalEntryProps {
   selectedDate: string;
   content: string; // Initial HTML content for new entry editor
@@ -33,7 +36,7 @@ interface JournalEntryProps {
   onDeleteEntry: (id: string) => void;
   isSavingEntry?: boolean;
   generatingTagsForId?: string | null;
-  onTagClick?: (tag: string) => void;
+  onTagClick?: (tag: string, type: TagType) => void;
   tagCounts?: { [key: string]: number };
 }
 
@@ -162,16 +165,48 @@ export function JournalEntry({
 
                   <div className="mt-3 pt-3 border-t flex flex-wrap justify-between items-center gap-x-4 gap-y-2">
                     <div className="flex flex-wrap items-center gap-1 order-1 flex-grow min-w-0">
-                      {entry.meta_tag && (
-                        <span className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
-                          {entry.meta_tag}
-                        </span>
-                      )}
-                      {entry.intent_tag && (
-                        <span className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs font-medium">
-                          {entry.intent_tag}
-                        </span>
-                      )}
+                      {entry.meta_tag && (() => {
+                        const count = tagCounts?.[entry.meta_tag!] || 0;
+                        const isClickable = count > 1 && !!onTagClick;
+                        const TagComponent = isClickable ? 'button' : 'span';
+                        return (
+                          <TagComponent
+                            key={`meta-${entry.meta_tag}`}
+                            onClick={isClickable ? (e) => { e.stopPropagation(); onTagClick!(entry.meta_tag!, 'meta'); } : undefined}
+                            className={clsx(
+                              "px-1.5 py-0.5 rounded text-xs font-medium uppercase", // Common styles + uppercase
+                              isClickable ? 
+                                "bg-purple-100 text-purple-800 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900 transition-colors" : 
+                                "bg-muted text-muted-foreground opacity-75 cursor-default"
+                            )}
+                            disabled={!isClickable} // Only relevant for button
+                          >
+                            {entry.meta_tag}
+                          </TagComponent>
+                        );
+                      })()}
+
+                      {entry.intent_tag && (() => {
+                        const count = tagCounts?.[entry.intent_tag!] || 0;
+                        const isClickable = count > 1 && !!onTagClick;
+                        const TagComponent = isClickable ? 'button' : 'span';
+                        return (
+                           <TagComponent
+                            key={`intent-${entry.intent_tag}`}
+                            onClick={isClickable ? (e) => { e.stopPropagation(); onTagClick!(entry.intent_tag!, 'intent'); } : undefined}
+                            className={clsx(
+                              "px-1.5 py-0.5 rounded text-xs font-medium", // Common styles
+                              isClickable ? 
+                                "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300 dark:hover:bg-green-900 transition-colors" : 
+                                "bg-muted text-muted-foreground opacity-75 cursor-default"
+                            )}
+                            disabled={!isClickable} // Only relevant for button
+                          >
+                            {entry.intent_tag}
+                          </TagComponent>
+                        );
+                      })()}
+                      
                       <div className="inline-flex flex-wrap gap-1">
                         {generatingTagsForId === entry.id || (generatingTagsForId === 'new' && entry.id === entries[0]?.id) ? (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
@@ -183,25 +218,22 @@ export function JournalEntry({
                             entry.tags.map((tag) => {
                               const count = tagCounts?.[tag] || 0;
                               const isClickable = count > 1 && !!onTagClick;
+                              const TagComponent = isClickable ? 'button' : 'span';
                               
-                              return isClickable ? (
-                                <button
+                              return (
+                                <TagComponent
                                   key={tag}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onTagClick && onTagClick(tag);
-                                  }}
-                                  className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900 transition-colors"
+                                  onClick={isClickable ? (e) => { e.stopPropagation(); onTagClick!(tag, 'content'); } : undefined}
+                                  className={clsx(
+                                    "px-1.5 py-0.5 rounded text-xs", // Common styles
+                                    isClickable ? 
+                                      "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900 transition-colors" : 
+                                      "bg-muted text-muted-foreground opacity-75 cursor-default"
+                                  )}
+                                  disabled={!isClickable} // Only relevant for button
                                 >
                                   {tag}
-                                </button>
-                              ) : (
-                                <span
-                                  key={tag}
-                                  className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs opacity-75"
-                                >
-                                  {tag}
-                                </span>
+                                </TagComponent>
                               );
                             })
                           )
