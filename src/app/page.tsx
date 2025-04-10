@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { JournalSidebar, JournalEntry } from '@/components';
 import { Input } from '@/components/ui/input';
+import { Header } from '@/components/Header';
 import * as React from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import debounce from 'lodash.debounce';
@@ -302,47 +303,46 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen">
-      <JournalSidebar
-        entries={entries}
-        selectedDate={selectedDate}
-        onSelectDate={setSelectedDate}
-        macroSummary={macroSummary ?? undefined}
-        isGeneratingMacroSummary={isGeneratingMacroSummary}
-        onGenerateMacroSummary={handleGenerateMacroSummary}
+    <div className="flex flex-col min-h-screen">
+      <Header 
+        searchQuery={searchQuery} 
+        onSearchChange={setSearchQuery} 
       />
-      <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
-        <Input
-          type="search"
-          placeholder="Search entries..."
-          value={searchQuery}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-          className="w-full md:w-1/2 lg:w-1/3 flex-shrink-0"
+      <main className="flex flex-1 overflow-hidden">
+        <JournalSidebar
+          entries={entries}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          macroSummary={macroSummary ?? undefined}
+          isGeneratingMacroSummary={isGeneratingMacroSummary}
+          onGenerateMacroSummary={handleGenerateMacroSummary}
         />
-        <div className="flex-grow overflow-y-auto">
-          {isLoadingEntries && <p className="p-4 text-center">Loading entries...</p>}
-          {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}
-          {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && searchQuery && (
-            <p className="p-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
-          )}
-          {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && !searchQuery && (
-            <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
-          )}
-          {!isLoadingEntries && !errorLoadingEntries && entries.length > 0 && (
-            <JournalEntry
-              selectedDate={selectedDate}
-              content={currentContent.html}
-              onChange={setCurrentContent}
-              onSave={handleSave}
-              entries={entries}
-              onUpdateEntry={handleUpdateEntry}
-              onDeleteEntry={handleDeleteEntry}
-              isSavingEntry={isSavingEntry}
-              generatingTagsForId={generatingTagsForId}
-            />
-          )}
+        <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
+          <div className="flex-grow overflow-y-auto">
+            {isLoadingEntries && <p className="p-4 text-center">Loading entries...</p>}
+            {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}
+            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && searchQuery && (
+              <p className="p-4 text-center text-gray-500">No entries found matching "{searchQuery}".</p>
+            )}
+            {!isLoadingEntries && !errorLoadingEntries && entries.length === 0 && !searchQuery && (
+              <p className="p-4 text-center text-gray-500">No entries yet. Start writing!</p>
+            )}
+            {!isLoadingEntries && !errorLoadingEntries && entries.length > 0 && (
+              <JournalEntry
+                selectedDate={selectedDate}
+                content={currentContent.html}
+                onChange={setCurrentContent}
+                onSave={handleSave}
+                entries={entries}
+                onUpdateEntry={handleUpdateEntry}
+                onDeleteEntry={handleDeleteEntry}
+                isSavingEntry={isSavingEntry}
+                generatingTagsForId={generatingTagsForId}
+              />
+            )}
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 } 
