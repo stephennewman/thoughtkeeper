@@ -373,14 +373,18 @@ export default function Home() {
         }}
       />
       <main className="flex flex-1 overflow-hidden">
-        <JournalSidebar
-          entries={entries}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          macroSummary={macroSummary ?? undefined}
-          isGeneratingMacroSummary={isGeneratingMacroSummary}
-          onGenerateMacroSummary={handleGenerateMacroSummary}
-        />
+        {/* Sidebar - Hidden on smaller than lg screens */}
+        <div className="hidden lg:block">
+          <JournalSidebar
+            entries={entries}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            macroSummary={macroSummary ?? undefined}
+            isGeneratingMacroSummary={isGeneratingMacroSummary}
+            onGenerateMacroSummary={handleGenerateMacroSummary}
+          />
+        </div>
+        {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
           {filterTag && (
             <div className="flex-shrink-0">

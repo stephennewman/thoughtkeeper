@@ -3,6 +3,8 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Menu } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 // Remove unused icons
 // import { Settings, Sun, Moon } from 'lucide-react';
 
@@ -15,8 +17,30 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, onSearchChange }) =
 
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 w-full backdrop-blur transition-all">
-      {/* App Title */}
-      <div className="flex-none">
+      {/* Mobile Menu Button - Hidden on large screens (lg) */}
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="shrink-0 lg:hidden"
+            aria-label="Toggle sidebar menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="flex flex-col p-0 w-64"> 
+          <div className="p-4 border-b">
+             <h2 className="font-semibold">Dates</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+             <p className="p-4 text-sm text-muted-foreground">Sidebar content goes here...</p>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* App Title - Hidden on small screens? Optional */} 
+      <div className="flex-none hidden lg:block">
         <h1 className="font-semibold text-lg md:text-xl">ThoughtKeeper</h1>
       </div>
 
