@@ -93,11 +93,11 @@ export function JournalEntry({
         </Button>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {selectedEntries.map((entry) => (
-          <div key={entry.id} className="relative group mb-6 last:mb-0">
+          <div key={entry.id} className="border bg-card text-card-foreground shadow-sm rounded-lg p-4">
             {editingEntryId === entry.id ? (
-              <div className="space-y-4 border rounded-lg p-4">
+              <div className="space-y-4">
                 <RichTextEditor
                   content={editEntryContent}
                   onChange={(state) => setEditEntryContent(state.html)}
@@ -123,34 +123,13 @@ export function JournalEntry({
               </div>
             ) : (
               <>
-                <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleStartEdit(entry)}
-                    className="h-7 w-7 p-1"
-                    aria-label="Edit"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(entry.id)}
-                    className="h-7 w-7 p-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    aria-label="Delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-
                 <div
-                  className="prose dark:prose-invert prose-sm max-w-none"
+                  className="prose dark:prose-invert prose-sm max-w-none mb-4"
                   dangerouslySetInnerHTML={{ __html: entry.content }}
                 />
 
-                <div className="mt-3 pt-2 border-t border-dashed border-border/40 flex flex-wrap justify-between items-center gap-x-4 gap-y-1">
-                  <div className="flex-grow min-w-0">
+                <div className="mt-3 pt-3 border-t flex flex-wrap justify-between items-center gap-x-4 gap-y-2">
+                  <div className="flex-grow min-w-0 order-1">
                     {generatingTagsForId === entry.id ? (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -168,11 +147,33 @@ export function JournalEntry({
                       )
                     )}
                   </div>
-                  {entry.created_at && (
-                    <p className="text-xs text-muted-foreground flex-shrink-0">
-                      {format(parseISO(entry.created_at), 'p')}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-3 order-2 flex-shrink-0">
+                    {entry.created_at && (
+                      <p className="text-xs text-muted-foreground">
+                        {format(parseISO(entry.created_at), 'p')}
+                      </p>
+                    )}
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStartEdit(entry)}
+                        className="h-7 w-7 p-1"
+                        aria-label="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(entry.id)}
+                        className="h-7 w-7 p-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
