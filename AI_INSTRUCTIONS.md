@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 1.8
+**Document Version:** 1.9
 **Date:** 2024-06-08
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
@@ -31,10 +31,14 @@
     *   **Content Tags:** Keyword tags based on content, auto-generated, stored in `tags` (jsonb array).
 *   Full-Text Search (FTS) across `content`, `meta_tag`, `intent_tag`, and content `tags` using a `tsvector` column (`search_vector`) and Supabase `textSearch`.
 *   Conditional tag display & filtering based on frequency for all tag types.
+*   Filter state displayed as dismissible badge.
 *   Integrated Header (Title, FTS Search Input).
 *   Rich Text Editor (TipTap) for *new* entries w/ basic toolbar & styling.
-*   Styled entry cards w/ hover actions & metadata footer.
-*   Basic mobile responsiveness (collapsible sidebar).
+*   Entry list display using styled cards with:
+    *   Subtle hover effect.
+    *   "More Options" (ellipsis) menu for Edit/Delete actions (replaces hover buttons).
+    *   Metadata footer (Time, Tags).
+*   Basic mobile responsiveness (collapsible sidebar via Sheet).
 
 **AI Features Implemented / Status:**
 *   **Meta Tag Classification:** API route (`/api/classify-meta`) exists. Generated on save and stored.
@@ -60,14 +64,16 @@
 *   **UI Layout:** Integrated header. Collapsible sidebar structure for mobile. Styled cards for entries. CSS overrides for RTE spacing.
 *   **Rich Text Editor (RTE):** Implemented using TipTap `StarterKit` for new entries.
 *   **Search:** Implemented using PostgreSQL Full-Text Search (`tsvector`) across multiple fields (`content`, `meta_tag`, `intent_tag`, `tags`) for performance and accuracy. Trigger automatically updates `search_vector` column.
+*   **Entry Card Interactions:** Edit/Delete actions moved to a DropdownMenu (ellipsis icon) to avoid accidental triggers and improve mobile UX. Direct card click no longer triggers edit.
+*   **Filtering UX:** Active tag filter displayed as a dismissible badge for better visibility. Filter persistence logic simplified.
 
 ## 3. Future Development Considerations & Improvements (Internal Risk/Value Priority)
 
 1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for security & multi-user.
 2.  **Complete Rich Text Editing:** Refactor edit mode.
 3.  **Refine AI Features:** Integrate summary saving, optimize costs.
-4.  **Robust Error Handling:** Improve user feedback.
-5.  **Improve Mobile Responsiveness:** Polish layout.
+4.  **Improve Mobile Responsiveness:** Polish header/content layout, test across sizes.
+5.  **Robust Error Handling:** Improve user feedback.
 6.  **Develop Journal Analytics.**
 7.  **Tag Management Interface.**
 8.  **Export Entries.**
@@ -80,8 +86,8 @@
 *   **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100).** Top internal risk. Exposes all data via anon key. MUST BE ENABLED with Auth/policies before sharing or multi-user.
 *   **AI Feature Dependency & Cost (Score: ~65/100):** Increased slightly due to more API calls per save.
 *   **Runaway API Cost Vulnerability (Score: ~55/100):** Risk of excessive calls. Partially mitigated by client-side guards & external OpenAI limits.
-*   **Error Handling Gaps (Score: ~45/100):** Potential for confusing UX on failures.
-*   **Responsiveness Gaps (Score: ~40/100):** Basic structure exists, but needs refinement for mobile usability (header, content flow).
+*   **Error Handling Gaps (Score: ~40/100):** Slightly reduced due to clearer filter state.
+*   **Responsiveness Gaps (Score: ~35/100):** Improved structure, but detailed polish still needed.
 *   **`OPENAI_API_KEY` / Supabase Keys Security:** Keys MUST be kept secure. Rotate periodically.
 *   **Supply Chain Attacks:** Risk reduced but present. Monitor Dependabot alerts.
 *   **XSS Risk:** Low currently. Avoid `dangerouslySetInnerHTML`.
