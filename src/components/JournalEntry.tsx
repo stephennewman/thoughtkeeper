@@ -93,14 +93,14 @@ export function JournalEntry({
         </Button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {selectedEntries.map((entry) => (
-          <div key={entry.id} className="border rounded-lg p-4 mt-4">
+          <div key={entry.id} className="relative group mb-6 last:mb-0">
             {editingEntryId === entry.id ? (
-              <div className="space-y-4">
+              <div className="space-y-4 border rounded-lg p-4">
                 <RichTextEditor
-                  content={editEntryContent} // Use local state for edits
-                  onChange={(state) => setEditEntryContent(state.html)} // Only update HTML for edit state for now
+                  content={editEntryContent}
+                  onChange={(state) => setEditEntryContent(state.html)}
                 />
                 <div className="flex gap-2">
                   <Button 
@@ -123,56 +123,57 @@ export function JournalEntry({
               </div>
             ) : (
               <>
-                <div className="flex justify-end gap-2 mb-2">
+                <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleStartEdit(entry)}
-                    className="flex items-center gap-2"
+                    className="h-7 w-7 p-1"
+                    aria-label="Edit"
                   >
                     <Pencil className="h-4 w-4" />
-                    Edit
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDelete(entry.id)}
-                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="h-7 w-7 p-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    aria-label="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
-                    Delete
                   </Button>
                 </div>
+
                 <div
                   className="prose dark:prose-invert prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: entry.content }}
                 />
-                {entry.created_at && (
-                  <p className="text-xs text-gray-400 mt-1 text-right">
-                    Saved: {format(parseISO(entry.created_at), 'p')}
-                  </p>
-                )}
-                {entry.summary && (
-                  <div className="mt-2 p-2 bg-gray-100 rounded">
-                    <p className="text-sm text-gray-600">{entry.summary}</p>
+
+                <div className="mt-3 pt-2 border-t border-dashed border-border/40 flex flex-wrap justify-between items-center gap-x-4 gap-y-1">
+                  <div className="flex-grow min-w-0">
+                    {generatingTagsForId === entry.id ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Generating tags...
+                      </div>
+                    ) : (
+                      entry.tags && entry.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {entry.tags.map((tag, index) => (
+                            <span key={index} className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    )}
                   </div>
-                )}
-                {generatingTagsForId === entry.id ? (
-                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-500 italic">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating smart tags...
-                  </div>
-                ) : (
-                  entry.tags && entry.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {entry.tags.map((tag, index) => (
-                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )
-                )}
+                  {entry.created_at && (
+                    <p className="text-xs text-muted-foreground flex-shrink-0">
+                      {format(parseISO(entry.created_at), 'p')}
+                    </p>
+                  )}
+                </div>
               </>
             )}
           </div>
