@@ -161,13 +161,14 @@ export default function Home() {
     fetchEntries(searchQuery, filterTag);
   }, [filterTag, fetchEntries]);
 
-  // Re-add handler for clicking a tag
+  // Handler for clicking a tag
   const handleTagClick = useCallback((tag: string) => {
-    setSearchQuery(''); // Clear search query
+    // setSearchQuery(''); // Remove this line - fetchEntries handles priority
     setFilterTag(tag); // Set the filter tag
+    // The useEffect watching filterTag will trigger the fetch
   }, []);
 
-  // Re-add handler for clearing the tag filter
+  // Handler for clearing the tag filter
   const handleClearFilter = useCallback(() => {
     setFilterTag(null);
   }, []);
