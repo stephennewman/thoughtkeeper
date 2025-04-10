@@ -108,6 +108,8 @@ export function JournalEntry({
                 "border shadow-sm rounded-lg p-4 group",
                 hasMultipleTags ? "border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-900/10" : "bg-card text-card-foreground"
               )}
+              onClick={editingEntryId !== entry.id ? () => handleStartEdit(entry) : undefined}
+              style={{ cursor: editingEntryId !== entry.id ? 'pointer' : 'default' }}
             >
               {editingEntryId === entry.id ? (
                 <div className="space-y-4">
@@ -117,7 +119,10 @@ export function JournalEntry({
                   />
                   <div className="flex gap-2">
                     <Button 
-                      onClick={() => handleSaveEdit(entry.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSaveEdit(entry.id);
+                      }}
                       className="flex items-center gap-2"
                       disabled={!editEntryContent.trim()}
                     >
@@ -126,7 +131,10 @@ export function JournalEntry({
                     </Button>
                     <Button 
                       variant="outline"
-                      onClick={handleCancelEdit}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancelEdit();
+                      }}
                       className="flex items-center gap-2"
                     >
                       <X className="h-4 w-4" />
@@ -158,7 +166,10 @@ export function JournalEntry({
                                return isClickable ? (
                                  <button
                                    key={tag}
-                                   onClick={() => onTagClick && onTagClick(tag)}
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     onTagClick && onTagClick(tag);
+                                   }}
                                    className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900 transition-colors"
                                  >
                                    {tag}
@@ -181,7 +192,10 @@ export function JournalEntry({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleStartEdit(entry)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(entry);
+                          }}
                           className="h-7 w-7 p-1"
                           aria-label="Edit"
                         >
@@ -190,7 +204,10 @@ export function JournalEntry({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(entry.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(entry.id);
+                          }}
                           className="h-7 w-7 p-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                           aria-label="Delete"
                         >
