@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "./RichTextEditor";
 import { format, parseISO } from 'date-fns';
 import { Pencil, Save, X, Trash2, Loader2 } from 'lucide-react';
 
@@ -76,11 +76,10 @@ export function JournalEntry({
       </div>
 
       <div className="flex flex-col gap-4">
-        <Textarea
-          value={editContent}
-          onChange={(e) => setEditContent(e.target.value)}
+        <RichTextEditor
+          content={editContent}
+          onChange={setEditContent}
           placeholder="Write your journal entry here..."
-          className="min-h-[200px] p-4"
         />
         <Button 
           onClick={handleSave} 
@@ -96,10 +95,9 @@ export function JournalEntry({
           <div key={entry.id} className="border rounded-lg p-4 mt-4">
             {editingEntryId === entry.id ? (
               <div className="space-y-4">
-                <Textarea
-                  value={editEntryContent}
-                  onChange={(e) => setEditEntryContent(e.target.value)}
-                  className="min-h-[200px] p-4"
+                <RichTextEditor
+                  content={editEntryContent}
+                  onChange={setEditEntryContent}
                 />
                 <div className="flex gap-2">
                   <Button 
@@ -142,11 +140,13 @@ export function JournalEntry({
                     Delete
                   </Button>
                 </div>
-                <p className="whitespace-pre-wrap">{entry.content}</p>
-                {/* Display Saved Time */}
+                <div
+                  className="prose dark:prose-invert prose-sm sm:prose-base max-w-none"
+                  dangerouslySetInnerHTML={{ __html: entry.content }}
+                />
                 {entry.created_at && (
                   <p className="text-xs text-gray-400 mt-1 text-right">
-                    Saved: {format(parseISO(entry.created_at), 'p')} {/* 'p' = short time format */}
+                    Saved: {format(parseISO(entry.created_at), 'p')}
                   </p>
                 )}
                 {entry.summary && (
