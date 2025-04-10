@@ -103,6 +103,13 @@
   padding-left: 1.25rem; /* Adjust as needed - e.g., 1rem (pl-4), 1.5rem (pl-6) */
 }
 
+/* Remove margins for paragraphs inside list items for tighter spacing */
+.prose ul > li > p,
+.prose ol > li > p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 /* Optional: Reduce paragraph margins within prose */
 /* .tiptap.prose p {
   margin-top: 0.25em; 
