@@ -85,8 +85,9 @@ export default function Home() {
     return counts;
   }, [entries]);
 
-  // Fetch entries - Handle all filters
+  // Fetch entries - Using tsvector column for search
   const fetchEntries = useCallback(async (query: string, metaTag: string | null, intentTag: string | null, contentTag: string | null) => {
+    // Do NOT set loading state here for filter/search actions
     setErrorLoadingEntries(null);
     try {
       let supabaseQuery = supabase
@@ -99,9 +100,11 @@ export default function Home() {
 
       // Apply filters based on priority
       if (trimmedQuery) {
-        // Combined search on content/tags (using ilike/contains)
-        const filterString = `content.ilike.%${trimmedQuery}%,tags.cs.${JSON.stringify(trimmedQuery)}`;
-        supabaseQuery = supabaseQuery.or(filterString);
+        // Use textSearch on the precomputed tsvector column
+        supabaseQuery = supabaseQuery.textSearch('search_vector', trimmedQuery, {
+          type: 'websearch', // or 'plain', 'phrase' depending on desired matching
+          config: 'english'
+        });
       } else if (metaTag) {
         // Filter by meta_tag (exact match)
         supabaseQuery = supabaseQuery.eq('meta_tag', metaTag);
@@ -117,30 +120,16 @@ export default function Home() {
       const { data, error } = await supabaseQuery;
 
       if (error) {
-        if (error.message.includes('syntax error in tsquery')) {
-           console.warn('Full-text search might not be configured properly. Falling back to ilike.');
-           // Fallback to ilike if FTS fails
-           const { data: fallbackData, error: fallbackError } = await supabase
-             .from('entries')
-             .select('*')
-             .order('date', { ascending: false })
-             .order('created_at', { ascending: false })
-             .ilike('content', `%${trimmedQuery}%`);
-            
-           if (fallbackError) throw fallbackError; // Throw original error? Or fallback?
-           setEntries((fallbackData as Entry[]) || []);
-        } else {
-            throw error;
-        }
-      } else {
-         setEntries((data as Entry[]) || []);
-      }
-
+         throw error;
+      } 
+      setEntries((data as Entry[]) || []);
+      
     } catch (error: any) {
-      console.error('Error loading entries:', error);
-      setErrorLoadingEntries(`Failed to load entries: ${error.message}`);
-      setEntries([]);
-    }
+       console.error('Error loading entries:', error);
+       setErrorLoadingEntries(`Failed to load entries: ${error.message}`);
+       setEntries([]);
+    } 
+    // No finally block needed here for loading state
   }, []);
 
   // Debounced version - Pass all filter states
