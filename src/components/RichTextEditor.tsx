@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import React from 'react';
+import { Toolbar } from './Toolbar';
 
 interface RichTextEditorProps {
   content: string;
@@ -26,7 +27,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     editorProps: {
       attributes: {
         class:
-          'prose dark:prose-invert prose-sm focus:outline-none border border-input bg-background shadow-sm rounded-md min-h-[150px] p-4 m-5',
+          'prose dark:prose-invert prose-sm sm:prose-base lg:prose-lg xl:prose-2xl m-5 focus:outline-none border border-input bg-background shadow-sm rounded-md min-h-[150px] p-4',
       },
     },
     onUpdate: ({ editor }) => {
@@ -39,7 +40,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   return (
     <div>
-      {/* We will add a Toolbar component here later */}
+      <Toolbar editor={editor} />
       <EditorContent editor={editor} />
     </div>
   );
