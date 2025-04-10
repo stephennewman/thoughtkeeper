@@ -97,6 +97,12 @@
   margin-bottom: 0.25em; /* Adjust as needed, e.g., 0.1em, 0 */
 }
 
+/* Reduce left padding for lists within prose */
+.prose ul,
+.prose ol {
+  padding-left: 1.25rem; /* Adjust as needed - e.g., 1rem (pl-4), 1.5rem (pl-6) */
+}
+
 /* Optional: Reduce paragraph margins within prose */
 /* .tiptap.prose p {
   margin-top: 0.25em; 
