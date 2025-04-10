@@ -311,16 +311,14 @@ export default function Home() {
         isGeneratingMacroSummary={isGeneratingMacroSummary}
         onGenerateMacroSummary={handleGenerateMacroSummary}
       />
-      <div className="flex-1 flex flex-col p-4 gap-4">
-        <div>
-          <Input
-            type="search"
-            placeholder="Search entries..."
-            value={searchQuery}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            className="w-full md:w-1/2 lg:w-1/3"
-          />
-        </div>
+      <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
+        <Input
+          type="search"
+          placeholder="Search entries..."
+          value={searchQuery}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+          className="w-full md:w-1/2 lg:w-1/3 flex-shrink-0"
+        />
         <div className="flex-grow overflow-y-auto">
           {isLoadingEntries && <p className="p-4 text-center">Loading entries...</p>}
           {errorLoadingEntries && <p className="p-4 text-red-600">Error: {errorLoadingEntries}</p>}

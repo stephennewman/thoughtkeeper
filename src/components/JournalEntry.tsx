@@ -74,7 +74,7 @@ export function JournalEntry({
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full p-4">
+    <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-col gap-2">
         <h2 className="text-2xl font-semibold">
           {format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')}
