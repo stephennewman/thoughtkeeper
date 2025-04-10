@@ -33,6 +33,12 @@ interface MacroSummary {
   keyTakeaway: string;
 }
 
+// Type for the editor state
+interface EditorState {
+  html: string;
+  text: string;
+}
+
 export default function Home() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState(true);
@@ -41,7 +47,7 @@ export default function Home() {
     const now = new Date();
     return format(now, 'yyyy-MM-dd');
   });
-  const [currentContent, setCurrentContent] = useState('');
+  const [currentContent, setCurrentContent] = useState<EditorState>({ html: '', text: '' });
   const [macroSummary, setMacroSummary] = useState<MacroSummary | undefined>(undefined);
   const [isGeneratingMacroSummary, setIsGeneratingMacroSummary] = useState<boolean>(false);
   const [isSavingEntry, setIsSavingEntry] = useState<boolean>(false);
@@ -101,25 +107,28 @@ export default function Home() {
 
   // Update currentContent when selectedDate changes
   useEffect(() => {
-    setCurrentContent('');
-    // Reset macro summary when date changes
+    setCurrentContent({ html: '', text: '' }); // Reset editor state
     setMacroSummary(undefined);
-    // Optionally refetch entries filtered by selectedDate here for performance,
-    // but for now, filtering happens client-side in JournalEntry
   }, [selectedDate]);
 
-  const handleSave = async (content: string) => {
-    const trimmedContent = content.trim();
-    if (!trimmedContent || isSavingEntry || generatingTagsForId) return;
+  const handleSave = async () => {
+    // Use state directly
+    const { html: trimmedHtml, text: trimmedText } = {
+      html: currentContent.html.trim(), // Trim HTML? Maybe not necessary if TipTap handles it.
+      text: currentContent.text.trim(),
+    };
+    
+    // Basic check if editor is effectively empty (might need refinement)
+    if (!trimmedText || isSavingEntry || generatingTagsForId) return;
 
     setIsSavingEntry(true);
     let newEntryId: string | null = null;
 
     try {
-      // Insert minimal data first
+      // Insert HTML content into Supabase
       const newEntryData = {
         date: selectedDate,
-        content: trimmedContent,
+        content: currentContent.html, // Save the HTML
       };
 
       const { data: insertedData, error: insertError } = await supabase
@@ -136,20 +145,18 @@ export default function Home() {
       }
 
       newEntryId = insertedData.id;
-      // Add the new entry (without tags yet) to the beginning of the local state
-      // So it appears immediately
       setEntries([insertedData as Entry, ...entries]);
-      setCurrentContent(''); // Clear the input after initial save
+      setCurrentContent({ html: '', text: '' }); // Reset editor state
 
-      // --- Start Tag Generation (async, don't block UI further) ---
-      setGeneratingTagsForId(newEntryId); // Show loader for this ID
+      // --- Start Tag Generation (using plain text) ---
+      setGeneratingTagsForId(newEntryId);
       try {
         const tagsResponse = await fetch('/api/tags', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ content: trimmedContent }),
+          body: JSON.stringify({ content: trimmedText }), // Send PLAIN TEXT
         });
 
         if (!tagsResponse.ok) {
@@ -326,7 +333,8 @@ export default function Home() {
           {!isLoadingEntries && !errorLoadingEntries && entries.length > 0 && (
             <JournalEntry
               selectedDate={selectedDate}
-              content={currentContent}
+              content={currentContent.html}
+              onChange={setCurrentContent}
               onSave={handleSave}
               entries={entries}
               onUpdateEntry={handleUpdateEntry}

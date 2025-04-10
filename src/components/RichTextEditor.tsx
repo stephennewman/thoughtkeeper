@@ -2,12 +2,17 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Toolbar } from './Toolbar';
+
+interface EditorContentState {
+  html: string;
+  text: string;
+}
 
 interface RichTextEditorProps {
   content: string;
-  onChange: (richText: string) => void;
+  onChange: (state: EditorContentState) => void;
   placeholder?: string;
 }
 
@@ -27,16 +32,31 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     editorProps: {
       attributes: {
         class:
-          'prose dark:prose-invert prose-sm sm:prose-base lg:prose-lg xl:prose-2xl m-5 focus:outline-none border border-input bg-background shadow-sm rounded-md min-h-[150px] p-4',
+          'prose dark:prose-invert prose-sm max-w-none focus:outline-none border border-input bg-background shadow-sm rounded-md min-h-[150px] p-4 m-5',
       },
     },
     onUpdate: ({ editor }) => {
-      // Output HTML for now, can configure JSON later if preferred
-      onChange(editor.getHTML());
+      // Send both HTML and text up
+      onChange({
+        html: editor.getHTML(),
+        text: editor.getText(),
+      });
     },
     // You can add placeholder extension if needed:
     // Placeholder.configure({ placeholder: placeholder || 'Write something...' })
   });
+
+  // Effect to handle resetting the editor content externally
+  useEffect(() => {
+    // Add null check for editor
+    if (!editor) {
+      return;
+    }
+    // Check the HTML content for emptiness
+    if (content === '<p></p>' || content === '') { // TipTap might return empty paragraph
+      editor.commands.clearContent();
+    }
+  }, [content, editor]);
 
   return (
     <div>

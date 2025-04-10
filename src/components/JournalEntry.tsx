@@ -4,10 +4,17 @@ import { RichTextEditor } from "./RichTextEditor";
 import { format, parseISO } from 'date-fns';
 import { Pencil, Save, X, Trash2, Loader2 } from 'lucide-react';
 
+// Type definition from page.tsx (or move to a shared types file)
+interface EditorState {
+  html: string;
+  text: string;
+}
+
 interface JournalEntryProps {
   selectedDate: string;
-  content: string;
-  onSave: (content: string) => void;
+  content: string; // Initial HTML content for new entry editor
+  onChange: (state: EditorState) => void; // Handler for new entry editor changes
+  onSave: () => void; // onSave now takes no arguments
   entries: Array<{
     id: string;
     date: string;
@@ -24,7 +31,8 @@ interface JournalEntryProps {
 
 export function JournalEntry({
   selectedDate,
-  content,
+  content, // This is the initial HTML for NEW entries
+  onChange, // This is the handler for the NEW entry editor
   onSave,
   entries,
   onUpdateEntry,
@@ -32,15 +40,14 @@ export function JournalEntry({
   isSavingEntry,
   generatingTagsForId,
 }: JournalEntryProps) {
-  const [editContent, setEditContent] = React.useState(content);
-  const [editingEntryId, setEditingEntryId] = React.useState<string | null>(null);
+  // State for editing existing entries (still uses string for HTML)
   const [editEntryContent, setEditEntryContent] = React.useState('');
+  const [editingEntryId, setEditingEntryId] = React.useState<string | null>(null);
   const selectedEntries = entries.filter(entry => entry.date === selectedDate);
 
-  const handleSave = () => {
-    if (!editContent.trim()) return;
-    onSave(editContent);
-    setEditContent('');
+  const handleSaveClick = () => {
+    // Call the onSave passed from parent, which now reads state
+    onSave(); 
   };
 
   const handleStartEdit = (entry: typeof selectedEntries[0]) => {
@@ -77,15 +84,11 @@ export function JournalEntry({
 
       <div className="flex flex-col gap-4">
         <RichTextEditor
-          content={editContent}
-          onChange={setEditContent}
+          content={content} // Use the passed-in initial HTML
+          onChange={onChange} // Use the passed-in handler
           placeholder="Write your journal entry here..."
         />
-        <Button 
-          onClick={handleSave} 
-          className="w-fit" 
-          disabled={!editContent.trim() || isSavingEntry}
-        >
+        <Button onClick={handleSaveClick} className="w-fit" disabled={isSavingEntry /* Add check for empty state later? */}>
           Save Entry
         </Button>
       </div>
@@ -96,8 +99,8 @@ export function JournalEntry({
             {editingEntryId === entry.id ? (
               <div className="space-y-4">
                 <RichTextEditor
-                  content={editEntryContent}
-                  onChange={setEditEntryContent}
+                  content={editEntryContent} // Use local state for edits
+                  onChange={(state) => setEditEntryContent(state.html)} // Only update HTML for edit state for now
                 />
                 <div className="flex gap-2">
                   <Button 
@@ -141,7 +144,7 @@ export function JournalEntry({
                   </Button>
                 </div>
                 <div
-                  className="prose dark:prose-invert prose-sm sm:prose-base max-w-none"
+                  className="prose dark:prose-invert prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: entry.content }}
                 />
                 {entry.created_at && (
