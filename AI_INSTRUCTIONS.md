@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 1.6
+**Document Version:** 1.7
 **Date:** 2024-06-08
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
@@ -25,15 +25,21 @@
 *   Multiple entries allowed per day.
 *   Basic sidebar navigation showing dates with entries (sorted chronologically).
 *   Data persistence using **Supabase** database (replaces previous `localStorage` implementation).
-*   Basic text search across entry content and tags.
-*   Conditional tag display & filtering based on frequency.
+*   Dual Tagging System:
+    *   **Meta Tags:** Topic/life domain (e.g., Work, Health), auto-generated, stored in `meta_tag`.
+    *   **Intent Tags:** Entry purpose (e.g., Action Item, Log), auto-generated, stored in `intent_tag`.
+    *   **Content Tags:** Keyword tags based on content, auto-generated, stored in `tags` (jsonb array).
+*   Basic text search across entry `content` and content `tags`.
+*   Conditional tag display & filtering: All tag types (Meta, Intent, Content) appearing >1 time in the current list are styled distinctly and clickable for filtering.
 *   Integrated Header (Title, Search).
 *   Rich Text Editor (TipTap) for *new* entries w/ basic toolbar & spacing fixes.
-*   Entry list display using styled cards w/ hover actions & metadata footer.
-*   Basic mobile responsiveness (collapsible sidebar structure via Sheet).
+*   Entry list display using styled cards w/ hover actions & metadata footer (displays Meta, Intent, Content tags).
+*   Basic mobile responsiveness (collapsible sidebar).
 
 **AI Features Implemented / Status:**
-*   **Automatic Tag Generation:** Backend API (`/api/tags`) exists. Frontend generates tags on save and updates the Supabase entry. Includes loading state.
+*   **Meta Tag Classification:** API route (`/api/classify-meta`) exists. Generated on save and stored.
+*   **Intent Tag Classification:** API route (`/api/classify-intent`) exists. Generated on save and stored.
+*   **Content Tag Generation:** API route (`/api/tags`) exists. Generated on save and stored.
 *   **Macro Summary:** On-demand generation via `/api/macro-summarize`. **Result is not saved to database.**
 *   **Individual Entry Summary:** Backend API (`/api/summarize`) and frontend function (`handleGenerateSummary`) exist but are currently commented out/disabled.
 
@@ -46,11 +52,11 @@
 ## 2. Key Decisions & Rationale
 
 *   **Storage (Supabase):** Migrated from `localStorage`. **RLS is intentionally DISABLED** (postponed, see Risks).
-*   **AI Integration (OpenAI):** Using `gpt-3.5-turbo` via API routes. Tag generation updates Supabase entry.
+*   **AI Integration (OpenAI):** Using `gpt-3.5-turbo` via API routes for Meta, Intent, and Content tag generation.
 *   **Deployment (Netlify):** Using CI/CD from `main` branch with `npm ci`.
 *   **Security Headers (CSP):** Implemented via `next.config.js`. Includes Supabase URL. `unsafe-eval`/`unsafe-inline` still present.
 *   **Dependency Security:** Updated `next` to patch critical vulns. Using `npm ci` in builds. Dependabot alerts enabled on GitHub repo.
-*   **Tag Interaction:** Tags are displayed conditionally. Only tags appearing >1 time in the current result set are highlighted (blue) and clickable. Clicking filters entries by that tag using `supabase.contains()`. Search clears tag filters and vice-versa.
+*   **Tag Interaction:** Meta, Intent, and Content tags rendered distinctly. Tags appearing >1 time in current list are highlighted (different colors per type) and clickable. Clicking filters entries by that specific tag and type using `supabase.eq()` (for Meta/Intent) or `supabase.contains()` (for Content). Search clears tag filters and vice-versa.
 *   **UI Layout:** Integrated header. Collapsible sidebar structure for mobile. Styled cards for entries. CSS overrides for RTE spacing.
 *   **Rich Text Editor (RTE):** Implemented using TipTap `StarterKit` for new entries.
 
@@ -58,21 +64,22 @@
 
 1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for security & multi-user.
 2.  **Complete Rich Text Editing:** Refactor edit mode. Add toolbar options.
-3.  **Refine AI Features:** Integrate summary saving, optimize costs.
-4.  **Robust Error Handling:** Improve user feedback.
-5.  **Improve Mobile Responsiveness:** Polish header/content layout on small screens, ensure usability.
-6.  **Implement Full-Text Search Properly:** Use `tsvector`.
-7.  **Develop Journal Analytics:** Build data insights.
-8.  **Tag Management Interface:** Add tag editing/browsing.
-9.  **Export Entries:** Add data export.
-10. **Security Hardening (CSP):** Remove `unsafe-eval`/`unsafe-inline`.
-11. **Offline Strategy:** Define offline behavior.
-12. **State Management:** Consider refactoring.
+3.  **Refine AI Features:** Integrate summary saving, optimize costs, potentially allow manual tag editing.
+4.  **Refine Filtering:** Allow combining filters (e.g., Meta + Intent)? Improve UI.
+5.  **Robust Error Handling:** Improve user feedback.
+6.  **Improve Mobile Responsiveness:** Polish layout.
+7.  **Implement Full-Text Search Properly:** Use `tsvector`.
+8.  **Develop Journal Analytics:** Build data insights (now richer with Meta/Intent tags).
+9.  **Tag Management Interface:** Add tag editing/browsing.
+10. **Export Entries:** Add data export.
+11. **Security Hardening (CSP):** Remove `unsafe-eval`/`unsafe-inline`.
+12. **Offline Strategy:** Define offline behavior.
+13. **State Management:** Consider refactoring.
 
 ## 4. Critical Information & Risks (Internal Focus - Notify User if Score >= 70)
 
 *   **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100).** Top internal risk. Exposes all data via anon key. MUST BE ENABLED with Auth/policies before sharing or multi-user.
-*   **AI Feature Dependency & Cost (Score: ~65/100):** Reliance on OpenAI introduces cost, reliability, latency factors.
+*   **AI Feature Dependency & Cost (Score: ~65/100):** Increased slightly due to more API calls per save.
 *   **Runaway API Cost Vulnerability (Score: ~55/100):** Risk of excessive calls. Partially mitigated by client-side guards & external OpenAI limits.
 *   **Error Handling Gaps (Score: ~45/100):** Potential for confusing UX on failures.
 *   **Responsiveness Gaps (Score: ~40/100):** Basic structure exists, but needs refinement for mobile usability (header, content flow).
