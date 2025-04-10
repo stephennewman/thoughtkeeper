@@ -28,8 +28,6 @@ interface JournalEntryProps {
   onDeleteEntry: (id: string) => void;
   isSavingEntry?: boolean;
   generatingTagsForId?: string | null;
-  onTagClick?: (tag: string) => void; // Add callback prop for tag clicks
-  tagCounts?: { [key: string]: number }; // Add prop for tag counts
 }
 
 export function JournalEntry({
@@ -42,8 +40,6 @@ export function JournalEntry({
   onDeleteEntry,
   isSavingEntry,
   generatingTagsForId,
-  onTagClick, // Destructure the new prop
-  tagCounts, // Destructure the new prop
 }: JournalEntryProps) {
   // State for editing existing entries (still uses string for HTML)
   const [editEntryContent, setEditEntryContent] = React.useState('');
@@ -100,14 +96,10 @@ export function JournalEntry({
 
       <div className="space-y-4">
         {selectedEntries.map((entry) => {
-          const hasMultipleTags = entry.tags && entry.tags.length > 1;
           return (
             <div 
               key={entry.id} 
-              className={clsx(
-                "border shadow-sm rounded-lg p-4 group",
-                hasMultipleTags ? "border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-900/10" : "bg-card text-card-foreground"
-              )}
+              className="border bg-card text-card-foreground shadow-sm rounded-lg p-4 group"
             >
               {editingEntryId === entry.id ? (
                 <div className="space-y-4">
@@ -151,27 +143,14 @@ export function JournalEntry({
                       ) : (
                         entry.tags && entry.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1">
-                            {entry.tags.map((tag) => {
-                              const count = tagCounts?.[tag] || 0;
-                              const isClickable = count > 1 && !!onTagClick;
-                              
-                              return isClickable ? (
-                                <button
-                                  key={tag}
-                                  onClick={() => onTagClick && onTagClick(tag)}
-                                  className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900 transition-colors"
-                                >
-                                  {tag}
-                                </button>
-                              ) : (
-                                <span
-                                  key={tag}
-                                  className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs opacity-75"
+                            {entry.tags.map((tag, index) => (
+                                <span 
+                                  key={index} 
+                                  className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs"
                                 >
                                   {tag}
                                 </span>
-                              );
-                            })}
+                            ))}
                           </div>
                         )
                       )}
