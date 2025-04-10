@@ -1,6 +1,6 @@
-# Lasterday Journal
+# ThoughtKeeper
 
-A modern journaling application built with Next.js that helps you track your thoughts and reflections day by day.
+A modern journaling application built with Next.js that helps you preserve and organize your thoughts and reflections.
 
 ## Features
 
@@ -23,12 +23,12 @@ A modern journaling application built with Next.js that helps you track your tho
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/lasterday-journal.git
+git clone https://github.com/stephennewman/thoughtkeeper.git
 ```
 
 2. Install dependencies:
 ```bash
-cd lasterday-journal
+cd thoughtkeeper
 npm install
 ```
 
