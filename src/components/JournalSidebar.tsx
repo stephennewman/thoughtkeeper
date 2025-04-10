@@ -24,8 +24,9 @@ interface JournalSidebarProps {
   }>;
   selectedDate: string;
   onSelectDate: (date: string) => void;
-  macroSummary?: MacroSummary;
+  macroSummary?: MacroSummary | null;
   isGeneratingMacroSummary?: boolean;
+  onGenerateMacroSummary?: () => void;
 }
 
 export function JournalSidebar({
