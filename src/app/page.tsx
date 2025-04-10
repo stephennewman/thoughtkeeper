@@ -156,11 +156,6 @@ export default function Home() {
     setMacroSummary(undefined);
   }, [selectedDate]);
 
-  // Re-add effect for filterTag changes
-  useEffect(() => {
-    fetchEntries(searchQuery, filterTag);
-  }, [filterTag, fetchEntries]);
-
   // Handler for clicking a tag
   const handleTagClick = useCallback((tag: string) => {
     // setSearchQuery(''); // Remove this line - fetchEntries handles priority
