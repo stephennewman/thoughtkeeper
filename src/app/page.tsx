@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, parseISO, startOfDay } from 'date-fns';
-import { JournalSidebar, JournalEntry } from '@/components';
-import { Input } from '@/components/ui/input';
+import { JournalSidebar, JournalEntry, EntryEditorDialog } from '@/components';
 import { Header } from '@/components/Header';
 import * as React from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import debounce from 'lodash.debounce';
-import { Button } from '@/components/ui/button';
 import { X, Loader2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 
@@ -39,14 +37,38 @@ export interface MacroSummary {
   keyTakeaway: string;
 }
 
-// Type for the editor state
-interface EditorState {
-  html: string;
-  text: string;
-}
-
 // Define tag types
 type TagType = 'meta' | 'intent' | 'content';
+
+// --- Define Color Palettes (Example - choose colors you like) ---
+// Structure: { base: 'bg-... text-... dark:...', hover: 'hover:bg-... dark:hover:bg-...' } - adjust dark modes as needed
+const metaTagColors = [
+  { base: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300', hover: 'hover:bg-purple-200 dark:hover:bg-purple-800/70' },
+  { base: 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300', hover: 'hover:bg-pink-200 dark:hover:bg-pink-800/70' },
+  { base: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300', hover: 'hover:bg-red-200 dark:hover:bg-red-800/70' },
+  { base: 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300', hover: 'hover:bg-rose-200 dark:hover:bg-rose-800/70' },
+  { base: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/50 dark:text-fuchsia-300', hover: 'hover:bg-fuchsia-200 dark:hover:bg-fuchsia-800/70' },
+];
+const intentTagColors = [
+  { base: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300', hover: 'hover:bg-green-200 dark:hover:bg-green-800/70' },
+  { base: 'bg-lime-100 text-lime-800 dark:bg-lime-900/50 dark:text-lime-300', hover: 'hover:bg-lime-200 dark:hover:bg-lime-800/70' },
+  { base: 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300', hover: 'hover:bg-teal-200 dark:hover:bg-teal-800/70' },
+  { base: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300', hover: 'hover:bg-emerald-200 dark:hover:bg-emerald-800/70' },
+  { base: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300', hover: 'hover:bg-cyan-200 dark:hover:bg-cyan-800/70' },
+];
+const contentTagColors = [
+  { base: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300', hover: 'hover:bg-blue-200 dark:hover:bg-blue-800/70' },
+  { base: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300', hover: 'hover:bg-indigo-200 dark:hover:bg-indigo-800/70' },
+  { base: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300', hover: 'hover:bg-sky-200 dark:hover:bg-sky-800/70' },
+  { base: 'bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300', hover: 'hover:bg-violet-200 dark:hover:bg-violet-800/70' },
+  // Add more unique colors if needed
+];
+
+// Define the structure for color assignments
+interface TagColorMap {
+  [lowerCaseTag: string]: { base: string; hover: string };
+}
+// --- End Color Definitions ---
 
 export default function Home() {
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -55,10 +77,8 @@ export default function Home() {
     const now = new Date();
     return format(now, 'yyyy-MM-dd');
   });
-  const [currentContent, setCurrentContent] = useState<EditorState>({ html: '', text: '' });
   const [macroSummary, setMacroSummary] = useState<MacroSummary | undefined>(undefined);
   const [isGeneratingMacroSummary, setIsGeneratingMacroSummary] = useState<boolean>(false);
-  const [isSavingEntry, setIsSavingEntry] = useState<boolean>(false);
   const [generatingTagsForId, setGeneratingTagsForId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMetaTag, setFilterMetaTag] = useState<string | null>(null);
@@ -66,24 +86,54 @@ export default function Home() {
   const [filterContentTag, setFilterContentTag] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // Calculate tag frequencies across all entries (including meta and intent)
-  const tagCounts = useMemo(() => {
+  // State for the editor dialog
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null); // null for add mode
+
+  // Combined calculation for counts and highlight colors
+  const { tagCounts, highlightedTagColors } = useMemo(() => {
     const counts: { [key: string]: number } = {};
+    const colors: TagColorMap = {};
+    let metaColorIndex = 0;
+    let intentColorIndex = 0;
+    let contentColorIndex = 0;
+    const assignedMetaColors: { [key: string]: boolean } = {};
+    const assignedIntentColors: { [key: string]: boolean } = {};
+    const assignedContentColors: { [key: string]: boolean } = {};
+
     entries.forEach(entry => {
-      // Count Meta Tag
+      // Count and assign color for Meta Tag
       if (entry.meta_tag) {
-        counts[entry.meta_tag] = (counts[entry.meta_tag] || 0) + 1;
+        const lowerTag = entry.meta_tag.toLowerCase();
+        counts[lowerTag] = (counts[lowerTag] || 0) + 1;
+        if (counts[lowerTag] >= 2 && !assignedMetaColors[lowerTag]) {
+           colors[lowerTag] = metaTagColors[metaColorIndex % metaTagColors.length];
+           assignedMetaColors[lowerTag] = true;
+           metaColorIndex++;
+        }
       }
-      // Count Intent Tag
+      // Count and assign color for Intent Tag
       if (entry.intent_tag) {
-        counts[entry.intent_tag] = (counts[entry.intent_tag] || 0) + 1;
+        const lowerTag = entry.intent_tag.toLowerCase();
+        counts[lowerTag] = (counts[lowerTag] || 0) + 1;
+         if (counts[lowerTag] >= 2 && !assignedIntentColors[lowerTag]) {
+           colors[lowerTag] = intentTagColors[intentColorIndex % intentTagColors.length];
+           assignedIntentColors[lowerTag] = true;
+           intentColorIndex++;
+        }
       }
-      // Count Content Tags
+      // Count and assign color for Content Tags
       entry.tags?.forEach(tag => {
-        counts[tag] = (counts[tag] || 0) + 1;
+        const lowerTag = tag.toLowerCase(); // Ensure lowercase for safety
+        counts[lowerTag] = (counts[lowerTag] || 0) + 1;
+         if (counts[lowerTag] >= 2 && !assignedContentColors[lowerTag]) {
+           colors[lowerTag] = contentTagColors[contentColorIndex % contentTagColors.length];
+           assignedContentColors[lowerTag] = true;
+           contentColorIndex++;
+        }
       });
     });
-    return counts;
+    return { tagCounts: counts, highlightedTagColors: colors };
   }, [entries]);
 
   // Calculate active filter (for cleaner rendering)
@@ -119,7 +169,7 @@ export default function Home() {
         supabaseQuery = supabaseQuery.eq('intent_tag', intentTag);
       } else if (contentTag) {
         // Filter by content tag (array contains)
-        supabaseQuery = supabaseQuery.contains('tags', JSON.stringify(contentTag));
+        supabaseQuery = supabaseQuery.contains('tags', JSON.stringify([contentTag])); 
       }
       // If no filters, query remains unchanged (fetches all)
 
@@ -166,12 +216,6 @@ export default function Home() {
     };
   }, [searchQuery, filterMetaTag, filterIntentTag, filterContentTag, debouncedFetchEntries]);
 
-  // Update currentContent when selectedDate changes
-  useEffect(() => {
-    setCurrentContent({ html: '', text: '' }); // Reset editor state
-    setMacroSummary(undefined);
-  }, [selectedDate]);
-
   // Update handleTagClick to accept tag type
   const handleTagClick = useCallback((tag: string, type: TagType) => {
     setSearchQuery(''); // Clear search
@@ -190,143 +234,49 @@ export default function Home() {
     // setSearchQuery(''); 
   }, []);
 
-  const handleSave = async () => {
-    const { html: editorHtml, text: editorText } = currentContent;
-    const trimmedText = editorText.trim();
-    
-    if (!trimmedText || isSavingEntry || generatingTagsForId) return;
+  // Define callback for when AddEntryDialog adds a new entry (optimistic update)
+  const handleEntryAdded = useCallback((newEntry: Entry) => {
+    setEntries(prevEntries => [newEntry, ...prevEntries]);
+    // Set loading state for this specific new entry ID
+    setGeneratingTagsForId(newEntry.id); 
+  }, []);
 
-    setIsSavingEntry(true);
-    setGeneratingTagsForId('new'); // Use a generic indicator for new entry AI processing
-    let newEntryId: string | null = null;
-
-    try {
-      // Insert basic entry data first
-      const newEntryData = {
-        date: selectedDate,
-        content: editorHtml, // Save HTML
-      };
-
-      const { data: insertedData, error: insertError } = await supabase
-        .from('entries')
-        .insert(newEntryData)
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-      if (!insertedData) throw new Error("Failed to get inserted entry data.");
-
-      newEntryId = insertedData.id;
-      const entryToDisplay = { ...insertedData, tags: [], meta_tag: null, intent_tag: null } as Entry;
-      
-      // Add entry immediately (without AI tags yet)
-      setEntries([entryToDisplay, ...entries]);
-      setCurrentContent({ html: '', text: '' });
-
-      // --- Start AI Tag Generation (Meta, Intent, Content) in Parallel ---
-      try {
-        const results = await Promise.allSettled([
-          fetch('/api/classify-meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) }),
-          fetch('/api/classify-intent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) }),
-          fetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) })
-        ]);
-
-        let metaTag: string | null = null;
-        let intentTag: string | null = null;
-        let tags: string[] | null = null;
-
-        // Process Meta Tag result
-        if (results[0].status === 'fulfilled' && results[0].value.ok) {
-          try { metaTag = (await results[0].value.json()).metaTag; } catch (e) { console.error('Failed parsing meta tag'); }
-        } else if (results[0].status === 'fulfilled') {
-           console.error('Meta Tag API Error:', await results[0].value.text());
-        } else {
-           console.error('Meta Tag Fetch Error:', results[0].reason);
-        }
-
-        // Process Intent Tag result
-        if (results[1].status === 'fulfilled' && results[1].value.ok) {
-          try { intentTag = (await results[1].value.json()).intentTag; } catch (e) { console.error('Failed parsing intent tag'); }
-        } else if (results[1].status === 'fulfilled') {
-           console.error('Intent Tag API Error:', await results[1].value.text());
-        } else {
-           console.error('Intent Tag Fetch Error:', results[1].reason);
-        }
-
-        // Process Content Tags result
-        if (results[2].status === 'fulfilled' && results[2].value.ok) {
-          try { 
-              const tagsResult = (await results[2].value.json()).tags; 
-              if (tagsResult && Array.isArray(tagsResult)) tags = tagsResult;
-          } catch (e) { console.error('Failed parsing content tags'); }
-        } else if (results[2].status === 'fulfilled') {
-           console.error('Content Tag API Error:', await results[2].value.text());
-        } else {
-           console.error('Content Tag Fetch Error:', results[2].reason);
-        }
-
-        // Check if we have any new tags to save
-        if (metaTag || intentTag || (tags && tags.length > 0)) {
-          const updatePayload: Partial<Entry> = {};
-          if (metaTag) updatePayload.meta_tag = metaTag;
-          if (intentTag) updatePayload.intent_tag = intentTag;
-          if (tags) updatePayload.tags = tags;
-
-          // Update the entry in Supabase with all generated tags
-          const { error: updateError } = await supabase
-            .from('entries')
-            .update(updatePayload)
-            .eq('id', newEntryId);
-
-          if (updateError) {
-            console.error('Error saving generated tags to Supabase:', updateError);
-          } else {
-            // Update the local state with all tags after successful DB update
-            setEntries(prevEntries =>
-              prevEntries.map(entry =>
-                entry.id === newEntryId ? { ...entry, ...updatePayload } : entry
-              )
-            );
-          }
-        }
-      } catch (tagError: any) {
-        console.error('Error during AI tag generation process:', tagError);
-      } finally {
-        setGeneratingTagsForId(null); // Hide loader
-      }
-      // --- End AI Tag Generation ---
-
-    } catch (error: any) {
-      console.error('Error saving entry:', error);
-      alert(`Failed to save entry: ${error.message}`);
-      // Consider removing the optimistically added entry if insert failed
-      if (newEntryId) {
-         setEntries(prev => prev.filter(e => e.id !== newEntryId));
-      }
-    } finally {
-      setIsSavingEntry(false);
-    }
-  };
+  // Define callback for when background AI tagging completes and updates Supabase
+  const handleEntryTagsUpdated = useCallback((entryId: string, updatedTags: Partial<Entry>) => {
+    setEntries(prevEntries =>
+      prevEntries.map(entry =>
+        entry.id === entryId ? { ...entry, ...updatedTags } : entry
+      )
+    );
+    // Clear loading state when tags for this ID are done
+    setGeneratingTagsForId(null); 
+  }, []);
 
   const handleUpdateEntry = async (id: string, content: string) => {
     const trimmedContent = content.trim();
     if (!trimmedContent) return;
 
     // Consider adding an isUpdating state here
+    // Indicate update in progress for this specific entry?
+    // setGeneratingTagsForId(id); // Re-use state? Or new state?
+    
     try {
+      // *** TODO: Implement AI tag re-generation on update? ***
+      // If content changes significantly, tags might need updating.
+      // This adds complexity (API calls, state management).
+      // For now, only update content.
+
       const { data, error } = await supabase
         .from('entries')
-        .update({ content: trimmedContent })
+        .update({ content: trimmedContent }) // Only update content for now
         .eq('id', id)
-        .select() // Select the updated row
-        .single(); // Expecting a single row back
+        .select() 
+        .single(); 
 
       if (error) {
         throw error;
       }
 
-      // Update the entry in the local state
-      // Or refetch all entries: await fetchEntries();
       if (data) {
         setEntries(prevEntries =>
           prevEntries.map(entry => (entry.id === id ? (data as Entry) : entry))
@@ -334,14 +284,15 @@ export default function Home() {
       }
     } catch (error: any) {
       console.error('Error updating entry:', error);
-      // TODO: Add user-facing error notification
       alert(`Failed to update entry: ${error.message}`);
+    } finally {
+        // Clear update indicator if used
+        // if (generatingTagsForId === id) setGeneratingTagsForId(null); 
     }
   };
 
   const handleDeleteEntry = async (id: string) => {
     // Consider adding an isDeleting state here
-    // Optimistic UI update (remove immediately)
     const originalEntries = [...entries];
     setEntries(prevEntries => prevEntries.filter(entry => entry.id !== id));
 
@@ -356,12 +307,9 @@ export default function Home() {
         setEntries(originalEntries);
         throw error;
       }
-      // No need to refetch if optimistic update is successful
     } catch (error: any) {
       console.error('Error deleting entry:', error);
-      // TODO: Add user-facing error notification
       alert(`Failed to delete entry: ${error.message}`);
-      // Revert UI update if delete fails
       setEntries(originalEntries);
     }
   };
@@ -372,14 +320,10 @@ export default function Home() {
 
     setIsGeneratingMacroSummary(true);
     try {
-      // console.log('Generating macro-summary for entries:', entriesForDate.length);
       const response = await fetch('/api/macro-summarize', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // Pass only content and maybe date, API doesn't need IDs etc.
           entries: entriesForDate.map(e => ({ content: e.content, date: e.date })),
         }),
       });
@@ -392,9 +336,6 @@ export default function Home() {
 
       const data = await response.json();
       setMacroSummary(data.macroSummary);
-      // Note: Macro summary is currently *not* saved to the database.
-      // It's generated on demand and held in local state.
-      // console.log('Generated macro-summary:', data.macroSummary);
     } catch (error: any) {
       console.error('Error generating macro-summary:', error);
       setMacroSummary({
@@ -409,12 +350,36 @@ export default function Home() {
     }
   };
 
+  // --- Dialog Handling Callbacks ---
+  const handleAddClick = () => {
+      setEditingEntry(null); // Ensure edit mode is off
+      setIsEditorOpen(true);
+  };
+
+  const handleEditClick = (entry: Entry) => {
+      setEditingEntry(entry); // Set entry to edit
+      setIsEditorOpen(true);
+  };
+
+  // --- Entry CRUD Callbacks (passed to dialog/entry component) ---
+  const handleEntryUpdated = useCallback((updatedEntry: Entry) => {
+    setEntries(prevEntries =>
+      prevEntries.map(entry =>
+        entry.id === updatedEntry.id ? updatedEntry : entry
+      )
+    );
+    // Optionally clear generating state if edit triggered it
+    if (generatingTagsForId === updatedEntry.id) {
+      setGeneratingTagsForId(null);
+    }
+  }, [generatingTagsForId]);
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header 
         searchQuery={searchQuery} 
         onSearchChange={(query) => {
-          handleClearFilters(); // Clear all tag filters when searching
+          handleClearFilters(); 
           setSearchQuery(query);
         }}
         entries={entries}
@@ -423,6 +388,10 @@ export default function Home() {
         macroSummary={macroSummary}
         isGeneratingMacroSummary={isGeneratingMacroSummary}
         onGenerateMacroSummary={handleGenerateMacroSummary}
+        onEntryAdded={handleEntryAdded}
+        onEntryTagsUpdated={handleEntryTagsUpdated}
+        generatingTagsForId={generatingTagsForId}
+        onAddClick={handleAddClick}
       />
       <main className="flex flex-1 overflow-hidden">
         {/* Sidebar - Hidden on smaller than lg screens */}
@@ -474,26 +443,36 @@ export default function Home() {
                 entries.length === 0 && (searchQuery || filterMetaTag || filterIntentTag || filterContentTag) ? (
                     <p className="pt-4 text-center text-gray-500">No entries found matching filters.</p>
                 ) : entries.length === 0 ? (
-                    <p className="pt-4 text-center text-gray-500">No entries yet. Start writing!</p>
+                    <p className="pt-4 text-center text-gray-500">No entries yet. Click the '+' button to add one!</p>
                 ) : (
                     <JournalEntry
                         selectedDate={selectedDate}
-                        content={currentContent.html}
-                        onChange={setCurrentContent}
-                        onSave={handleSave}
                         entries={entries}
-                        onUpdateEntry={handleUpdateEntry}
+                        onUpdateEntry={(id, content) => { /* Now handled by dialog */ }}
                         onDeleteEntry={handleDeleteEntry}
-                        isSavingEntry={isSavingEntry}
                         generatingTagsForId={generatingTagsForId}
                         onTagClick={handleTagClick}
                         tagCounts={tagCounts}
+                        highlightedTagColors={highlightedTagColors}
+                        onEditClick={handleEditClick}
                     />
                 )
             )}
           </div>
         </div>
       </main>
+      {/* Render the Dialog */}
+      <EntryEditorDialog 
+        isOpen={isEditorOpen}
+        setIsOpen={setIsEditorOpen}
+        selectedDate={selectedDate} // For add mode title
+        initialEntry={editingEntry} // Pass entry being edited (or null)
+        onEntryAdded={handleEntryAdded}
+        onEntryUpdated={handleEntryUpdated} // Pass the update handler
+        onEntryTagsUpdated={handleEntryTagsUpdated}
+        generatingTagsForId={generatingTagsForId}
+        setGeneratingTagsForId={setGeneratingTagsForId} // Pass setter
+      />
     </div>
   );
 } 

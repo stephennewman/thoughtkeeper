@@ -1,10 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
+import { Menu, Plus } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+
 // Remove unused icons
 // import { Settings, Sun, Moon } from 'lucide-react';
 
@@ -22,6 +24,12 @@ interface HeaderProps {
   macroSummary?: MacroSummary | null;
   isGeneratingMacroSummary?: boolean;
   onGenerateMacroSummary?: () => void;
+  // Callbacks managed by page.tsx for Dialog
+  onEntryAdded: (newEntry: Entry) => void; 
+  onEntryTagsUpdated: (entryId: string, updatedTags: Partial<Entry>) => void;
+  generatingTagsForId: string | null; 
+  // Callback to trigger modal opening in parent
+  onAddClick: () => void; 
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -32,10 +40,18 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectDate,
   macroSummary,
   isGeneratingMacroSummary,
-  onGenerateMacroSummary
+  onGenerateMacroSummary,
+  // Destructure the added props (even if not directly used in Header JSX)
+  onEntryAdded, 
+  onEntryTagsUpdated,
+  generatingTagsForId,
+  onAddClick, 
  }) => {
+  // REMOVE state for dialog - managed by parent
+  // const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   return (
+    // Keep header structure, but remove Dialog and AddEntryDialog rendering
     <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 w-full backdrop-blur transition-all">
       {/* Mobile Menu Button - Hidden on large screens (lg) */}
       <Sheet>
@@ -77,12 +93,21 @@ export const Header: React.FC<HeaderProps> = ({
         />
       </div>
 
-      {/* Global Actions (Empty for now) */}
+      {/* Global Actions */}
       <div className="flex items-center gap-2 flex-none">
-        {/* Theme Toggle Button Removed */}
-        {/* Settings Button Removed */}
+        {/* Add New Entry Button - Triggers callback */}
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="ml-auto" 
+          aria-label="Add new journal entry"
+          onClick={onAddClick} // Call the passed callback
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
         {/* Placeholder for future User Profile/Auth button */}
       </div>
     </header>
+    // REMOVE AddEntryDialog rendering from here
   );
 }; 

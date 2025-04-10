@@ -1,7 +1,7 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 1.9
-**Date:** 2024-06-08
+**Document Version:** 2.0
+**Date:** 2024-06-09
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
 
@@ -21,31 +21,34 @@
 *   Code Storage: GitHub
 
 **Core Features Implemented:**
-*   Date-based journal entry creation, viewing, editing, and deletion.
+*   Date-based journal entry creation, viewing, editing, and deletion via **Dialog Modal**.
 *   Multiple entries allowed per day.
 *   Basic sidebar navigation showing dates with entries (sorted chronologically).
-*   Data persistence using **Supabase** database (replaces previous `localStorage` implementation).
+*   Data persistence using **Supabase** database.
 *   Dual Tagging System:
-    *   **Meta Tags:** Topic/life domain (e.g., Work, Health), auto-generated, stored in `meta_tag`.
-    *   **Intent Tags:** Entry purpose (e.g., Action Item, Log), auto-generated, stored in `intent_tag`.
-    *   **Content Tags:** Keyword tags based on content, auto-generated, stored in `tags` (jsonb array).
+    *   **Meta Tags:** Topic/life domain (e.g., Work, Health), auto-generated, stored in `meta_tag` (case preserved).
+    *   **Intent Tags:** Entry purpose (e.g., Action Item, Log), auto-generated, stored in `intent_tag` (case preserved).
+    *   **Content Tags:** Keyword tags based on content, auto-generated, stored **lowercase** in `tags` (jsonb array).
 *   Full-Text Search (FTS) across `content`, `meta_tag`, `intent_tag`, and content `tags` using a `tsvector` column (`search_vector`) and Supabase `textSearch`.
-*   Conditional tag display & filtering based on frequency for all tag types.
+*   Conditional tag display & filtering based on frequency (case-insensitive counting).
+*   **Unique color highlighting** for frequently occurring tags within each type (Meta, Intent, Content).
 *   Filter state displayed as dismissible badge.
-*   Integrated Header (Title, FTS Search Input).
-*   Rich Text Editor (TipTap) for *new* entries w/ basic toolbar & styling.
+*   Integrated Header (Title, FTS Search Input, **Add Entry Button**).
+*   Rich Text Editor (TipTap) used within the entry editor dialog (for both Add and Edit).
 *   Entry list display using styled cards with:
     *   Subtle hover effect.
-    *   "More Options" (ellipsis) menu for Edit/Delete actions (replaces hover buttons).
+    *   "More Options" (ellipsis) menu for Edit/Delete actions.
     *   Metadata footer (Time, Tags).
+    *   **Loading indicator** on new entries while tags are generated.
 *   Basic mobile responsiveness (collapsible sidebar via Sheet).
 
 **AI Features Implemented / Status:**
-*   **Meta Tag Classification:** API route (`/api/classify-meta`) exists. Generated on save and stored.
-*   **Intent Tag Classification:** API route (`/api/classify-intent`) exists. Generated on save and stored.
-*   **Content Tag Generation:** API route (`/api/tags`) exists. Generated on save and stored.
-*   **Macro Summary:** On-demand generation via `/api/macro-summarize`. **Result is not saved to database.**
-*   **Individual Entry Summary:** Backend API (`/api/summarize`) and frontend function (`handleGenerateSummary`) exist but are currently commented out/disabled.
+*   **Meta Tag Classification:** API route (`/api/classify-meta`) exists. Generated on *new* entry save and stored.
+*   **Intent Tag Classification:** API route (`/api/classify-intent`) exists. Generated on *new* entry save and stored.
+*   **Content Tag Generation:** API route (`/api/tags`) exists. Generated on *new* entry save and stored (lowercase).
+*   **Macro Summary:** On-demand generation via `/api/macro-summarize`. Result is not saved to database.
+*   **Individual Entry Summary:** Backend API (`/api/summarize`) and frontend function exist but disabled.
+*   **NOTE:** Tag re-generation on *edit* is currently **not** implemented.
 
 **Deployment Status:**
 *   Deployed to Netlify at `https://thoughtkeeper.netlify.app` (URL assumed from `netlify.toml`).
@@ -56,24 +59,26 @@
 ## 2. Key Decisions & Rationale
 
 *   **Storage (Supabase):** Migrated from `localStorage`. **RLS is intentionally DISABLED** (postponed, see Risks).
-*   **AI Integration (OpenAI):** Using `gpt-3.5-turbo` via API routes for Meta, Intent, and Content tag generation.
+*   **AI Integration (OpenAI):** Using `gpt-3.5-turbo` via API routes for tag generation on *new* saves.
 *   **Deployment (Netlify):** Using CI/CD from `main` branch with `npm ci`.
 *   **Security Headers (CSP):** Implemented via `next.config.js`. Includes Supabase URL. `unsafe-eval`/`unsafe-inline` still present.
 *   **Dependency Security:** Updated `next` to patch critical vulns. Using `npm ci` in builds. Dependabot alerts enabled on GitHub repo.
-*   **Tag Interaction:** Meta, Intent, and Content tags rendered distinctly. Tags appearing >1 time in current list are highlighted (different colors per type) and clickable. Clicking filters entries by that specific tag and type using `supabase.eq()` (for Meta/Intent) or `supabase.contains()` (for Content). Search clears tag filters and vice-versa.
-*   **UI Layout:** Integrated header. Collapsible sidebar structure for mobile. Styled cards for entries. CSS overrides for RTE spacing.
-*   **Rich Text Editor (RTE):** Implemented using TipTap `StarterKit` for new entries.
-*   **Search:** Implemented using PostgreSQL Full-Text Search (`tsvector`) across multiple fields (`content`, `meta_tag`, `intent_tag`, `tags`) for performance and accuracy. Trigger automatically updates `search_vector` column.
-*   **Entry Card Interactions:** Edit/Delete actions moved to a DropdownMenu (ellipsis icon) to avoid accidental triggers and improve mobile UX. Direct card click no longer triggers edit.
-*   **Filtering UX:** Active tag filter displayed as a dismissible badge for better visibility. Filter persistence logic simplified.
+*   **Tag Interaction:** Meta/Intent/Content tags rendered distinctly. Tags appearing >1 time highlighted with unique, persistent colors per tag value *within* each type (based on case-insensitive count). Clicking filters entries. Search clears tag filters and vice-versa.
+*   **Tag Storage:** Meta/Intent tags stored with original casing. Content tags stored as **lowercase**.
+*   **UI Layout:** Integrated header with Add(+) button. Collapsible sidebar structure for mobile. Styled cards for entries. CSS overrides for RTE spacing.
+*   **Rich Text Editor (RTE):** Implemented using TipTap `StarterKit` within a shared **`EntryEditorDialog`** component for both adding and editing entries.
+*   **Search:** PostgreSQL FTS (`tsvector`) across multiple fields.
+*   **Entry Card Interactions:** Edit/Delete actions in DropdownMenu. Edit now opens the `EntryEditorDialog`.
+*   **Filtering UX:** Active tag filter displayed as dismissible badge.
+*   **Entry Input UX:** Moved from always-visible input to a **Header Button (`+`) triggering a Dialog Modal** for better mobile UX and cleaner main view.
 
 ## 3. Future Development Considerations & Improvements (Internal Risk/Value Priority)
 
 1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for security & multi-user.
-2.  **Complete Rich Text Editing:** Refactor edit mode.
-3.  **Refine AI Features:** Integrate summary saving, optimize costs.
+2.  **Complete Rich Text Editing:** Ensure formatting is preserved correctly when *saving edits* (currently uses basic HTML save).
+3.  **Refine AI Features:** Integrate summary saving, consider tag re-generation on edit, optimize costs.
 4.  **Improve Mobile Responsiveness:** Polish header/content layout, test across sizes.
-5.  **Robust Error Handling:** Improve user feedback.
+5.  **Robust Error Handling:** Improve user feedback, especially for API errors.
 6.  **Develop Journal Analytics.**
 7.  **Tag Management Interface.**
 8.  **Export Entries.**
@@ -84,13 +89,13 @@
 ## 4. Critical Information & Risks (Internal Focus - Notify User if Score >= 70)
 
 *   **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100).** Top internal risk. Exposes all data via anon key. MUST BE ENABLED with Auth/policies before sharing or multi-user.
-*   **AI Feature Dependency & Cost (Score: ~65/100):** Increased slightly due to more API calls per save.
-*   **Runaway API Cost Vulnerability (Score: ~55/100):** Risk of excessive calls. Partially mitigated by client-side guards & external OpenAI limits.
-*   **Error Handling Gaps (Score: ~40/100):** Slightly reduced due to clearer filter state.
-*   **Responsiveness Gaps (Score: ~35/100):** Improved structure, but detailed polish still needed.
+*   **AI Feature Dependency & Cost (Score: ~60/100):** Slightly reduced as tag gen only happens on new saves now.
+*   **Runaway API Cost Vulnerability (Score: ~50/100):** Risk remains but slightly lower frequency.
+*   **Error Handling Gaps (Score: ~40/100):** No major change.
+*   **Responsiveness Gaps (Score: ~35/100):** Editor now in dialog, potentially better but needs testing.
 *   **`OPENAI_API_KEY` / Supabase Keys Security:** Keys MUST be kept secure. Rotate periodically.
 *   **Supply Chain Attacks:** Risk reduced but present. Monitor Dependabot alerts.
 *   **XSS Risk:** Low currently. Avoid `dangerouslySetInnerHTML`.
 *   **CSP Maintenance:** Update if new external resources added.
-*   **Search:** Performance greatly improved with FTS. Accuracy depends on FTS configuration ('english') and query type ('websearch').
-*   **RTE Edit Mode:** Saving edits will currently strip formatting.
+*   **Search:** Performance relies on FTS config.
+*   **RTE Edit Mode:** Formatting preservation on *save* needs verification/implementation.
