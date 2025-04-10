@@ -87,11 +87,9 @@ export default function Home() {
         // Ensure tag filter is cleared if searching
         tag = null; 
         
-        // --- Restore combined search using .or() --- 
-        // Combine ilike on content AND contains on tags
+        // Combine ilike on content AND contains on tags using .or()
         const filterString = `content.ilike.%${trimmedQuery}%,tags.cs.${JSON.stringify(trimmedQuery)}`;
         supabaseQuery = supabaseQuery.or(filterString);
-        // --- End combined search --- 
 
       } 
       // Apply tag filter only if tag exists AND search query is empty
