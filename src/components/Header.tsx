@@ -15,32 +15,25 @@ import type { Entry, MacroSummary } from '@/types'; // Import from centralized t
 import { JournalSidebar } from './JournalSidebar'; // Import JournalSidebar
 
 interface HeaderProps {
-  // Remove searchQuery and onSearchChange
-  // searchQuery: string;
-  // onSearchChange: (query: string) => void;
-  // Sidebar Props
-  entries: Entry[];
-  selectedDate: string;
-  onSelectDate: (date: string) => void;
-  macroSummary?: MacroSummary | null;
-  isGeneratingMacroSummary?: boolean;
-  onGenerateMacroSummary?: () => void;
-  // Remove props related to Add button/dialog state 
-  // onEntryAdded: (newEntry: Entry) => void; 
-  // onEntryTagsUpdated: (entryId: string, updatedTags: Partial<Entry>) => void;
-  // generatingTagsForId: string | null; 
-  // onAddClick: () => void; 
+  // Remove props previously passed to JournalSidebar
+  // entries: Entry[];
+  // selectedDate: string;
+  // onSelectDate: (date: string) => void;
+
+  // Remove props previously passed to JournalSidebar (they are unused here now)
+  // macroSummary?: MacroSummary | null;
+  // isGeneratingMacroSummary?: boolean;
+  // onGenerateMacroSummary?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
-  // Remove searchQuery, onSearchChange from destructuring
-  entries,
-  selectedDate,
-  onSelectDate,
-  macroSummary,
-  isGeneratingMacroSummary,
-  onGenerateMacroSummary,
   // Remove destructured props
+  // entries,
+  // selectedDate,
+  // onSelectDate,
+  // macroSummary,
+  // isGeneratingMacroSummary,
+  // onGenerateMacroSummary,
  }) => {
 
   return (
@@ -59,9 +52,9 @@ export const Header: React.FC<HeaderProps> = ({
         </SheetTrigger>
         <SheetContent side="left" className="flex flex-col p-0 w-64"> 
           <JournalSidebar
-            entries={entries}
-            selectedDate={selectedDate}
-            onSelectDate={onSelectDate}
+            // entries={entries} // Removed
+            // selectedDate={selectedDate} // Removed
+            // onSelectDate={onSelectDate} // Removed
           />
         </SheetContent>
       </Sheet>
