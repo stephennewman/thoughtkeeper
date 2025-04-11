@@ -11,7 +11,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 // import { Settings, Sun, Moon } from 'lucide-react';
 
 // Import necessary types 
-import type { Entry, MacroSummary } from '@/app/page'; // Use named import
+import type { Entry, MacroSummary } from '@/types'; // Import from centralized types
 import { JournalSidebar } from './JournalSidebar'; // Import JournalSidebar
 
 interface HeaderProps {

@@ -1,203 +1,117 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { RichTextEditor } from './RichTextEditor'; 
+// import { supabase } from '@/lib/supabaseClient'; // Remove direct supabase usage
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Loader2 } from 'lucide-react';
-import type { Entry } from '@/app/page';
+import type { Entry } from '@/types';
+// Remove service imports - store actions use them
+// import { addEntryService, updateEntryContentService } from "@/lib/entryService"; 
+import { useJournalStore } from '@/stores/journalStore'; // Import store
 
 // Define EditorState locally
 interface EditorState {
   html: string;
-  text: string;
+  text: string; // Keep text for potential future use (e.g., passing to AI)
 }
 
+// Define props needed from parent (less than before)
 interface EntryEditorDialogProps {
   isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
-  selectedDate: string; // Needed for new entries
-  initialEntry?: Entry | null; // Entry to edit, if any
-  onEntryAdded: (newEntry: Entry) => void; // Callback for new entries
-  onEntryUpdated: (updatedEntry: Entry) => void; // Callback for updated entries
-  onEntryTagsUpdated: (entryId: string, updatedTags: Partial<Entry>) => void; // For background tag update
-  generatingTagsForId: string | null;
-  setGeneratingTagsForId: (id: string | null) => void;
+  selectedDate: string; 
+  initialEntry?: Entry | null; 
 }
 
 export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
   isOpen,
-  setIsOpen,
   selectedDate,
-  initialEntry = null, // Default to null (add mode)
-  onEntryAdded,
-  onEntryUpdated,
-  onEntryTagsUpdated,
-  generatingTagsForId,
-  setGeneratingTagsForId,
+  initialEntry = null,
 }) => {
+  // Get actions and relevant state from the store
+  const { 
+    addEntry, 
+    updateEntry, 
+    closeEditorDialog, 
+    loadingState 
+  } = useJournalStore();
+
+  // Local state for editor content and component-specific errors
   const [content, setContent] = useState<EditorState>({ html: '', text: '' });
-  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   
   const isEditMode = !!initialEntry;
-  // Show processing indicator if saving or if tags are generating for *this* entry (or a new one)
-  const isProcessing = isSaving || generatingTagsForId === (initialEntry?.id ?? 'new');
+  // Determine loading based on store state
+  const isLoading = loadingState === 'adding' || loadingState === 'updating';
+  // Determine processing based on store state (for add mode tag gen)
+  const isProcessing = loadingState === 'tagging'; 
 
   // Effect to load initial content for editing or reset for adding
   useEffect(() => {
     if (isOpen) {
-      if (isEditMode) {
+      setError(null); // Clear error on open
+      if (isEditMode && initialEntry) {
         setContent({ html: initialEntry.content, text: '' }); // TODO: Need text conversion for edit
       } else {
         setContent({ html: '', text: '' });
       }
-      setIsSaving(false);
-    } else {
-       // Reset content when closed regardless of mode
-       setContent({ html: '', text: '' });
-       setIsSaving(false);
-    }
+    } 
+    // Resetting content on close might clear it prematurely if dialog animation occurs
   }, [isOpen, initialEntry, isEditMode]);
 
   const handleSave = async () => {
-    const { html: editorHtml, text: editorText } = content;
-    const trimmedText = editorText.trim(); 
-    const trimmedHtml = editorHtml.trim(); 
-
-    if (!trimmedHtml || isSaving || isProcessing) return;
-
-    setIsSaving(true);
-    // For edit mode, we DO NOT set generatingTagsForId unless we intend to re-gen tags
-    if (!isEditMode) { 
-      setGeneratingTagsForId('new'); // Only set for new entries
-    }
-    // For edit mode, we might re-trigger tag generation, using the actual ID
-    // For add mode, use 'new' as before
-    // const currentEntryId = initialEntry?.id ?? 'new';
-    // setGeneratingTagsForId(currentEntryId);
-
+    setError(null); // Clear previous errors
+    
     try {
-      if (isEditMode) {
-        // --- EDIT MODE --- 
-        const updatePayload = { content: trimmedHtml }; 
-        const { data: updatedData, error: updateError } = await supabase
-          .from('entries')
-          .update(updatePayload)
-          .eq('id', initialEntry.id)
-          .select()
-          .single();
-
-        if (updateError) throw updateError;
-        if (!updatedData) throw new Error("Failed to get updated entry data.");
-
-        const updatedEntry = { ...updatedData } as Entry;
-        onEntryUpdated(updatedEntry); // Update parent state
-        setIsOpen(false); // Close dialog
-
-        // --- Optional: Re-generate tags on edit --- 
-        // console.log("Skipping tag re-generation on edit for now.");
-        // Clear loader immediately as we didn't start one
-        // if (generatingTagsForId === initialEntry.id) {
-        //     setGeneratingTagsForId(null); 
-        // }
-        // --- End Edit Mode Save ---
+      if (isEditMode && initialEntry) {
+        // EDIT MODE - Call store action
+        // TODO: Check if content actually changed?
+        await updateEntry(initialEntry.id, content.html);
+        closeEditorDialog(); // Close dialog on success
 
       } else {
-        // --- ADD MODE --- 
-        const newEntryData = { date: selectedDate, content: trimmedHtml };
-        const { data: insertedData, error: insertError } = await supabase
-          .from('entries')
-          .insert(newEntryData)
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        if (!insertedData) throw new Error("Failed to get inserted entry data.");
-
-        const newEntryId = insertedData.id;
-        const entryToDisplayLocally = { ...insertedData, tags: [], meta_tag: null, intent_tag: null } as Entry;
-
-        onEntryAdded(entryToDisplayLocally);
-        setContent({ html: '', text: '' });
-        setIsOpen(false);
-
-        // --- Background AI Tag Generation --- 
-        (async () => {
-          try {
-            const results = await Promise.allSettled([
-              fetch('/api/classify-meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) }),
-              fetch('/api/classify-intent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) }),
-              fetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) })
-            ]);
-
-            let metaTag: string | null = null;
-            let intentTag: string | null = null;
-            let rawTags: string[] | null = null;
-
-            if (results[0].status === 'fulfilled' && results[0].value.ok) metaTag = (await results[0].value.json()).metaTag;
-            if (results[1].status === 'fulfilled' && results[1].value.ok) intentTag = (await results[1].value.json()).intentTag;
-            if (results[2].status === 'fulfilled' && results[2].value.ok) rawTags = (await results[2].value.json()).tags;
-
-            // Convert content tags to lowercase
-            const lowerCaseTags = rawTags?.map(tag => tag.toLowerCase()) ?? [];
-
-            if (metaTag || intentTag || (lowerCaseTags && lowerCaseTags.length > 0)) {
-              const updatePayload: Partial<Entry> = {};
-              if (metaTag) updatePayload.meta_tag = metaTag; // Keep original case for Meta/Intent
-              if (intentTag) updatePayload.intent_tag = intentTag;
-              updatePayload.tags = lowerCaseTags; // Save lowercase tags
-              
-              const { error: updateError } = await supabase
-                .from('entries')
-                .update(updatePayload)
-                .eq('id', newEntryId);
-
-              if (!updateError) {
-                  onEntryTagsUpdated(newEntryId, updatePayload);
-              } else {
-                  console.error('Error saving generated tags:', updateError);
-              }
-            }
-          } catch (tagError: any) {
-            console.error('Error during background AI tag generation process:', tagError);
-          } finally {
-            // Only clear the loader if it was set for this new entry
-            if (generatingTagsForId === 'new') { 
-                 setGeneratingTagsForId(null); 
-            }
-          }
-        })();
-        // --- End Add Mode --- 
+        // ADD MODE - Call store action
+        await addEntry(content.html);
+        closeEditorDialog(); // Close dialog on success (tagging happens in background)
       }
     } catch (error: any) {
-      console.error('Error saving entry:', error);
-      alert(`Failed to save entry: ${error.message}`);
-      // Clear loading state on any save error
-      setGeneratingTagsForId(null);
-    } finally {
-      setIsSaving(false);
+      // Note: Store actions handle their own errors internally, 
+      // but we might want to catch component-specific errors or display store error here.
+      console.error('Error caught in dialog save handler:', error);
+      setError(`Failed to save: ${error.message}`); // Display local error
+      // We could also pull the error from useJournalStore().errorState here
     }
+    // Loading state is handled by the store, no need for local setIsSaving
+  };
+
+  // Handler for Dialog's onOpenChange - calls store action
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      closeEditorDialog();
+    }
+    // We don't handle opening here, parent component triggers it via store action
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    // Use handleOpenChange for closing
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          {/* Dynamic Title */}
           <DialogTitle>{isEditMode ? 'Edit Entry' : `Add New Entry for ${selectedDate}`}</DialogTitle>
         </DialogHeader>
         <div className="py-4">
-          {/* Pass content.html to editor */}
           <RichTextEditor content={content.html} onChange={setContent} /> 
+          {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
         </div>
         <DialogFooter>
           <Button 
             onClick={handleSave} 
-            disabled={isProcessing || !content.html.trim()} // Disable if processing or content is empty
+            // Disable based on store loading state or if content is empty
+            disabled={isLoading || isProcessing || !content.html.trim()}
           >
-            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSaving ? 'Saving...' : isProcessing ? 'Processing...' : (isEditMode ? 'Save Changes' : 'Save Entry')}
+            {(isLoading || isProcessing) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading ? 'Saving...' : isProcessing ? 'Processing...' : (isEditMode ? 'Save Changes' : 'Save Entry')}
           </Button>
         </DialogFooter>
       </DialogContent>

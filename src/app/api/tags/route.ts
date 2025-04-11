@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant that generates relevant tags for journal entries. Generate 3-5 concise, meaningful tags that capture the main themes, emotions, or topics of the journal entry. Return only the tags as a JSON array of strings."
+          content: "You are a helpful assistant that generates relevant tags for journal entries. Generate 3-5 concise, meaningful tags that capture the main themes, emotions, or topics of the journal entry. Return ONLY the tags as a JSON array of strings. ALL TAGS MUST BE LOWERCASE."
         },
         {
           role: "user",
@@ -37,7 +37,9 @@ export async function POST(request: Request) {
     
     let tags;
     try {
-      tags = JSON.parse(completion.choices[0]?.message?.content || '[]');
+      const rawResponse = completion.choices[0]?.message?.content || '[]';
+      const cleanedResponse = rawResponse.replace(/```json\n?|```/g, '').trim();
+      tags = JSON.parse(cleanedResponse);
       console.log('Tags API: Parsed tags:', tags);
     } catch (error) {
       console.error('Tags API: Error parsing tags:', error);
