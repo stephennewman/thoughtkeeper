@@ -10,36 +10,13 @@ import { X, Loader2, Plus } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-// Define a type matching the Supabase table structure
-// Assuming tags will be stored as string[] in jsonb
-export interface SupabaseEntry {
-  id: string;         // uuid
-  created_at: string; // timestamptz
-  date: string;         // date (YYYY-MM-DD)
-  content: string;      // text
-  summary?: string | null; // text
-  tags?: string[] | null; // jsonb
-  meta_tag?: string | null; // Add meta_tag
-  intent_tag?: string | null; // Add intent_tag
-}
-
-// Keep the existing Entry type for simplicity or merge later if needed
-export interface Entry extends SupabaseEntry {}
-
-export interface MacroSummary {
-  mood: string;
-  moodEmoji: string;
-  focusAreas: {
-    category: string;
-    icon: string;
-    highlight: string;
-  }[];
-  keyTakeaway: string;
-}
-
-// Define tag types
-export type TagType = 'meta' | 'intent' | 'content';
+import type { Entry, TagType } from '@/types'; // Import types from centralized location
+import { 
+  fetchEntriesService, 
+  fetchAllEntriesService, 
+  updateEntryContentService, 
+  deleteEntryService 
+} from '@/lib/entryService'; // Import services
 
 // --- Define Color Palettes (Example - choose colors you like) ---
 // Structure: { base: 'bg-... text-... dark:...', hover: 'hover:bg-... dark:hover:bg-...' } - adjust dark modes as needed
@@ -140,57 +117,23 @@ export default function Home() {
     return { tagCounts: counts, highlightedTagColors: colors };
   }, [allEntries]);
 
-  // REVISED Fetch entries: Handle single meta/intent (AND) + multi content (OR within content, AND with meta/intent)
+  // REVISED Fetch entries: Now uses the service
   const fetchEntries = useCallback(async (
     query: string, 
-    metaTag: string | null,     // Single
-    intentTag: string | null,   // Single
+    metaTag: string | null,
+    intentTag: string | null,
     contentTags: Set<string> 
   ) => {
     setErrorLoadingEntries(null);
-    try {
-      let supabaseQuery = supabase
-        .from('entries')
-        .select('*')
-        .order('date', { ascending: false })
-        .order('created_at', { ascending: false });
-
-      const trimmedQuery = query.trim();
-
-      // Apply filters
-      if (trimmedQuery) {
-        // Search overrides tag filters 
-        supabaseQuery = supabaseQuery.textSearch('search_vector', trimmedQuery, {
-          type: 'websearch',
-          config: 'english'
-        });
-      } else {
-        // Apply tag filters (AND logic across types)
-        if (metaTag) {
-          supabaseQuery = supabaseQuery.eq('meta_tag', metaTag);
-        }
-        if (intentTag) {
-          supabaseQuery = supabaseQuery.eq('intent_tag', intentTag);
-        }
-        if (contentTags.size > 0) {
-          // Use overlaps for content tags (entry must have AT LEAST ONE of the selected tags - OR logic)
-          const tagsArray = Array.from(contentTags);
-          supabaseQuery = supabaseQuery.overlaps('tags', tagsArray);
-        }
-      }
-
-      const { data, error } = await supabaseQuery;
-
-      if (error) {
-         throw error;
-      } 
-      setEntries((data as Entry[]) || []);
-      
-    } catch (error: any) {
+    const { data, error } = await fetchEntriesService(query, metaTag, intentTag, contentTags);
+    
+    if (error) {
        console.error('Error loading entries:', error);
-       setErrorLoadingEntries(`Failed to load entries: ${error.message}`);
+       setErrorLoadingEntries(error.message);
        setEntries([]);
-    } 
+    } else {
+       setEntries(data || []);
+    }
   }, []);
 
   // Debounced version - Pass revised state
@@ -206,34 +149,25 @@ export default function Home() {
     const initialFetch = async () => {
         setIsInitialLoading(true);
         setErrorLoadingEntries(null);
-        try {
-          // Fetch all entries initially
-          const { data, error } = await supabase
-            .from('entries')
-            .select('*')
-            .order('date', { ascending: false })
-            .order('created_at', { ascending: false });
-            
-          if (error) throw error;
-
-          const fetchedEntries = (data as Entry[]) || [];
+        // Use the service for fetching all entries
+        const { data, error } = await fetchAllEntriesService(); 
+        
+        if (error) {
+          console.error('Initial error loading entries:', error);
+          setErrorLoadingEntries(error.message);
+          setAllEntries([]);
+          setEntries([]);
+        } else {
+          const fetchedEntries = data || [];
           setAllEntries(fetchedEntries);
           // Filter entries for the initially selected date before setting the displayed entries
           const initialDisplayEntries = fetchedEntries.filter(entry => entry.date === selectedDate);
           setEntries(initialDisplayEntries); 
-          // setEntries(fetchedEntries); // Removed: Don't display all entries initially
-
-        } catch(error: any) {
-          console.error('Initial error loading entries:', error);
-          setErrorLoadingEntries(`Failed to load entries: ${error.message}`);
-          setAllEntries([]);
-          setEntries([]);
-        } finally {
-          setIsInitialLoading(false);
         }
+        setIsInitialLoading(false); // Move finally block content here
     }
     initialFetch();
-    // Run only once on mount - Supabase client assumed stable
+    // Run only once on mount
   }, []); // Empty dependency array for initial fetch
 
   // Effect for search/filter changes - Pass revised state
@@ -293,64 +227,55 @@ export default function Home() {
   }, []);
 
   const handleUpdateEntry = async (id: string, content: string) => {
-    const trimmedContent = content.trim();
-    if (!trimmedContent) return;
-
     // Consider adding an isUpdating state here
-    // Indicate update in progress for this specific entry?
-    // setGeneratingTagsForId(id); // Re-use state? Or new state?
-    
     try {
-      // *** TODO: Implement AI tag re-generation on update? ***
-      // If content changes significantly, tags might need updating.
-      // This adds complexity (API calls, state management).
-      // For now, only update content.
-
-      const { data, error } = await supabase
-        .from('entries')
-        .update({ content: trimmedContent }) // Only update content for now
-        .eq('id', id)
-        .select() 
-        .single(); 
+      const { data, error } = await updateEntryContentService(id, content);
 
       if (error) {
-        throw error;
+        throw error; // Let catch block handle it
       }
 
       if (data) {
+        // Optimistic update for UI responsiveness
         setEntries(prevEntries =>
-          prevEntries.map(entry => (entry.id === id ? (data as Entry) : entry))
+          prevEntries.map(entry => (entry.id === id ? data : entry))
+        );
+        setAllEntries(prevAllEntries => 
+          prevAllEntries.map(entry => (entry.id === id ? data : entry)) 
         );
       }
     } catch (error: any) {
       console.error('Error updating entry:', error);
-      alert(`Failed to update entry: ${error.message}`);
+      alert(`Failed to update entry: ${error.message}`); // Keep alert for now
+      // No need to revert UI state here as update is now handled via service
     } finally {
         // Clear update indicator if used
-        // if (generatingTagsForId === id) setGeneratingTagsForId(null); 
     }
   };
 
   const handleDeleteEntry = async (id: string) => {
-    // Consider adding an isDeleting state here
+    // Optimistic UI update
     const originalEntries = [...entries];
+    const originalAllEntries = [...allEntries];
     setEntries(prevEntries => prevEntries.filter(entry => entry.id !== id));
+    setAllEntries(prevAllEntries => prevAllEntries.filter(entry => entry.id !== id));
 
     try {
-      const { error } = await supabase
-        .from('entries')
-        .delete()
-        .eq('id', id);
+      const { error } = await deleteEntryService(id);
 
       if (error) {
         // Revert UI update if delete fails
         setEntries(originalEntries);
-        throw error;
+        setAllEntries(originalAllEntries);
+        throw error; // Let catch block handle it
       }
+      // If successful, UI is already updated
     } catch (error: any) {
       console.error('Error deleting entry:', error);
-      alert(`Failed to delete entry: ${error.message}`);
+      alert(`Failed to delete entry: ${error.message}`); // Keep alert for now
+      // Revert UI state on error caught here too
       setEntries(originalEntries);
+      setAllEntries(originalAllEntries);
     }
   };
 

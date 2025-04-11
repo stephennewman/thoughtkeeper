@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import type { Entry } from '@/app/page'; // Assuming Entry type is exported from page
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Entry, TagType } from '@/types'; // Import from centralized types
 import { Badge } from '@/components/ui/badge'; // Import Badge
-import type { TagType } from '@/app/page'; // Import TagType
 import { X } from 'lucide-react'; // Import X icon
 
 interface StaticAnalysisColumnProps {

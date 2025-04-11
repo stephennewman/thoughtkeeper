@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { RichTextEditor } from './RichTextEditor'; 
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Loader2 } from 'lucide-react';
-import type { Entry } from '@/app/page';
+import type { Entry } from '@/types';
+import { addEntryService, updateEntryContentService } from "@/lib/entryService"; // Import services
 
 // Define EditorState locally
 interface EditorState {
@@ -39,10 +40,10 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
 }) => {
   const [content, setContent] = useState<EditorState>({ html: '', text: '' });
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   
   const isEditMode = !!initialEntry;
-  // Show processing indicator if saving or if tags are generating for *this* entry (or a new one)
-  const isProcessing = isSaving || generatingTagsForId === (initialEntry?.id ?? 'new');
 
   // Effect to load initial content for editing or reset for adding
   useEffect(() => {
@@ -60,121 +61,112 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
     }
   }, [isOpen, initialEntry, isEditMode]);
 
+  // Separate handler for saving (both add and edit)
   const handleSave = async () => {
-    const { html: editorHtml, text: editorText } = content;
-    const trimmedText = editorText.trim(); 
-    const trimmedHtml = editorHtml.trim(); 
-
-    if (!trimmedHtml || isSaving || isProcessing) return;
-
     setIsSaving(true);
-    // For edit mode, we DO NOT set generatingTagsForId unless we intend to re-gen tags
-    if (!isEditMode) { 
-      setGeneratingTagsForId('new'); // Only set for new entries
-    }
-    // For edit mode, we might re-trigger tag generation, using the actual ID
-    // For add mode, use 'new' as before
-    // const currentEntryId = initialEntry?.id ?? 'new';
-    // setGeneratingTagsForId(currentEntryId);
-
+    setError(null);
+    
     try {
-      if (isEditMode) {
+      if (isEditMode && initialEntry) {
         // --- EDIT MODE --- 
-        const updatePayload = { content: trimmedHtml }; 
-        const { data: updatedData, error: updateError } = await supabase
-          .from('entries')
-          .update(updatePayload)
-          .eq('id', initialEntry.id)
-          .select()
-          .single();
+        // TODO: Check if content actually changed?
+        const { data: updatedData, error: updateError } = await updateEntryContentService(initialEntry.id, content.html);
+        
+        if (updateError) {
+          throw updateError;
+        }
+        if (!updatedData) {
+          throw new Error("Failed to get updated entry data after saving.");
+        }
+        // Pass the successfully updated entry back up 
+        onEntryUpdated(updatedData);
+        setIsOpen(false); // Close dialog on successful update
 
-        if (updateError) throw updateError;
-        if (!updatedData) throw new Error("Failed to get updated entry data.");
-
-        const updatedEntry = { ...updatedData } as Entry;
-        onEntryUpdated(updatedEntry); // Update parent state
-        setIsOpen(false); // Close dialog
-
-        // --- Optional: Re-generate tags on edit --- 
-        // console.log("Skipping tag re-generation on edit for now.");
-        // Clear loader immediately as we didn't start one
-        // if (generatingTagsForId === initialEntry.id) {
-        //     setGeneratingTagsForId(null); 
-        // }
-        // --- End Edit Mode Save ---
+        // TODO: Trigger tag re-generation if content changed significantly?
 
       } else {
         // --- ADD MODE --- 
-        const newEntryData = { date: selectedDate, content: trimmedHtml };
-        const { data: insertedData, error: insertError } = await supabase
-          .from('entries')
-          .insert(newEntryData)
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        if (!insertedData) throw new Error("Failed to get inserted entry data.");
-
-        const newEntryId = insertedData.id;
-        const entryToDisplayLocally = { ...insertedData, tags: [], meta_tag: null, intent_tag: null } as Entry;
-
+        const { data: insertedData, error: insertError } = await addEntryService(selectedDate, content.html);
+        
+        if (insertError) {
+          throw insertError;
+        }
+        if (!insertedData) {
+          throw new Error("Failed to get inserted entry data after saving.");
+        }
+        
+        // Optimistically add the entry with base data locally
+        const entryToDisplayLocally: Entry = { ...insertedData, tags: [], meta_tag: null, intent_tag: null };
         onEntryAdded(entryToDisplayLocally);
-        setContent({ html: '', text: '' });
-        setIsOpen(false);
+        setIsOpen(false); // Close dialog
 
-        // --- Background AI Tag Generation --- 
-        (async () => {
+        // Now, trigger background AI tagging for the new entry
+        if (insertedData.id) {
+          setGeneratingTagsForId(insertedData.id); // Set loading state for this ID
+          setIsProcessing(true); // Show dialog processing indicator
+          
+          // Call API routes for tagging (fire and forget for UI)
           try {
-            const results = await Promise.allSettled([
-              fetch('/api/classify-meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) }),
-              fetch('/api/classify-intent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) }),
-              fetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: trimmedText }) })
+            const contentToTag = insertedData.content; // Use content from DB result
+            const fetchOptions = { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: contentToTag })
+            };
+            
+            // Call all tagging APIs concurrently
+            const [metaResponse, intentResponse, tagsResponse] = await Promise.all([
+              fetch('/api/classify-meta', fetchOptions),
+              fetch('/api/classify-intent', fetchOptions),
+              fetch('/api/tags', fetchOptions)
             ]);
+            
+            // Basic error check (can be enhanced)
+            if (!metaResponse.ok || !intentResponse.ok || !tagsResponse.ok) {
+               console.warn('One or more tagging API calls failed');
+            }
 
-            let metaTag: string | null = null;
-            let intentTag: string | null = null;
-            let rawTags: string[] | null = null;
+            // Parse results
+            const metaResult = await metaResponse.json();
+            const intentResult = await intentResponse.json();
+            const tagsResult = await tagsResponse.json();
 
-            if (results[0].status === 'fulfilled' && results[0].value.ok) metaTag = (await results[0].value.json()).metaTag;
-            if (results[1].status === 'fulfilled' && results[1].value.ok) intentTag = (await results[1].value.json()).intentTag;
-            if (results[2].status === 'fulfilled' && results[2].value.ok) rawTags = (await results[2].value.json()).tags;
+            // Prepare update payload for Supabase
+            const updatePayload: Partial<Entry> = {};
+            if (metaResult.meta_tag) updatePayload.meta_tag = metaResult.meta_tag;
+            if (intentResult.intent_tag) updatePayload.intent_tag = intentResult.intent_tag;
+            if (tagsResult.tags) updatePayload.tags = tagsResult.tags;
 
-            // Convert content tags to lowercase
-            const lowerCaseTags = rawTags?.map(tag => tag.toLowerCase()) ?? [];
-
-            if (metaTag || intentTag || (lowerCaseTags && lowerCaseTags.length > 0)) {
-              const updatePayload: Partial<Entry> = {};
-              if (metaTag) updatePayload.meta_tag = metaTag; // Keep original case for Meta/Intent
-              if (intentTag) updatePayload.intent_tag = intentTag;
-              updatePayload.tags = lowerCaseTags; // Save lowercase tags
-              
-              const { error: updateError } = await supabase
+            // Update the entry in Supabase with the generated tags
+            if (Object.keys(updatePayload).length > 0) {
+               const { error: updateError } = await supabase
                 .from('entries')
                 .update(updatePayload)
-                .eq('id', newEntryId);
-
-              if (!updateError) {
-                  onEntryTagsUpdated(newEntryId, updatePayload);
-              } else {
-                  console.error('Error saving generated tags:', updateError);
-              }
+                .eq('id', insertedData.id);
+                
+               if (updateError) {
+                  console.error('Error updating entry with tags:', updateError);
+               } else {
+                  // If Supabase update is successful, notify parent to update UI state
+                  onEntryTagsUpdated(insertedData.id, updatePayload); 
+               }
             }
-          } catch (tagError: any) {
-            console.error('Error during background AI tag generation process:', tagError);
+            
+          } catch (taggingError) {
+            console.error("Error during background tagging:", taggingError);
           } finally {
-            // Only clear the loader if it was set for this new entry
-            if (generatingTagsForId === 'new') { 
-                 setGeneratingTagsForId(null); 
-            }
+             // Only clear the loader if it was set for this new entry
+             if (generatingTagsForId === insertedData.id) { 
+                 setGeneratingTagsForId(null);
+             }
+             setIsProcessing(false); // Hide dialog processing indicator
           }
-        })();
-        // --- End Add Mode --- 
+        }
       }
+
     } catch (error: any) {
       console.error('Error saving entry:', error);
-      alert(`Failed to save entry: ${error.message}`);
-      // Clear loading state on any save error
-      setGeneratingTagsForId(null);
+      setError(`Failed to save entry: ${error.message}`);
     } finally {
       setIsSaving(false);
     }

@@ -12,26 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import clsx from 'clsx';
 import { Badge } from "@/components/ui/badge";
-
-// Define Entry type based on Supabase structure
-interface Entry {
-  id: string;
-  created_at: string;
-  date: string;
-  content: string;
-  summary?: string | null;
-  tags?: string[] | null;
-  meta_tag?: string | null;
-  intent_tag?: string | null;
-}
-
-// Define tag types here too (or move to shared file)
-type TagType = 'meta' | 'intent' | 'content';
-
-// Define TagColorMap again or import if moved to a shared types file
-interface TagColorMap {
-  [lowerCaseTag: string]: { base: string; hover: string };
-}
+import { Card } from "@/components/ui/card";
+import type { Entry, TagType } from '@/types'; // Import from centralized types
 
 interface JournalEntryProps {
   selectedDate: string;
@@ -41,7 +23,7 @@ interface JournalEntryProps {
   generatingTagsForId?: string | null;
   onTagClick?: (tag: string, type: TagType) => void;
   tagCounts?: { [key: string]: number };
-  highlightedTagColors?: TagColorMap;
+  highlightedTagColors?: { [lowerCaseTag: string]: { base: string; hover: string } };
   onEditClick: (entry: Entry) => void;
 }
 
