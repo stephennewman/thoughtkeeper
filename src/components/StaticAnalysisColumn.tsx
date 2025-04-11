@@ -5,14 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Entry, TagType } from '@/types'; // Import from centralized types
 import { Badge } from '@/components/ui/badge'; // Import Badge
 import { X } from 'lucide-react'; // Import X icon
-
-interface StaticAnalysisColumnProps {
-  entries: Entry[];
-  onTagClick: (tag: string, type: TagType) => void;
-  activeMetaTag: string | null; // Changed back to string | null
-  activeIntentTag: string | null; // Changed back to string | null
-  activeContentTags: Set<string>;
-}
+import { useJournalStore } from '@/stores/journalStore'; // Import the store
 
 // Helper function to get top N tags from a counts object
 const getTopTags = (counts: { [tag: string]: number }, topN: number): [string, number][] => {
@@ -22,22 +15,25 @@ const getTopTags = (counts: { [tag: string]: number }, topN: number): [string, n
     .slice(0, topN);
 };
 
-export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
-  entries,
-  onTagClick,
-  activeMetaTag, // Changed back
-  activeIntentTag, // Changed back
-  activeContentTags,
-}) => {
+export const StaticAnalysisColumn: React.FC = () => {
+  // Get state and actions from the store
+  const {
+    filteredEntries,
+    activeMetaTag,
+    activeIntentTag,
+    activeContentTags,
+    setFiltersAndFetch
+  } = useJournalStore();
+
   const topN = 5; // Number of top tags to display
 
-  // Memoized calculation for top tags - Now uses filtered entries
+  // Memoized calculation for top tags - Uses filteredEntries from store
   const { topMetaTags, topIntentTags, topContentTags } = useMemo(() => {
     const metaCounts: { [tag: string]: number } = {};
     const intentCounts: { [tag: string]: number } = {};
     const contentCounts: { [tag: string]: number } = {};
 
-    entries.forEach(entry => { // Use filtered entries here
+    filteredEntries.forEach(entry => { // Use filteredEntries from store
       // Count Meta Tags (preserve case)
       if (entry.meta_tag) {
         metaCounts[entry.meta_tag] = (metaCounts[entry.meta_tag] || 0) + 1;
@@ -57,10 +53,10 @@ export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
       topIntentTags: getTopTags(intentCounts, topN),
       topContentTags: getTopTags(contentCounts, topN),
     };
-    // Dependency is now filtered entries
-  }, [entries, topN]);
+    // Dependency is now filteredEntries from store
+  }, [filteredEntries, topN]);
 
-  // REVISED isTagActive: Check string for meta/intent, Set for content
+  // Check if tag is active based on store state
   const isTagActive = (tag: string, type: TagType): boolean => {
     if (type === 'meta') return tag === activeMetaTag;
     if (type === 'intent') return tag === activeIntentTag;
@@ -68,28 +64,57 @@ export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
     return false;
   };
 
-  // REVISED anyFilterActive check
+  // Check if any filter is active based on store state
   const anyFilterActive = activeMetaTag !== null || activeIntentTag !== null || activeContentTags.size > 0;
 
-  // Helper function for close button click
+  // Handle tag click - Call store action directly
+  const handleTagClick = (tag: string, type: TagType) => {
+    let newMetaTag = activeMetaTag;
+    let newIntentTag = activeIntentTag;
+    let newContentTags = new Set(activeContentTags);
+
+    if (type === 'meta') {
+      newMetaTag = activeMetaTag === tag ? null : tag; // Toggle
+      newIntentTag = null; // Clear other single-select
+    } else if (type === 'intent') {
+      newIntentTag = activeIntentTag === tag ? null : tag; // Toggle
+      newMetaTag = null; // Clear other single-select
+    } else { // type === 'content'
+      if (newContentTags.has(tag)) {
+        newContentTags.delete(tag); // Toggle off
+      } else {
+        newContentTags.add(tag); // Toggle on
+      }
+    }
+    
+    // Call store action with updated filters
+    setFiltersAndFetch({
+      searchQuery: '', // Always clear search on tag click
+      activeMetaTag: newMetaTag,
+      activeIntentTag: newIntentTag,
+      activeContentTags: newContentTags
+    });
+  };
+
+  // Helper function for close button click (calls handleTagClick)
   const handleCloseClick = (event: React.MouseEvent, tag: string, type: TagType) => {
     event.stopPropagation(); // Prevent badge click from firing
-    onTagClick(tag, type); // Toggles the tag off via the main handler
+    handleTagClick(tag, type); // Toggles the tag off via the main handler
   };
 
   return (
     <aside className="hidden lg:block w-64 xl:w-72 flex-shrink-0 border-l p-4 overflow-y-auto bg-muted/40 dark:bg-gray-800/30">
       <h2 className="text-lg font-semibold mb-4 sticky top-0 bg-muted/40 dark:bg-gray-800/30 pb-2 z-10">Analysis</h2>
       <div className="space-y-6">
-        {/* Filtered Entries */}
+        {/* Filtered Entries count from store data */}
         <div>
           <h3 className="text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Filtered Entries</h3>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{entries.length}</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{filteredEntries.length}</p>
         </div>
 
-        {/* Top Meta Tags - Update title casing */}
+        {/* Top Meta Tags */}
         <div>
-          <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Top META TAGS</h3> {/* Changed casing */}
+          <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Top META TAGS</h3>
           <div className="flex flex-wrap gap-1">
             {topMetaTags.length > 0 ? (
               topMetaTags.map(([tag, count]) => {
@@ -107,7 +132,7 @@ export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
                           : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/70'
                       }
                     `}
-                    onClick={() => onTagClick(tag, 'meta')}
+                    onClick={() => handleTagClick(tag, 'meta')}
                   >
                     <span>{tag.toUpperCase()} ({count})</span>
                     {isActive && (
@@ -123,12 +148,12 @@ export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
                 );
               })
             ) : (
-              <p className="text-xs text-muted-foreground">No meta tags found in filtered results.</p> // Updated text
+              <p className="text-xs text-muted-foreground">No meta tags found in filtered results.</p>
             )}
           </div>
         </div>
 
-        {/* Top Intent Tags - Styling logic using isTagActive/isGrayed is already correct */}
+        {/* Top Intent Tags */}
         <div>
           <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Top Intent Tags</h3>
           <div className="flex flex-wrap gap-1">
@@ -148,7 +173,7 @@ export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
                           : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/70'
                       }
                     `}
-                    onClick={() => onTagClick(tag, 'intent')}
+                    onClick={() => handleTagClick(tag, 'intent')}
                   >
                     <span>{tag} ({count})</span>
                     {isActive && (
@@ -164,14 +189,14 @@ export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
                 );
               })
             ) : (
-              <p className="text-xs text-muted-foreground">No intent tags found in filtered results.</p> // Updated text
+              <p className="text-xs text-muted-foreground">No intent tags found in filtered results.</p>
             )}
           </div>
         </div>
 
-        {/* Top Content Tags - Capitalize 'Top' */}
+        {/* Top Content Tags */}
         <div>
-          <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Top content tags</h3> {/* Capitalized 'Top' */}
+          <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Top content tags</h3>
           <div className="flex flex-wrap gap-1">
             {topContentTags.length > 0 ? (
               topContentTags.map(([tag, count]) => {
@@ -189,7 +214,7 @@ export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
                           : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/70'
                       }
                     `}
-                    onClick={() => onTagClick(tag, 'content')}
+                    onClick={() => handleTagClick(tag, 'content')}
                   >
                     <span>{tag} ({count})</span>
                     {isActive && (
@@ -205,7 +230,7 @@ export const StaticAnalysisColumn: React.FC<StaticAnalysisColumnProps> = ({
                 );
               })
             ) : (
-              <p className="text-xs text-muted-foreground">No content tags found in filtered results.</p> // Updated text
+              <p className="text-xs text-muted-foreground">No content tags found in filtered results.</p>
             )}
           </div>
         </div>
