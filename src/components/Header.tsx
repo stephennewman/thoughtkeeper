@@ -62,9 +62,6 @@ export const Header: React.FC<HeaderProps> = ({
             entries={entries}
             selectedDate={selectedDate}
             onSelectDate={onSelectDate}
-            macroSummary={macroSummary ?? undefined}
-            isGeneratingMacroSummary={isGeneratingMacroSummary}
-            onGenerateMacroSummary={onGenerateMacroSummary}
           />
         </SheetContent>
       </Sheet>
