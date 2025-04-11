@@ -1,7 +1,7 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.1
-**Date:** 2024-06-09
+**Document Version:** 2.1.1
+**Date:** 2024-07-17
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
 
@@ -25,6 +25,7 @@
 *   Date-based journal entry creation, viewing, editing, and deletion via **Dialog Modal**.
 *   Multiple entries allowed per day.
 *   Basic sidebar navigation showing dates with entries (sorted chronologically).
+*   **Main entry feed now automatically displays entries for the current day on initial load.**
 *   Data persistence using **Supabase** database.
 *   Dual Tagging System:
     *   **Meta Tags:** Topic/life domain (e.g., Work, Health), auto-generated, stored in `meta_tag` (case preserved, rendered uppercase).
@@ -43,6 +44,7 @@
     *   **Loading indicator** on new entries while tags are generated.
 *   Basic mobile responsiveness (collapsible sidebar via Sheet, analysis column hidden).
 *   **Static Analysis Column:** Displays placeholder content (Total Entries).
+*   Resolved previous build/hydration errors related to `swcMinify`, incorrect prop types, and date initialization/browser extension interference.
 
 **AI Features Implemented / Status:**
 *   **Meta Tag Classification:** API route (`/api/classify-meta`) exists. Generated on *new* entry save and stored.
@@ -73,28 +75,30 @@
 *   **Entry Card Interactions:** Edit/Delete actions in DropdownMenu. Edit now opens the `EntryEditorDialog`.
 *   **Filtering UX:** Active tag filter displayed as dismissible badge.
 *   **Entry Input UX:** Moved to "+ Add Entry" button in content column.
+*   **Hydration Fixes:** Refined initial page load logic to filter for the current date's entries immediately after fetching all data, ensuring the main feed is populated without user interaction. Applied `suppressHydrationWarning` to date displays in the sidebar to mitigate potential client/server rendering differences caused by locale or minor timing variations. Identified browser extension interference as a potential source of unrelated hydration errors.
 
 ## 3. Future Development Considerations & Improvements (Internal Risk/Value Priority)
 
 1.  **Implement Authentication & Row Level Security (RLS):** **(Postponed)** Essential for security & multi-user.
-2.  **Populate Static Analysis Column:** Implement meaningful analysis (tag clouds, trends, etc.).
-3.  **Complete Rich Text Editing:** Ensure formatting preservation on edit save.
-4.  **Refine AI Features:** Integrate summary saving, consider tag re-gen on edit, optimize costs.
-5.  **Improve Mobile Responsiveness:** Thorough testing, potential specific layouts.
-6.  **Robust Error Handling:** User feedback, API errors.
-7.  **Sidebar Navigation:** Implement calendar or date list for navigation.
-8.  **Develop Journal Analytics.**
-9.  **Tag Management Interface.**
-10. **Export Entries.**
-11. **Security Hardening (CSP).**
-12. **Offline Strategy.**
-13. **State Management.**
+2.  **Refactor State Management:** Implement Zustand (or similar) to address complexity in `page.tsx`, fix related filtering bugs, and improve maintainability (Planned).
+3.  **Populate Static Analysis Column:** Implement meaningful analysis (tag clouds, trends, etc.).
+4.  **Complete Rich Text Editing:** Ensure formatting preservation on edit save.
+5.  **Refine AI Features:** Integrate summary saving, consider tag re-gen on edit, optimize costs.
+6.  **Improve Mobile Responsiveness:** Thorough testing, potential specific layouts.
+7.  **Robust Error Handling:** User feedback, API errors.
+8.  **Sidebar Navigation:** Implement calendar or date list for navigation.
+9.  **Develop Journal Analytics.**
+10. **Tag Management Interface.**
+11. **Export Entries.**
+12. **Security Hardening (CSP).**
+13. **Offline Strategy.**
 
 ## 4. Critical Information & Risks (Internal Focus - Notify User if Score >= 70)
 
 *   **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100).** Top internal risk. Exposes all data via anon key. MUST BE ENABLED with Auth/policies before sharing or multi-user.
 *   **AI Feature Dependency & Cost (Score: ~60/100):** Slightly reduced as tag gen only happens on new saves now.
 *   **Runaway API Cost Vulnerability (Score: ~50/100):** Risk remains but slightly lower frequency.
+*   **State Management Complexity (`page.tsx`) (Score: ~60/100):** Complexity remains high; planned refactor aims to address this.
 *   **Error Handling Gaps (Score: ~40/100):** No major change.
 *   **Responsiveness Gaps (Score: ~35/100):** Added 3rd column, needs mobile testing.
 *   **`OPENAI_API_KEY` / Supabase Keys Security:** Keys MUST be kept secure. Rotate periodically.
@@ -112,21 +116,21 @@
 *   **Editor Complexity:** TipTap is powerful but can be complex. Saving HTML is straightforward, but managing complex states or custom nodes might require more effort.
 *   **API Key Security:** Ensure `NEXT_PUBLIC_` variables are appropriate and server-side keys are handled securely (e.g., in API routes, not exposed to the client).
 
-## Codebase Analysis (Quantified) - As of [Current Date/Version - Assistant to Update]
+## Codebase Analysis (Quantified) - As of 2024-07-17 (v2.1.1)
 
-This analysis was performed by the AI assistant based on a review of key files (`page.tsx`, `EntryEditorDialog.tsx`, `RichTextEditor.tsx`, `supabaseClient.ts`) on [Date].
+This analysis was performed by the AI assistant based on a review of key files (`page.tsx`, `EntryEditorDialog.tsx`, `RichTextEditor.tsx`, `supabaseClient.ts`) on 2024-07-17.
 
 1.  **Row Level Security (RLS) Not Implemented:**
     *   **Problem:** Critical security vulnerability. Any user could potentially access/modify other users' data via direct API interaction using the public anon key.
     *   **Score:** **90/100** (Critical risk, data privacy/integrity).
 
-2.  **Missing/Incomplete Priority Features:**
+2.  **State Management Complexity (`page.tsx`):**
+    *   **Problem:** The main page component manages excessive state (entries, multiple loading states, multiple filter states, dialog state, editing state, derived tag counts/colors). High complexity (~500 lines) hinders maintainability and increases bug risk.
+    *   **Score:** **60/100** (Significant complexity, slows future development - Refactor Planned).
+
+3.  **Missing/Incomplete Priority Features:**
     *   **Problem:** Key features identified as priorities are placeholders or incomplete: Static Analysis Column (placeholder), RTE saving for edits (text conversion missing), Tag re-generation on edit (skipped), Sidebar navigation enhancements (not started).
     *   **Score:** **70/100** (High impact on planned functionality).
-
-3.  **State Management Complexity (`page.tsx`):**
-    *   **Problem:** The main page component manages excessive state (entries, multiple loading states, multiple filter states, dialog state, editing state, derived tag counts/colors). High complexity (>500 lines) hinders maintainability and increases bug risk.
-    *   **Score:** **60/100** (Significant complexity, slows future development).
 
 4.  **Performance Considerations:**
     *   **Problem:** Potential bottlenecks: Initial load fetches all entries; tag calculations re-run on entire dataset with any change; some filtering might be better client-side post-load.
@@ -134,11 +138,11 @@ This analysis was performed by the AI assistant based on a review of key files (
 
 5.  **Prop Drilling:**
     *   **Problem:** State and numerous callbacks defined in `page.tsx` are passed down multiple levels, increasing coupling and refactoring difficulty.
-    *   **Score:** **50/100** (Moderate complexity).
+    *   **Score:** **50/100** (Moderate complexity - To be addressed in planned refactor).
 
 6.  **Code Duplication/Organization:**
     *   **Problem:** Types defined within `page.tsx`; Supabase calls duplicated in UI components instead of centralized data access layer.
-    *   **Score:** **45/100** (Slight impact on maintainability).
+    *   **Score:** **45/100** (Slight impact on maintainability - To be addressed in planned refactor).
 
 7.  **Basic Error Handling:**
     *   **Problem:** Relies on `console.error` and `alert()`. Needs more user-friendly error feedback (e.g., toast notifications).
@@ -146,4 +150,15 @@ This analysis was performed by the AI assistant based on a review of key files (
 
 ## Next Steps / Priorities (From Highest to Lowest)
 
-1.  **Implement Row Level Security (RLS):**
+1.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY.
+2.  **Refactor State Management:** Implement Zustand (or similar) to address complexity in `page.tsx`, fix related filtering bugs, and improve maintainability.
+3.  **Populate Static Analysis Column:** Implement meaningful analysis.
+4.  **Refine AI Features:** Integrate summary saving, consider tag re-gen on edit, optimize costs.
+5.  **Improve Mobile Responsiveness:** Thorough testing, potential specific layouts.
+6.  **Robust Error Handling:** User feedback, API errors.
+7.  **Sidebar Navigation:** Implement calendar or date list for navigation.
+8.  **Develop Journal Analytics.**
+9.  **Tag Management Interface.**
+10. **Export Entries.**
+11. **Security Hardening (CSP).**
+12. **Offline Strategy.**

@@ -56,7 +56,7 @@ export function JournalSidebar({
                 }`}
                 onClick={() => onSelectDate(date)}
               >
-                <span>{format(parseISO(date), 'MMM d, yyyy')}</span>
+                <span suppressHydrationWarning={true}>{format(parseISO(date), 'MMM d, yyyy')}</span>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
                   {dateEntries.length}
                 </span>

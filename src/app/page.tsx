@@ -218,7 +218,10 @@ export default function Home() {
 
           const fetchedEntries = (data as Entry[]) || [];
           setAllEntries(fetchedEntries);
-          setEntries(fetchedEntries);
+          // Filter entries for the initially selected date before setting the displayed entries
+          const initialDisplayEntries = fetchedEntries.filter(entry => entry.date === selectedDate);
+          setEntries(initialDisplayEntries); 
+          // setEntries(fetchedEntries); // Removed: Don't display all entries initially
 
         } catch(error: any) {
           console.error('Initial error loading entries:', error);
@@ -239,7 +242,7 @@ export default function Home() {
     return () => {
       debouncedFetchEntries.cancel();
     };
-  }, [searchQuery, activeMetaTag, activeIntentTag, activeContentTags, debouncedFetchEntries]); // Update dependencies
+  }, [searchQuery, activeMetaTag, activeIntentTag, activeContentTags, debouncedFetchEntries, selectedDate]); // Update dependencies
 
   // REVISED handleTagClick: Single toggle meta/intent, multi toggle content
   const handleTagClick = useCallback((tag: string, type: TagType) => {
@@ -470,6 +473,7 @@ export default function Home() {
         </div>
 
         {/* Right Analysis Column - Pass revised state */}
+        {/* Analysis column doesn't strictly depend on selectedDate, so no conditional render needed here */}
         <StaticAnalysisColumn
           entries={entries} // Pass filtered entries
           onTagClick={handleTagClick} // Pass updated handler
@@ -483,7 +487,7 @@ export default function Home() {
       <EntryEditorDialog 
         isOpen={isEditorOpen}
         setIsOpen={setIsEditorOpen}
-        selectedDate={selectedDate} // For add mode title
+        selectedDate={selectedDate} // Pass selectedDate 
         initialEntry={editingEntry} // Pass entry being edited (or null)
         onEntryAdded={handleEntryAdded}
         onEntryUpdated={handleEntryUpdated} // Pass the update handler
