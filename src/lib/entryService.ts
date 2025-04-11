@@ -7,7 +7,7 @@ import type { Entry } from '@/types';
  * Returns data and error object.
  */
 export const fetchEntriesService = async (
-    query: string,
+    // query: string, // Removed query parameter
     metaTag: string | null,
     intentTag: string | null,
     contentTags: Set<string>
@@ -19,16 +19,16 @@ export const fetchEntriesService = async (
             .order('date', { ascending: false })
             .order('created_at', { ascending: false });
 
-        const trimmedQuery = query.trim();
+        // const trimmedQuery = query.trim(); // Removed query logic
 
         // Apply filters
-        if (trimmedQuery) {
-            // Search overrides tag filters
-            supabaseQuery = supabaseQuery.textSearch('search_vector', trimmedQuery, {
-                type: 'websearch',
-                config: 'english'
-            });
-        } else {
+        // if (trimmedQuery) { // Removed query logic
+        //     // Search overrides tag filters
+        //     supabaseQuery = supabaseQuery.textSearch('search_vector', trimmedQuery, {
+        //         type: 'websearch',
+        //         config: 'english'
+        //     });
+        // } else { // Removed query logic
             // Apply tag filters (AND logic across types)
             if (metaTag) {
                 supabaseQuery = supabaseQuery.eq('meta_tag', metaTag);
@@ -37,11 +37,15 @@ export const fetchEntriesService = async (
                 supabaseQuery = supabaseQuery.eq('intent_tag', intentTag);
             }
             if (contentTags.size > 0) {
-                // Use overlaps for content tags (entry must have AT LEAST ONE of the selected tags - OR logic)
-                const tagsArray = Array.from(contentTags);
-                supabaseQuery = supabaseQuery.overlaps('tags', tagsArray);
+                // Use .or() with .cs. (contains) for each tag
+                // Build filter string like: tags.cs.["tag1"],tags.cs.["tag2"]
+                const orFilters = Array.from(contentTags).map(tag => 
+                    // Ensure tag is properly escaped within the JSON string
+                    `tags.cs.${JSON.stringify([tag])}`
+                ).join(',');
+                supabaseQuery = supabaseQuery.or(orFilters);
             }
-        }
+        // } // Removed query logic
 
         const { data, error } = await supabaseQuery;
 

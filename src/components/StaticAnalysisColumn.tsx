@@ -6,11 +6,12 @@ import type { Entry, TagType } from '@/types'; // Import from centralized types
 import { Badge } from '@/components/ui/badge'; // Import Badge
 import { X } from 'lucide-react'; // Import X icon
 import { useJournalStore } from '@/stores/journalStore'; // Import the store
+import clsx from 'clsx';
 
 // Helper function to get top N tags from a counts object
 const getTopTags = (counts: { [tag: string]: number }, topN: number): [string, number][] => {
   return Object.entries(counts)
-    .filter(([, count]) => count > 1) // Filter out tags with count <= 1
+    // .filter(([, count]) => count > 1) // Removed: Show all tags regardless of count for testing
     .sort(([, countA], [, countB]) => countB - countA)
     .slice(0, topN);
 };
@@ -22,7 +23,8 @@ export const StaticAnalysisColumn: React.FC = () => {
     activeMetaTag,
     activeIntentTag,
     activeContentTags,
-    setFiltersAndFetch
+    setFiltersAndFetch,
+    highlightedTagColors
   } = useJournalStore();
 
   const topN = 5; // Number of top tags to display
@@ -75,10 +77,8 @@ export const StaticAnalysisColumn: React.FC = () => {
 
     if (type === 'meta') {
       newMetaTag = activeMetaTag === tag ? null : tag; // Toggle
-      newIntentTag = null; // Clear other single-select
     } else if (type === 'intent') {
       newIntentTag = activeIntentTag === tag ? null : tag; // Toggle
-      newMetaTag = null; // Clear other single-select
     } else { // type === 'content'
       if (newContentTags.has(tag)) {
         newContentTags.delete(tag); // Toggle off
@@ -120,18 +120,25 @@ export const StaticAnalysisColumn: React.FC = () => {
               topMetaTags.map(([tag, count]) => {
                 const isActive = isTagActive(tag, 'meta');
                 const isGrayed = anyFilterActive && !isActive;
+                // Get specific color from store map or default
+                const lowerTag = tag.toLowerCase();
+                const colorInfo = highlightedTagColors[lowerTag];
+                const activeClasses = colorInfo ? colorInfo.base : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300'; // Default purple
+                const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-purple-200 dark:hover:bg-purple-800/70'; // Default purple
+                const ringClasses = 'ring-purple-500 dark:ring-purple-400'; // Ring color fixed to type
+
                 return (
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className={`relative group cursor-pointer transition-all duration-150 ease-in-out
-                      ${isActive
-                        ? 'ring-2 ring-offset-1 ring-purple-500 dark:ring-purple-400 bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/70'
-                        : isGrayed
-                          ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 opacity-60 hover:opacity-100'
-                          : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/70'
-                      }
-                    `}
+                    className={clsx(
+                        'relative group cursor-pointer transition-all duration-150 ease-in-out',
+                        isActive
+                          ? `ring-2 ring-offset-1 ${ringClasses} ${activeClasses} ${hoverClasses}`
+                          : isGrayed
+                            ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 opacity-60 hover:opacity-100'
+                            : `${activeClasses} ${hoverClasses}`
+                    )}
                     onClick={() => handleTagClick(tag, 'meta')}
                   >
                     <span>{tag.toUpperCase()} ({count})</span>
@@ -161,18 +168,25 @@ export const StaticAnalysisColumn: React.FC = () => {
               topIntentTags.map(([tag, count]) => {
                 const isActive = isTagActive(tag, 'intent');
                 const isGrayed = anyFilterActive && !isActive;
+                // Get specific color from store map or default
+                const lowerTag = tag.toLowerCase();
+                const colorInfo = highlightedTagColors[lowerTag];
+                const activeClasses = colorInfo ? colorInfo.base : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'; // Default green
+                const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-green-200 dark:hover:bg-green-800/70'; // Default green
+                const ringClasses = 'ring-green-600 dark:ring-green-500'; // Ring color fixed to type
+
                 return (
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className={`relative group cursor-pointer transition-all duration-150 ease-in-out
-                      ${isActive
-                        ? 'ring-2 ring-offset-1 ring-green-600 dark:ring-green-500 bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/70'
-                        : isGrayed
-                          ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 opacity-60 hover:opacity-100'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/70'
-                      }
-                    `}
+                    className={clsx(
+                        'relative group cursor-pointer transition-all duration-150 ease-in-out',
+                        isActive
+                          ? `ring-2 ring-offset-1 ${ringClasses} ${activeClasses} ${hoverClasses}`
+                          : isGrayed
+                            ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 opacity-60 hover:opacity-100'
+                            : `${activeClasses} ${hoverClasses}`
+                    )}
                     onClick={() => handleTagClick(tag, 'intent')}
                   >
                     <span>{tag} ({count})</span>
@@ -202,18 +216,25 @@ export const StaticAnalysisColumn: React.FC = () => {
               topContentTags.map(([tag, count]) => {
                 const isActive = isTagActive(tag, 'content');
                 const isGrayed = anyFilterActive && !isActive;
+                // Get specific color from store map or default
+                const lowerTag = tag.toLowerCase();
+                const colorInfo = highlightedTagColors[lowerTag];
+                const activeClasses = colorInfo ? colorInfo.base : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'; // Default blue
+                const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-blue-200 dark:hover:bg-blue-800/70'; // Default blue
+                const ringClasses = 'ring-blue-500 dark:ring-blue-400'; // Ring color fixed to type
+
                 return (
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className={`relative group cursor-pointer transition-all duration-150 ease-in-out
-                      ${isActive
-                        ? 'ring-2 ring-offset-1 ring-blue-500 dark:ring-blue-400 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/70'
-                        : isGrayed
-                          ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 opacity-60 hover:opacity-100'
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/70'
-                      }
-                    `}
+                    className={clsx(
+                        'relative group cursor-pointer transition-all duration-150 ease-in-out',
+                        isActive
+                          ? `ring-2 ring-offset-1 ${ringClasses} ${activeClasses} ${hoverClasses}`
+                          : isGrayed
+                            ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 opacity-60 hover:opacity-100'
+                            : `${activeClasses} ${hoverClasses}`
+                    )}
                     onClick={() => handleTagClick(tag, 'content')}
                   >
                     <span>{tag} ({count})</span>

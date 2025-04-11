@@ -12,6 +12,7 @@ import clsx from 'clsx';
 import { useMemo } from 'react'; // Keep useMemo for calculations
 
 // Define Color Palettes locally for now - could be moved to utils or theme file
+/* // MOVED TO ZUSTAND STORE
 const metaTagColors = [
   { base: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300', hover: 'hover:bg-purple-200 dark:hover:bg-purple-800/70' },
   { base: 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300', hover: 'hover:bg-pink-200 dark:hover:bg-pink-800/70' },
@@ -32,6 +33,7 @@ const contentTagColors = [
   { base: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300', hover: 'hover:bg-sky-200 dark:hover:bg-sky-800/70' },
   { base: 'bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300', hover: 'hover:bg-violet-200 dark:hover:bg-violet-800/70' },
 ];
+*/
 
 // Define props that are still needed from the parent
 interface JournalEntryProps {
@@ -52,10 +54,12 @@ export function JournalEntry({
     selectedDate,
     loadingState,
     setFiltersAndFetch,
-    allEntries // Needed for tag counts/colors across all entries
+    allEntries, // Needed for tag counts/colors across all entries
+    highlightedTagColors // <-- Get color map from store
   } = useJournalStore();
 
   // Recalculate tag counts and colors based on ALL entries from the store
+  /* // MOVED TO ZUSTAND STORE
   const { tagCounts, highlightedTagColors } = useMemo(() => {
     const counts: { [key: string]: number } = {};
     const colors: { [lowerCaseTag: string]: { base: string; hover: string } } = {};
@@ -98,6 +102,7 @@ export function JournalEntry({
     });
     return { tagCounts: counts, highlightedTagColors: colors };
   }, [allEntries]);
+  */
 
   // Get loading state for individual entries (tag generation)
   const generatingTagsForId = loadingState === 'tagging' ? useJournalStore.getState().allEntries[0]?.id : null; // Simplistic - assumes tagging only happens on newest entry
@@ -115,13 +120,24 @@ export function JournalEntry({
 
   // Handle tag clicks by calling store action
   const handleTagClick = (tag: string, type: TagType) => {
+    const currentState = useJournalStore.getState();
+    let newMetaTag = currentState.activeMetaTag;
+    let newIntentTag = currentState.activeIntentTag;
+
     if (type === 'meta') {
-      setFiltersAndFetch({ searchQuery: '', activeMetaTag: tag, activeIntentTag: null }); // Clear search, set meta, clear intent
+      // Toggle meta tag, keep intent tag as is
+      newMetaTag = newMetaTag === tag ? null : tag;
     } else if (type === 'intent') {
-      setFiltersAndFetch({ searchQuery: '', activeIntentTag: tag, activeMetaTag: null }); // Clear search, set intent, clear meta
+      // Toggle intent tag, keep meta tag as is
+      newIntentTag = newIntentTag === tag ? null : tag;
     }
-    // Content tags are not clickable on the card based on instructions
-    // If they were, logic would go here to update activeContentTags set
+
+    setFiltersAndFetch({
+      searchQuery: '', // Clear search
+      activeMetaTag: newMetaTag,
+      activeIntentTag: newIntentTag,
+      activeContentTags: currentState.activeContentTags // Keep content tags as is
+    });
   };
 
   const handleStartEdit = (entry: Entry) => {
