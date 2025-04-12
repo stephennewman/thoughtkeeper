@@ -160,8 +160,8 @@ export default function Home() {
             }
         };
 
-        // Start recording with a 1-second timeslice
-        mediaRecorderRef.current.start(1000); // Fire ondataavailable every 1000ms
+        // Start recording with a smaller timeslice for potentially better prod behavior
+        mediaRecorderRef.current.start(500); // Fire ondataavailable every 500ms
         setIsRecording(true); // Set recording state true
 
     } catch (err) {
