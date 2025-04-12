@@ -40,7 +40,7 @@ const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=()' // Adjust as needed
+    value: 'camera=(), microphone=(self), geolocation=()' // Allow microphone for self
   }
 ];
 

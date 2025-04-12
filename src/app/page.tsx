@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useMemo, Fragment } from 'react';
+import { useEffect, useRef, useMemo, Fragment, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useInView } from 'react-intersection-observer';
 import { JournalSidebar, JournalEntry, EntryEditorDialog, StaticAnalysisColumn } from '@/components';
-import { X, Loader2, Plus, Info } from 'lucide-react';
+import { X, Loader2, Plus, Info, Mic, Send } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,15 @@ export default function Home() {
     setFilters,
     deleteEntry,
     openEditorDialog,
+    addEntry,
   } = useJournalStore();
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const mainContentScrollRef = useRef<HTMLDivElement>(null);
   const { ref: intersectionObserverRef, inView } = useInView({
@@ -69,6 +77,148 @@ export default function Home() {
     openEditorDialog(entry);
   };
 
+  const transcribeAndCreateEntry = async (audioBlob: Blob) => {
+    console.log("Transcribing and creating entry for blob:", audioBlob);
+    setAudioError(null);
+    setIsProcessingAudio(true);
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.webm');
+
+    let transcription = '';
+
+    try {
+      console.log("Sending audio to /api/transcribe...");
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response.' }));
+        throw new Error(errorData.error || `HTTP error! ${response.status}`);
+      }
+
+      const data = await response.json();
+      transcription = data.transcription;
+      console.log("Transcription received:", transcription);
+
+      if (transcription) {
+        const { addEntryWithTranscription } = useJournalStore.getState();
+        console.log("Calling store action addEntryWithTranscription...");
+        await addEntryWithTranscription(transcription);
+        console.log("Store action addEntryWithTranscription completed.");
+      } else {
+        console.warn("Transcription was empty, not creating entry.");
+      }
+
+    } catch (error: any) {
+      console.error("Error during transcription or entry creation:", error);
+      setAudioError(error.message || "Failed to process audio entry.");
+    } finally {
+      setIsProcessingAudio(false);
+    }
+  };
+
+  const startRecording = async () => {
+    setAudioError(null);
+    setIsProcessingAudio(false);
+
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+        setAudioError("Audio recording not supported in this browser.");
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        audioChunksRef.current = [];
+
+        mediaRecorderRef.current.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunksRef.current.push(event.data);
+            }
+        };
+
+        mediaRecorderRef.current.onstop = () => {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            audioChunksRef.current = [];
+            console.log("Audio Blob created (onstop):", audioBlob);
+            if(mediaRecorderRef.current?.stream) {
+              mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+            }
+
+            transcribeAndCreateEntry(audioBlob);
+        };
+
+        mediaRecorderRef.current.onerror = (event) => {
+            console.error("MediaRecorder error:", event);
+            setAudioError("Error during recording.");
+            setIsRecording(false);
+            setIsProcessingAudio(false);
+            if(mediaRecorderRef.current?.stream) {
+              mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+            }
+        };
+
+        // Start recording with a 1-second timeslice
+        mediaRecorderRef.current.start(1000); // Fire ondataavailable every 1000ms
+        setIsRecording(true); // Set recording state true
+
+    } catch (err) {
+        console.error("Error accessing microphone:", err);
+        if (err instanceof Error) {
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                setAudioError("Microphone permission denied.");
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                setAudioError("No microphone found.");
+            } else {
+                setAudioError(`Mic error: ${err.message}`);
+            }
+        } else {
+            setAudioError("Could not access microphone.");
+        }
+        setIsRecording(false);
+        setIsProcessingAudio(false);
+    }
+  };
+
+  const stopRecordingAndDiscard = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.onstop = null;
+      try { mediaRecorderRef.current.stop(); } catch (e) { console.warn("Error stopping MediaRecorder (discard):", e); }
+      mediaRecorderRef.current = null;
+      console.log("Recording stopped and discarded.");
+    } else {
+        console.warn("Stop recording (discard) called but not recording.");
+    }
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setIsProcessingAudio(false);
+    setAudioError(null);
+  };
+
+  const handleMicClick = () => {
+    if (isRecording) {
+      stopRecordingAndDiscard();
+    } else {
+      startRecording();
+    }
+  };
+
+  const handleSendClick = () => {
+     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+       setIsRecording(false);
+       setIsProcessingAudio(true);
+       try { mediaRecorderRef.current.stop(); } catch (e) { console.warn("Error stopping MediaRecorder (send):", e); }
+       console.log("Send clicked, stopping recording...");
+     } else {
+       console.warn("Send clicked but not recording.");
+       setIsRecording(false);
+       setIsProcessingAudio(false);
+     }
+  };
+
   const groupedEntries = useMemo(() => {
     return displayEntries.reduce((acc, entry) => {
       const date = entry.date;
@@ -102,10 +252,13 @@ export default function Home() {
                 {errorState && (
                   <p className="text-red-600 text-sm">Error: {errorState}</p>
                 )}
-                {(isLoadingInitial || isProcessingEntry) && !errorState && (
+                {(isLoadingInitial || isProcessingEntry || isProcessingAudio) && !errorState && (
                   <div className="flex items-center justify-start">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    {isProcessingEntry && <span className="text-sm text-muted-foreground ml-2">Processing...</span>}
+                    {(isProcessingEntry || isProcessingAudio) && 
+                      <span className="text-sm text-muted-foreground ml-2">
+                        {isProcessingAudio ? 'Processing audio...' : 'Processing entry...'}
+                      </span>}
                   </div>
                 )}
               </div>
@@ -119,15 +272,43 @@ export default function Home() {
                 className="w-full max-w-xs hidden sm:block"
               />
               <Button
+                variant={isRecording ? "destructive" : "outline"}
+                size="icon"
+                onClick={handleMicClick}
+                disabled={isProcessingAudio}
+                aria-label={isRecording ? "Stop and discard recording" : "Start recording"}
+                title={isRecording ? "Stop and discard recording" : "Start recording"}
+              >
+                <Mic className={`h-4 w-4 ${isRecording ? 'text-red-500 animate-pulse' : ''}`} />
+              </Button>
+              {isRecording && (
+                <Button
+                  variant="default"
+                  size="icon"
+                  onClick={handleSendClick}
+                  disabled={isProcessingAudio}
+                  aria-label="Send recording"
+                  title="Send recording"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
                 onClick={handleAddClick}
                 size="sm"
                 className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity flex-shrink-0"
-                disabled={isProcessingEntry}
+                disabled={isProcessingAudio || isRecording}
               >
                 <Plus className="mr-2 h-4 w-4" /> Add Entry
               </Button>
             </div>
           </div>
+
+          {audioError && (
+              <div className="flex justify-end">
+                <p className="text-red-600 text-sm mt-1">{audioError}</p>
+              </div>
+          )}
 
           {isAnyFilterActive && (
               <div className="flex flex-col gap-1 flex-shrink-0 p-2 rounded-md border border-yellow-200 bg-yellow-50 dark:border-yellow-800/60 dark:bg-yellow-900/20">

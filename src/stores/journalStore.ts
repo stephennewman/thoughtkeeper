@@ -14,6 +14,12 @@ import { supabase } from '@/lib/supabaseClient';
 // Define PAGE_SIZE constant
 const PAGE_SIZE = 20;
 
+// Define EditorState structure (used for editor content)
+interface EditorState {
+  html: string;
+  text?: string; // Optional text representation
+}
+
 // Define the state structure
 interface JournalState {
   // Filters
@@ -36,7 +42,7 @@ interface JournalState {
 
   // UI State
   isEditorOpen: boolean;
-  editingEntry: Entry | null;
+  editingEntry: Entry | null; // Stores the *original* entry being edited (or null for new)
   highlightedTagColors: { [lowerCaseTag: string]: { base: string; hover: string } };
 }
 
@@ -50,12 +56,13 @@ interface JournalActions {
     activeIntentTag: string | null;
     activeContentTags: Set<string>;
   }>) => void;
-  addEntry: (content: string, date: string) => Promise<void>;
+  addEntry: (content: string, date: string) => Promise<void>; // Content arg might change to EditorState
   updateEntryTags: (entryId: string, entryUpdate: Partial<Entry> | Entry) => void;
-  updateEntry: (entryId: string, content: string) => Promise<void>;
+  updateEntry: (entryId: string, content: string) => Promise<void>; // Content arg might change to EditorState
   deleteEntry: (entryId: string) => Promise<void>;
   openEditorDialog: (entryToEdit?: Entry | null) => void;
   closeEditorDialog: () => void;
+  addEntryWithTranscription: (transcription: string) => Promise<void>;
 }
 
 // Define the initial state separately for resetting
@@ -249,7 +256,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
 
           const fetchedEntries = data || [];
           const combinedEntries = [...loadedEntries, ...fetchedEntries];
-          const newHighlightedTagColors = calculateHighlightedTagColors(combinedEntries); // Recalculate on combined
+          const newHighlightedTagColors = calculateHighlightedTagColors(combinedEntries);
           const newDisplayEntries = filterLoadedEntries(combinedEntries, get()); // Filter combined batch
 
           set({
@@ -267,37 +274,41 @@ export const useJournalStore = create<JournalState & JournalActions>()(
         }
       },
 
-      setFilters: (newFilters) => {
-        // 1. Update filter state
-        set(state => ({
-            searchQuery: newFilters.searchQuery !== undefined ? newFilters.searchQuery : state.searchQuery,
-            activeMetaTag: newFilters.activeMetaTag !== undefined ? newFilters.activeMetaTag : state.activeMetaTag,
-            activeIntentTag: newFilters.activeIntentTag !== undefined ? newFilters.activeIntentTag : state.activeIntentTag,
-            activeContentTags: newFilters.activeContentTags !== undefined ? newFilters.activeContentTags : state.activeContentTags,
-        }));
-        // 2. Re-apply client-side filters to *currently loaded* entries
-        set(state => ({
-            displayEntries: filterLoadedEntries(state.loadedEntries, state)
-        }));
+      setFilters: (filters) => {
+        const currentState = get();
+        const updatedFilters = {
+          searchQuery: filters.searchQuery !== undefined ? filters.searchQuery : currentState.searchQuery,
+          activeMetaTag: filters.activeMetaTag !== undefined ? filters.activeMetaTag : currentState.activeMetaTag,
+          activeIntentTag: filters.activeIntentTag !== undefined ? filters.activeIntentTag : currentState.activeIntentTag,
+          activeContentTags: filters.activeContentTags !== undefined ? filters.activeContentTags : currentState.activeContentTags,
+        };
+        const newDisplayEntries = filterLoadedEntries(currentState.loadedEntries, updatedFilters);
+        set({ ...updatedFilters, displayEntries: newDisplayEntries });
       },
 
-      addEntry: async (content, date) => {
+      addEntry: async (contentHtml: string, date: string) => {
         set({ isProcessingEntry: true, errorState: null });
         try {
-          // 1. Add the basic entry via service
-          const { data: insertedData, error: insertError } = await addEntryService(date, content);
-          if (insertError) throw insertError;
-          if (!insertedData) throw new Error("Service returned no data on add.");
+          const { data: newEntry, error: serviceError } = await addEntryService(contentHtml, date);
+          if (serviceError) throw serviceError;
+          if (!newEntry) throw new Error("Service returned no data on add.");
 
-          // 2. Refresh the list from the start to ensure consistency (Simplest approach)
-          // This implicitly handles tag colors and filtering.
-          // Don't await this, let it run, but reset processing state immediately after triggering
-          get().loadInitialEntries();
+          const updatedLoadedEntries = [newEntry, ...get().loadedEntries];
+          const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoadedEntries);
+          const newDisplayEntries = filterLoadedEntries(updatedLoadedEntries, get());
 
-          // 3. Trigger background tagging (can run independently after refresh starts)
+          set({
+            loadedEntries: updatedLoadedEntries,
+            displayEntries: newDisplayEntries,
+            highlightedTagColors: newHighlightedTagColors,
+          });
+
+          // Trigger background tagging for manually added entries too
           (async () => {
             try {
-              const contentToTag = insertedData.content;
+              const contentToTag = newEntry.content; // Use content from the newly created entry
+              if (!contentToTag) return;
+
               const fetchOptions = {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -327,125 +338,209 @@ export const useJournalStore = create<JournalState & JournalActions>()(
                  const { error: updateError } = await supabase
                   .from('entries')
                   .update(updatePayload)
-                  .eq('id', insertedData.id);
+                  .eq('id', newEntry.id);
 
                  if (updateError) {
                     console.error('Error updating entry with tags in DB:', updateError);
-                 }
-                 // Re-enable this call to update the UI after tagging completes:
-                 // Instead of just passing payload, fetch the full updated entry
-                 const { data: updatedEntryData, error: fetchError } = await supabase
-                   .from('entries')
-                   .select('*')
-                   .eq('id', insertedData.id)
-                   .single();
+                 } else {
+                    // Fetch the full updated entry to update the store state
+                    const { data: updatedEntryData, error: fetchError } = await supabase
+                      .from('entries')
+                      .select('*')
+                      .eq('id', newEntry.id)
+                      .single();
 
-                 if (fetchError) {
-                   console.error('Error fetching updated entry after tagging:', fetchError);
-                 } else if (updatedEntryData) {
-                   // Call updateEntryTags with the full, updated entry
-                   get().updateEntryTags(insertedData.id, updatedEntryData as Entry);
+                    if (fetchError) {
+                      console.error('Error fetching updated entry after tagging:', fetchError);
+                    } else if (updatedEntryData) {
+                      // Call updateEntryTags with the full, updated entry
+                      get().updateEntryTags(newEntry.id, updatedEntryData as Entry);
+                      console.log("Background tagging update applied to store for entry:", newEntry.id);
+                    }
                  }
               }
             } catch (taggingError) {
-              console.error("Error during background tagging process:", taggingError);
+              console.error("Error during background tagging process for manual entry:", taggingError);
+            } finally {
+                set({ isProcessingEntry: false }); // Set processing false *after* tagging attempt
             }
-          })();
+          })(); // End background tagging async IIFE
 
         } catch (error: any) {
           console.error("Failed to add entry:", error);
-          set({ errorState: `Failed to add entry: ${error.message}` });
-        } finally {
-           set({ isProcessingEntry: false }); // Reset processing indicator immediately
+          set({ errorState: `Failed to add entry: ${error.message}`, isProcessingEntry: false });
+          throw error;
         }
       },
 
-      // Action specifically for updating tags in the state after background process
-      // Modified to accept full Entry or Partial<Entry>
-       updateEntryTags: (entryId, entryUpdate: Partial<Entry> | Entry) => {
-           set(state => {
-              let entryUpdated = false;
-              const newLoadedEntries = state.loadedEntries.map(entry => {
-                 if (entry.id === entryId) {
-                    entryUpdated = true;
-                    // Merge partial update or replace with full entry
-                    return { ...entry, ...entryUpdate }; 
-                 }
-                 return entry;
-              });
+      updateEntryTags: (entryId, entryUpdate) => {
+        const updateFn = (entry: Entry): Entry => (entry.id === entryId ? { ...entry, ...entryUpdate } : entry);
+        const updatedLoaded = get().loadedEntries.map(updateFn);
+        const updatedDisplay = get().displayEntries.map(updateFn);
+        const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoaded);
+        set({ loadedEntries: updatedLoaded, displayEntries: updatedDisplay, highlightedTagColors: newHighlightedTagColors });
+      },
 
-              if (!entryUpdated) return {}; // Entry not found in loaded list
-
-              const newHighlightedTagColors = calculateHighlightedTagColors(newLoadedEntries);
-              const newDisplayEntries = filterLoadedEntries(newLoadedEntries, state); // Re-filter
-
-              return {
-                  loadedEntries: newLoadedEntries,
-                  displayEntries: newDisplayEntries,
-                  highlightedTagColors: newHighlightedTagColors,
-              };
-           });
-        },
-
-      updateEntry: async (entryId, content) => {
+      updateEntry: async (entryId: string, contentHtml: string) => {
         set({ isProcessingEntry: true, errorState: null });
         try {
-          // 1. Update via service
-          const { data: updatedData, error: updateError } = await updateEntryContentService(entryId, content);
-          if (updateError) throw updateError;
-          if (!updatedData) throw new Error("Service returned no data on update.");
+           // Destructure the response from the service
+          const { data: updatedEntry, error: serviceError } = await updateEntryContentService(entryId, contentHtml);
+          
+          // Check for service error first
+          if (serviceError) throw serviceError;
+          if (!updatedEntry) throw new Error("Service returned no data on update."); // Should not happen if error is null
+          
+          // Update in loaded and display arrays
+          const updateFn = (entry: Entry): Entry => (entry.id === entryId ? updatedEntry : entry);
+          const updatedLoaded = get().loadedEntries.map(updateFn);
+          const updatedDisplay = get().displayEntries.map(updateFn);
+          const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoaded);
 
-          // 2. Refresh list from start
-          // Don't await this
-          get().loadInitialEntries();
-
-          // TODO: Add tag re-generation logic here if needed in the future
+          set({
+            loadedEntries: updatedLoaded,
+            displayEntries: updatedDisplay,
+            highlightedTagColors: newHighlightedTagColors,
+            isProcessingEntry: false,
+          });
 
         } catch (error: any) {
           console.error("Failed to update entry:", error);
-          set({ errorState: `Failed to update entry: ${error.message}` });
-        } finally {
-           set({ isProcessingEntry: false }); // Reset immediately
+          set({ errorState: `Failed to update entry: ${error.message}`, isProcessingEntry: false });
+          throw error; // Re-throw to be caught in UI if needed
         }
       },
 
-      deleteEntry: async (entryId) => {
+      deleteEntry: async (entryId: string) => {
         set({ isProcessingEntry: true, errorState: null });
-        // No optimistic removal in this simple flow
+        const originalEntries = get().loadedEntries;
+        // Optimistically remove from UI
+        const updatedLoaded = originalEntries.filter(e => e.id !== entryId);
+        const updatedDisplay = filterLoadedEntries(updatedLoaded, get());
+        const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoaded);
+        set({ 
+            loadedEntries: updatedLoaded, 
+            displayEntries: updatedDisplay, 
+            highlightedTagColors: newHighlightedTagColors 
+        });
 
         try {
-           const { error } = await deleteEntryService(entryId);
-           if (error) throw error;
-
-           // Refresh list from start on success
-           // Don't await this
-           get().loadInitialEntries();
-
+          await deleteEntryService(entryId);
+          set({ isProcessingEntry: false });
         } catch (error: any) {
-           console.error("Failed to delete entry:", error);
-           set({ errorState: `Failed to delete entry: ${error.message}` });
-        } finally {
-            set({ isProcessingEntry: false }); // Reset immediately
+          console.error("Failed to delete entry:", error);
+          // Revert UI on error
+          const revertedDisplay = filterLoadedEntries(originalEntries, get());
+          const revertedColors = calculateHighlightedTagColors(originalEntries);
+          set({
+            loadedEntries: originalEntries,
+            displayEntries: revertedDisplay,
+            highlightedTagColors: revertedColors,
+            errorState: `Failed to delete entry: ${error.message}`, 
+            isProcessingEntry: false 
+          });
         }
       },
 
-      // Dialog actions remain largely the same
       openEditorDialog: (entryToEdit = null) => {
         set({
           isEditorOpen: true,
           editingEntry: entryToEdit,
-          errorState: null
+          errorState: null,
         });
       },
 
       closeEditorDialog: () => {
         set({
           isEditorOpen: false,
-          editingEntry: null
+          editingEntry: null,
         });
       },
 
+      addEntryWithTranscription: async (transcription: string) => {
+         set({ isProcessingEntry: true, errorState: null });
+         const entryDate = format(new Date(), 'yyyy-MM-dd'); // Use today's date
+
+         try {
+            // 1. Add the basic entry via service using the transcription as content
+            const { data: newEntry, error: serviceError } = await addEntryService(entryDate, transcription);
+            if (serviceError) throw serviceError;
+            if (!newEntry) throw new Error("Service returned no data on transcription add.");
+
+            // 2. Optimistically add to state
+            const updatedLoadedEntries = [newEntry, ...get().loadedEntries];
+            const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoadedEntries);
+            const newDisplayEntries = filterLoadedEntries(updatedLoadedEntries, get());
+
+            set({
+               loadedEntries: updatedLoadedEntries,
+               displayEntries: newDisplayEntries,
+               highlightedTagColors: newHighlightedTagColors,
+            });
+
+            // 3. Trigger background tagging (similar to manual addEntry)
+            (async () => {
+              try {
+                const contentToTag = newEntry.content; // Use content from the newly created entry
+                if (!contentToTag) return;
+
+                const fetchOptions = {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content: contentToTag })
+                 }; 
+                const [metaResponse, intentResponse, tagsResponse] = await Promise.all([
+                   fetch('/api/classify-meta', fetchOptions),
+                   fetch('/api/classify-intent', fetchOptions),
+                   fetch('/api/tags', fetchOptions)
+                ]);
+
+                // ... (Handle API responses and build updatePayload) ...
+                const metaResult = metaResponse.ok ? await metaResponse.json() : {};
+                const intentResult = intentResponse.ok ? await intentResponse.json() : {};
+                const tagsResult = tagsResponse.ok ? await tagsResponse.json() : {};
+
+                const updatePayload: Partial<Entry> = {};
+                if (metaResult.metaTag) { updatePayload.meta_tag = metaResult.metaTag; }
+                if (intentResult.intentTag) { updatePayload.intent_tag = intentResult.intentTag; }
+                if (tagsResult.tags) { updatePayload.tags = tagsResult.tags; }
+
+
+                if (Object.keys(updatePayload).length > 0) {
+                   const { error: updateError } = await supabase.from('entries').update(updatePayload).eq('id', newEntry.id);
+
+                   if (updateError) {
+                      console.error('Error updating voice entry with tags in DB:', updateError);
+                   } else {
+                      // Fetch the full updated entry to update the store state
+                      const { data: updatedEntryData, error: fetchError } = await supabase.from('entries').select('*').eq('id', newEntry.id).single();
+
+                      if (fetchError) {
+                        console.error('Error fetching updated voice entry after tagging:', fetchError);
+                      } else if (updatedEntryData) {
+                        get().updateEntryTags(newEntry.id, updatedEntryData as Entry);
+                        console.log("Background tagging update applied to store for voice entry:", newEntry.id);
+                      }
+                   }
+                }
+              } catch (taggingError) {
+                console.error("Error during background tagging process for voice entry:", taggingError);
+              } finally {
+                  set({ isProcessingEntry: false }); // Set processing false *after* tagging attempt
+              }
+            })(); // End background tagging async IIFE
+
+
+         } catch (error: any) {
+            console.error("Failed to add transcription entry:", error);
+            set({ errorState: `Failed to add entry: ${error.message}`, isProcessingEntry: false });
+            // Do not re-throw here, as the UI handles errors via audioError state
+         }
+      },
+
     }),
-    { name: 'JournalStore' } // Name for Redux DevTools
+    {
+      name: 'journal-storage', // name of the item in the storage (must be unique)
+    }
   )
 ); 

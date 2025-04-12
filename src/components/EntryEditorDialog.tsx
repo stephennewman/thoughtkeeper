@@ -11,17 +11,17 @@ import type { Entry } from '@/types';
 // import { addEntryService, updateEntryContentService } from "@/lib/entryService"; 
 import { useJournalStore } from '@/stores/journalStore'; // Import store
 
-// Define EditorState locally
+// Define EditorState used by RichTextEditor's onChange
 interface EditorState {
   html: string;
-  text: string; // Keep text for potential future use (e.g., passing to AI)
+  text?: string;
 }
 
-// Define props needed from parent (less than before)
+// Define props needed from parent
 interface EntryEditorDialogProps {
   isOpen: boolean;
-  selectedDate: string; 
-  initialEntry?: Entry | null; 
+  selectedDate: string;
+  initialEntry?: Entry | null;
 }
 
 export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
@@ -30,57 +30,57 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
   initialEntry = null,
 }) => {
   // Get actions and relevant state from the store
-  const { 
-    addEntry, 
-    updateEntry, 
-    closeEditorDialog, 
-    isProcessingEntry // Use this for Add/Update/Tagging indicator
+  const {
+    addEntry,
+    updateEntry,
+    closeEditorDialog,
+    isProcessingEntry,
+    // Remove unused store state/actions
+    // editingEntry, 
+    // currentEditorContent, 
+    // updateCurrentEditorContent 
   } = useJournalStore();
 
   // Local state for editor content and component-specific errors
-  const [content, setContent] = useState<EditorState>({ html: '', text: '' });
+  const [editorHtml, setEditorHtml] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  
-  const isEditMode = !!initialEntry;
-  // Determine loading/processing based on the store's isProcessingEntry state
-  const isLoadingOrProcessing = isProcessingEntry; 
+
+  const isEditMode = !!initialEntry; // Determine mode based on prop
+  const isLoadingOrProcessing = isProcessingEntry;
 
   // Effect to load initial content for editing or reset for adding
   useEffect(() => {
     if (isOpen) {
       setError(null); // Clear error on open
-      if (isEditMode && initialEntry) {
-        setContent({ html: initialEntry.content, text: '' }); // TODO: Need text conversion for edit
-      } else {
-        setContent({ html: '', text: '' });
-      }
+      // Set local state based on the initialEntry prop
+      setEditorHtml(initialEntry?.content || '');
     } 
-    // Resetting content on close might clear it prematurely if dialog animation occurs
-  }, [isOpen, initialEntry, isEditMode]);
+    // No cleanup needed here, as content is reset when opened
+  }, [isOpen, initialEntry]); // Depend on isOpen and initialEntry
+
+  // Handler for RichTextEditor changes
+  const handleContentChange = (state: EditorState) => {
+    setEditorHtml(state.html); // Update local state
+  };
 
   const handleSave = async () => {
     setError(null); // Clear previous errors
-    
+
     try {
+      // Use local editorHtml state
       if (isEditMode && initialEntry) {
         // EDIT MODE - Call store action
-        // TODO: Check if content actually changed?
-        await updateEntry(initialEntry.id, content.html);
+        await updateEntry(initialEntry.id, editorHtml);
         closeEditorDialog(); // Close dialog on success
-
       } else {
         // ADD MODE - Call store action
-        await addEntry(content.html, selectedDate);
-        closeEditorDialog(); // Close dialog on success (tagging happens in background)
+        await addEntry(editorHtml, selectedDate);
+        closeEditorDialog(); // Close dialog on success
       }
     } catch (error: any) {
-      // Note: Store actions handle their own errors internally, 
-      // but we might want to catch component-specific errors or display store error here.
       console.error('Error caught in dialog save handler:', error);
-      setError(`Failed to save: ${error.message}`); // Display local error
-      // We could also pull the error from useJournalStore().errorState here
+      setError(`Failed to save: ${error.message}`);
     }
-    // Loading state is handled by the store, no need for local setIsSaving
   };
 
   // Handler for Dialog's onOpenChange - calls store action
@@ -88,28 +88,29 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
     if (!open) {
       closeEditorDialog();
     }
-    // We don't handle opening here, parent component triggers it via store action
   };
 
   return (
-    // Use handleOpenChange for closing
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{isEditMode ? 'Edit Entry' : `Add New Entry for ${selectedDate}`}</DialogTitle>
         </DialogHeader>
         <div className="py-4">
-          <RichTextEditor content={content.html} onChange={setContent} /> 
+          {/* Bind RichTextEditor to local state */}
+          <RichTextEditor
+            content={editorHtml}
+            onChange={handleContentChange}
+          />
           {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
         </div>
         <DialogFooter>
-          <Button 
-            onClick={handleSave} 
+          <Button
+            onClick={handleSave}
             // Disable based on store processing state or if content is empty
-            disabled={isLoadingOrProcessing || !content.html.trim()}
+            disabled={isLoadingOrProcessing || !editorHtml.trim()}
           >
             {isLoadingOrProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {/* Simplify button text slightly */}
             {isLoadingOrProcessing ? 'Processing...' : (isEditMode ? 'Save Changes' : 'Save Entry')}
           </Button>
         </DialogFooter>

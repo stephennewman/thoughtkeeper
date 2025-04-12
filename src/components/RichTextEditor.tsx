@@ -48,15 +48,32 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   // Effect to handle resetting the editor content externally
   useEffect(() => {
-    // Add null check for editor
     if (!editor) {
       return;
     }
-    // Check the HTML content for emptiness
-    if (content === '<p></p>' || content === '') { // TipTap might return empty paragraph
+    // Existing check for empty content
+    if (content === '<p></p>' || content === '') { 
       editor.commands.clearContent();
     }
-  }, [content, editor]);
+    // We don't need to explicitly set non-empty content here, see effect below
+  }, [content, editor]); // Keep this effect for clearing
+
+  // Effect to update editor content when the prop changes from outside
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) {
+      return;
+    }
+
+    // Get the current content of the editor instance
+    const editorHtml = editor.getHTML();
+
+    // Only update if the prop content is actually different from the editor's content
+    if (content !== editorHtml) {
+      // Use setContent to update the editor state based on the prop
+      // Pass false to prevent firing the onUpdate callback unnecessarily
+      editor.commands.setContent(content, false); 
+    }
+  }, [content, editor]); // Re-run when content prop or editor instance changes
 
   return (
     <div>
