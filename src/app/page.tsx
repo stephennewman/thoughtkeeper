@@ -4,7 +4,7 @@ import { useEffect, useRef, useMemo, Fragment, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useInView } from 'react-intersection-observer';
 import { JournalSidebar, JournalEntry, EntryEditorDialog, StaticAnalysisColumn } from '@/components';
-import { X, Loader2, Plus, Info, Mic, Send } from 'lucide-react';
+import { X, Loader2, Plus, Info, Mic, Send, FileText, Check, Ban } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -198,14 +198,6 @@ export default function Home() {
     setAudioError(null);
   };
 
-  const handleMicClick = () => {
-    if (isRecording) {
-      stopRecordingAndDiscard();
-    } else {
-      startRecording();
-    }
-  };
-
   const handleSendClick = () => {
      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
        setIsRecording(false);
@@ -264,44 +256,82 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Search Input - Only visible when idle */} 
               <Input
                 type="search"
                 placeholder="Search loaded entries..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="w-full max-w-xs hidden sm:block"
+                // Show only when idle AND on sm+ screens
+                className={clsx(
+                    'w-full max-w-xs',
+                    !isRecording && !isProcessingAudio ? 'hidden sm:block' : 'hidden' 
+                )}
               />
+              
+              {/* Add Voice Note Button - Only visible when idle */} 
               <Button
-                variant={isRecording ? "destructive" : "outline"}
-                size="icon"
-                onClick={handleMicClick}
-                disabled={isProcessingAudio}
-                aria-label={isRecording ? "Stop and discard recording" : "Start recording"}
-                title={isRecording ? "Stop and discard recording" : "Start recording"}
+                  variant="outline"
+                  onClick={startRecording}
+                  size="sm"
+                  aria-label="Add voice note"
+                  title="Add voice note"
+                  // Show only when idle
+                  className={clsx(!isRecording && !isProcessingAudio ? 'inline-flex' : 'hidden')}
               >
-                <Mic className={`h-4 w-4 ${isRecording ? 'text-red-500 animate-pulse' : ''}`} />
+                  <Mic className="mr-2 h-4 w-4" /> Add Voice Note
               </Button>
-              {isRecording && (
-                <Button
+              
+              {/* Add Text Note Button - Only visible when idle */} 
+              <Button
+                  onClick={handleAddClick}
+                  disabled={false} 
+                  size="sm"
+                  className={clsx(
+                    'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity flex-shrink-0',
+                    // Show only when idle
+                    !isRecording && !isProcessingAudio ? 'inline-flex' : 'hidden' 
+                  )}
+                  aria-label="Add text note"
+                  title="Add text note"
+              >
+                  <FileText className="mr-2 h-4 w-4" /> Add Text Note
+              </Button>
+
+              {/* Transcribe Button - Only visible when recording */}
+              <Button
                   variant="default"
-                  size="icon"
                   onClick={handleSendClick}
-                  disabled={isProcessingAudio}
-                  aria-label="Send recording"
-                  title="Send recording"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              )}
-              <Button
-                onClick={handleAddClick}
-                size="sm"
-                className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity flex-shrink-0"
-                disabled={isProcessingAudio || isRecording}
+                  size="sm"
+                  aria-label="Transcribe recording"
+                  title="Transcribe recording"
+                  // Show only when recording
+                  className={clsx(isRecording && !isProcessingAudio ? 'inline-flex' : 'hidden')}
               >
-                <Plus className="mr-2 h-4 w-4" /> Add Entry
+                  <Check className="mr-2 h-4 w-4" /> Transcribe
               </Button>
-            </div>
+
+              {/* Stop Recording Button - Only visible when recording */} 
+              <Button
+                  variant="outline"
+                  onClick={stopRecordingAndDiscard}
+                  size="sm"
+                  aria-label="Stop recording"
+                  title="Stop recording"
+                  // Show only when recording
+                  className={clsx(isRecording && !isProcessingAudio ? 'inline-flex' : 'hidden')}
+              >
+                  <X className="mr-2 h-4 w-4" /> Stop Recording
+              </Button>
+
+              {/* Processing Indicator - Only visible when processing */} 
+              {isProcessingAudio && (
+                 <div className="flex items-center justify-center text-sm text-muted-foreground px-3"> {/* Added padding for similar width */}
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    <span>Processing...</span>
+                 </div>
+              )}
+            </div> {/* End Right side container */}
           </div>
 
           {audioError && (
