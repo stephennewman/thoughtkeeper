@@ -48,6 +48,7 @@ export default function Home() {
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState<number>(0);
+  const [highlightedEntryId, setHighlightedEntryId] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -606,13 +607,28 @@ export default function Home() {
                    <p className="pt-4 text-center text-gray-500">No entries yet. Click 'Add Entry' to start!</p>
                 )}
 
-                 {sortedDates.map(date => (
-                  <Fragment key={date}>
-                      <h2 className="sticky top-0 z-10 bg-background py-1 px-4 font-semibold text-sm text-left">
-                          {format(parseISO(date), 'MMMM dd, yyyy')}
-                      </h2>
-                      <div className="space-y-3">
-                      {groupedEntries[date].map(entry => (
+                {/* Group entries by date */} 
+                {Object.entries(groupedEntries).map(([date, dayEntries]) => {
+                  const entryCount = dayEntries.length;
+                  // Determine if this date group contains the highlighted entry
+                  const containsHighlighted = highlightedEntryId !== null && dayEntries.some(entry => entry.id === highlightedEntryId);
+                  
+                  return (
+                    <div key={date} className="mb-4"> 
+                      {/* --- Day Header Bar --- */}
+                      <div className={clsx(
+                          "sticky top-0 z-10 mb-2 p-2 border rounded-md bg-muted", // Apply card-like styles
+                          "text-sm font-medium text-muted-foreground",
+                          // Add highlight styles if this group contains the highlighted entry
+                          containsHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background" 
+                      )}> 
+                        {format(parseISO(date), 'MMMM do, yyyy')} 
+                        <span className="ml-2 font-normal">({entryCount} {entryCount === 1 ? 'entry' : 'entries'})</span> {/* Add entry count */}
+                      </div>
+                      
+                      {/* Entries for this date */} 
+                      <div className="space-y-2"> 
+                        {dayEntries.map((entry) => (
                           <JournalEntry
                               key={entry.id}
                               entry={entry}
@@ -621,10 +637,11 @@ export default function Home() {
                               onDeleteEntry={handleDeleteEntry}
                               onEditClick={handleEditClick}
                           />
-                      ))}
+                        ))}
                       </div>
-                  </Fragment>
-                  ))}
+                    </div>
+                  );
+                })}
 
                 {isLoadingMore && (
                   <div className="flex justify-center items-center py-4">
