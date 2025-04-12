@@ -34,7 +34,7 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
     addEntry, 
     updateEntry, 
     closeEditorDialog, 
-    loadingState 
+    isProcessingEntry // Use this for Add/Update/Tagging indicator
   } = useJournalStore();
 
   // Local state for editor content and component-specific errors
@@ -42,10 +42,8 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
   
   const isEditMode = !!initialEntry;
-  // Determine loading based on store state
-  const isLoading = loadingState === 'adding' || loadingState === 'updating';
-  // Determine processing based on store state (for add mode tag gen)
-  const isProcessing = loadingState === 'tagging'; 
+  // Determine loading/processing based on the store's isProcessingEntry state
+  const isLoadingOrProcessing = isProcessingEntry; 
 
   // Effect to load initial content for editing or reset for adding
   useEffect(() => {
@@ -72,7 +70,7 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
 
       } else {
         // ADD MODE - Call store action
-        await addEntry(content.html);
+        await addEntry(content.html, selectedDate);
         closeEditorDialog(); // Close dialog on success (tagging happens in background)
       }
     } catch (error: any) {
@@ -107,11 +105,12 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
         <DialogFooter>
           <Button 
             onClick={handleSave} 
-            // Disable based on store loading state or if content is empty
-            disabled={isLoading || isProcessing || !content.html.trim()}
+            // Disable based on store processing state or if content is empty
+            disabled={isLoadingOrProcessing || !content.html.trim()}
           >
-            {(isLoading || isProcessing) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? 'Saving...' : isProcessing ? 'Processing...' : (isEditMode ? 'Save Changes' : 'Save Entry')}
+            {isLoadingOrProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {/* Simplify button text slightly */}
+            {isLoadingOrProcessing ? 'Processing...' : (isEditMode ? 'Save Changes' : 'Save Entry')}
           </Button>
         </DialogFooter>
       </DialogContent>

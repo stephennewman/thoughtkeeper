@@ -161,6 +161,37 @@ export const deleteEntryService = async (id: string): Promise<{ error: Error | n
     }
 };
 
+/**
+ * Fetches entries chronologically with pagination.
+ * Does NOT apply filters (search, tags) server-side.
+ * Returns paginated data and error object.
+ */
+export const fetchEntriesPaginatedService = async (
+    offset: number,
+    limit: number
+): Promise<{ data: Entry[] | null; error: Error | null }> => {
+    if (limit <= 0) {
+        return { data: [], error: null }; // Or handle as an error
+    }
+    try {
+        const { data, error } = await supabase
+            .from('entries')
+            .select('*')
+            .order('date', { ascending: false })
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (error) {
+            throw error;
+        }
+        return { data: (data as Entry[]) || [], error: null };
+
+    } catch (error: any) {
+        console.error('Error in fetchEntriesPaginatedService:', error);
+        return { data: null, error: new Error(`Failed to fetch paginated entries: ${error.message}`) };
+    }
+};
+
 // TODO: Consider adding service for AI tag generation calls?
 
 // TODO: Add functions for initial fetch, add, update, delete 

@@ -19,23 +19,23 @@ const getTopTags = (counts: { [tag: string]: number }, topN: number): [string, n
 export const StaticAnalysisColumn: React.FC = () => {
   // Get state and actions from the store
   const {
-    filteredEntries,
+    displayEntries,
     activeMetaTag,
     activeIntentTag,
     activeContentTags,
-    setFiltersAndFetch,
+    setFilters,
     highlightedTagColors
   } = useJournalStore();
 
   const topN = 5; // Number of top tags to display
 
-  // Memoized calculation for top tags - Uses filteredEntries from store
+  // Memoized calculation for top tags - Uses displayEntries from store
   const { topMetaTags, topIntentTags, topContentTags } = useMemo(() => {
     const metaCounts: { [tag: string]: number } = {};
     const intentCounts: { [tag: string]: number } = {};
     const contentCounts: { [tag: string]: number } = {};
 
-    filteredEntries.forEach(entry => { // Use filteredEntries from store
+    displayEntries.forEach(entry => { // Use displayEntries from store
       // Count Meta Tags (preserve case)
       if (entry.meta_tag) {
         metaCounts[entry.meta_tag] = (metaCounts[entry.meta_tag] || 0) + 1;
@@ -55,8 +55,8 @@ export const StaticAnalysisColumn: React.FC = () => {
       topIntentTags: getTopTags(intentCounts, topN),
       topContentTags: getTopTags(contentCounts, topN),
     };
-    // Dependency is now filteredEntries from store
-  }, [filteredEntries, topN]);
+    // Dependency is now displayEntries from store
+  }, [displayEntries, topN]);
 
   // Check if tag is active based on store state
   const isTagActive = (tag: string, type: TagType): boolean => {
@@ -69,7 +69,7 @@ export const StaticAnalysisColumn: React.FC = () => {
   // Check if any filter is active based on store state
   const anyFilterActive = activeMetaTag !== null || activeIntentTag !== null || activeContentTags.size > 0;
 
-  // Handle tag click - Call store action directly
+  // Handle tag click - Call setFilters action directly
   const handleTagClick = (tag: string, type: TagType) => {
     let newMetaTag = activeMetaTag;
     let newIntentTag = activeIntentTag;
@@ -83,12 +83,14 @@ export const StaticAnalysisColumn: React.FC = () => {
       if (newContentTags.has(tag)) {
         newContentTags.delete(tag); // Toggle off
       } else {
-        newContentTags.add(tag); // Toggle on
+        // For content tags, allow selecting multiple, but let's stick to single selection for now for consistency
+        // newContentTags.add(tag); // Toggle on
+        newContentTags = new Set([tag]); // Select only this one
       }
     }
     
     // Call store action with updated filters
-    setFiltersAndFetch({
+    setFilters({
       searchQuery: '', // Always clear search on tag click
       activeMetaTag: newMetaTag,
       activeIntentTag: newIntentTag,
@@ -108,8 +110,9 @@ export const StaticAnalysisColumn: React.FC = () => {
       <div className="space-y-6">
         {/* Filtered Entries count from store data */}
         <div>
-          <h3 className="text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Filtered Entries</h3>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{filteredEntries.length}</p>
+          <h3 className="text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Loaded & Filtered Entries</h3>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{displayEntries.length}</p>
+          <p className="text-xs text-muted-foreground">Analysis based on currently visible entries.</p>
         </div>
 
         {/* Top Meta Tags */}
@@ -155,7 +158,7 @@ export const StaticAnalysisColumn: React.FC = () => {
                 );
               })
             ) : (
-              <p className="text-xs text-muted-foreground">No meta tags found in filtered results.</p>
+              <p className="text-xs text-muted-foreground">No meta tags found in visible entries.</p>
             )}
           </div>
         </div>
@@ -203,7 +206,7 @@ export const StaticAnalysisColumn: React.FC = () => {
                 );
               })
             ) : (
-              <p className="text-xs text-muted-foreground">No intent tags found in filtered results.</p>
+              <p className="text-xs text-muted-foreground">No intent tags found in visible entries.</p>
             )}
           </div>
         </div>
@@ -251,7 +254,7 @@ export const StaticAnalysisColumn: React.FC = () => {
                 );
               })
             ) : (
-              <p className="text-xs text-muted-foreground">No content tags found in filtered results.</p>
+              <p className="text-xs text-muted-foreground">No content tags found in visible entries.</p>
             )}
           </div>
         </div>

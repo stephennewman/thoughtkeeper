@@ -1,9 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { Entry, TagType } from '@/types';
-import { 
-  fetchAllEntriesService,
-  fetchEntriesService,
+import type { Entry } from '@/types';
+import {
+  fetchEntriesPaginatedService,
   addEntryService,
   updateEntryContentService,
   deleteEntryService,
@@ -12,17 +11,30 @@ import { format } from 'date-fns';
 import debounce from 'lodash.debounce';
 import { supabase } from '@/lib/supabaseClient';
 
+// Define PAGE_SIZE constant
+const PAGE_SIZE = 20;
+
 // Define the state structure
 interface JournalState {
-  allEntries: Entry[];
-  filteredEntries: Entry[];
-  selectedDate: string;
+  // Filters
+  searchQuery: string;
   activeMetaTag: string | null;
   activeIntentTag: string | null;
   activeContentTags: Set<string>;
-  searchQuery: string;
-  loadingState: 'idle' | 'initial' | 'filtered' | 'adding' | 'tagging' | 'updating' | 'deleting';
+
+  // Data & Pagination
+  loadedEntries: Entry[]; // All chronologically loaded entries
+  displayEntries: Entry[]; // Entries filtered client-side from loadedEntries
+  currentPage: number;
+  hasMoreEntries: boolean;
+
+  // Loading & Error States
+  isLoadingInitial: boolean;
+  isLoadingMore: boolean;
+  isProcessingEntry: boolean; // For Add/Update/Delete/Tagging spinner
   errorState: string | null;
+
+  // UI State
   isEditorOpen: boolean;
   editingEntry: Entry | null;
   highlightedTagColors: { [lowerCaseTag: string]: { base: string; hover: string } };
@@ -30,34 +42,40 @@ interface JournalState {
 
 // Define the actions
 interface JournalActions {
-  fetchInitialEntries: () => Promise<void>;
-  setFiltersAndFetch: (filters: Partial<{
+  loadInitialEntries: () => Promise<void>;
+  loadMoreEntries: () => Promise<void>;
+  setFilters: (filters: Partial<{
     searchQuery: string;
     activeMetaTag: string | null;
     activeIntentTag: string | null;
     activeContentTags: Set<string>;
   }>) => void;
-  addEntry: (content: string) => Promise<void>;
-  updateEntryTags: (entryId: string, tags: Partial<Entry>) => void;
+  addEntry: (content: string, date: string) => Promise<void>;
+  updateEntryTags: (entryId: string, entryUpdate: Partial<Entry> | Entry) => void;
   updateEntry: (entryId: string, content: string) => Promise<void>;
   deleteEntry: (entryId: string) => Promise<void>;
   openEditorDialog: (entryToEdit?: Entry | null) => void;
   closeEditorDialog: () => void;
-  setSelectedDate: (date: string) => void;
-  // TODO: Add other actions
 }
 
 // Define the initial state separately for resetting
 const initialState: JournalState = {
-  allEntries: [],
-  filteredEntries: [],
-  selectedDate: format(new Date(), 'yyyy-MM-dd'),
+  // Filters
+  searchQuery: '',
   activeMetaTag: null,
   activeIntentTag: null,
   activeContentTags: new Set(),
-  searchQuery: '',
-  loadingState: 'idle',
+  // Data & Pagination
+  loadedEntries: [],
+  displayEntries: [],
+  currentPage: 0,
+  hasMoreEntries: true,
+  // Loading & Error States
+  isLoadingInitial: false,
+  isLoadingMore: false,
+  isProcessingEntry: false,
   errorState: null,
+  // UI State
   isEditorOpen: false,
   editingEntry: null,
   highlightedTagColors: {},
@@ -130,314 +148,304 @@ const calculateHighlightedTagColors = (entries: Entry[]): { [lowerCaseTag: strin
 };
 // --- End helper function ---
 
+// --- Client-side Filtering Logic ---
+// (Adapted from previous applyFilters)
+const filterLoadedEntries = (
+  entriesToFilter: Entry[],
+  filters: Pick<JournalState, 'searchQuery' | 'activeMetaTag' | 'activeIntentTag' | 'activeContentTags'>
+): Entry[] => {
+  const { searchQuery, activeMetaTag, activeIntentTag, activeContentTags } = filters;
+  const lowerSearchQuery = searchQuery.toLowerCase().trim();
+
+  if (!lowerSearchQuery && !activeMetaTag && !activeIntentTag && activeContentTags.size === 0) {
+    // No filters active, return all loaded entries
+    return entriesToFilter;
+  }
+
+  return entriesToFilter.filter(entry => {
+    // Filter by active tags (AND logic for meta/intent, OR for content)
+    if (activeMetaTag && entry.meta_tag !== activeMetaTag) {
+      return false;
+    }
+    if (activeIntentTag && entry.intent_tag !== activeIntentTag) {
+      return false;
+    }
+    if (activeContentTags.size > 0) {
+        // Entry must have at least one of the active content tags
+        if (!Array.from(activeContentTags).some(filterTag => entry.tags?.includes(filterTag))) {
+            return false;
+        }
+    }
+
+    // Filter by search query (if any) - searches content and ALL tags
+    if (lowerSearchQuery) {
+      const searchableContent = [
+        entry.content?.toLowerCase(),
+        entry.meta_tag?.toLowerCase(),
+        entry.intent_tag?.toLowerCase(),
+        ...(entry.tags || []).map(t => t.toLowerCase()),
+      ].filter(Boolean).join(' ');
+      if (!searchableContent.includes(lowerSearchQuery)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+};
+// --- End Client-side Filtering ---
+
 // Create the store with devtools middleware
 export const useJournalStore = create<JournalState & JournalActions>()(
   devtools(
-    (set, get) => {
-      // --- Client-side Filtering Logic ---
-      const applyFilters = (state: JournalState): Entry[] => {
-        const { allEntries, selectedDate, searchQuery, activeMetaTag, activeIntentTag, activeContentTags } = state;
-        const lowerSearchQuery = searchQuery.toLowerCase().trim();
+    (set, get) => ({
+      ...initialState,
 
-        return allEntries.filter(entry => {
-          // 1. Filter by selected date
-          if (entry.date !== selectedDate) {
-            return false;
-          }
-
-          // 2. Filter by active tags (AND logic)
-          if (activeMetaTag && entry.meta_tag !== activeMetaTag) {
-            return false;
-          }
-          if (activeIntentTag && entry.intent_tag !== activeIntentTag) {
-            return false;
-          }
-          if (activeContentTags.size > 0) {
-            // Match ANY active content tag
-            if (!Array.from(activeContentTags).some(filterTag => entry.tags?.includes(filterTag))) {
-                return false;
-            }
-          }
-          
-          // 3. Filter by search query (if any)
-          if (lowerSearchQuery) {
-            const searchableContent = [
-              entry.content?.toLowerCase(),
-              entry.meta_tag?.toLowerCase(),
-              entry.intent_tag?.toLowerCase(),
-              ...(entry.tags || []).map(t => t.toLowerCase()),
-            ].filter(Boolean).join(' ');
-            if (!searchableContent.includes(lowerSearchQuery)) {
-              return false;
-            }
-          }
-
-          return true;
+      loadInitialEntries: async () => {
+        if (get().isLoadingInitial) return; // Prevent concurrent initial loads
+        set({
+          isLoadingInitial: true,
+          isLoadingMore: false, // Ensure not interfering
+          errorState: null,
+          currentPage: 0,
+          loadedEntries: [],
+          displayEntries: [],
+          hasMoreEntries: true, // Assume more initially
         });
-      };
-      // --- End Client-side Filtering ---
-
-      // Debounced fetch for TAG filters (search is client-side)
-      const debouncedFetch = debounce(async () => {
-        const { activeMetaTag, activeIntentTag, activeContentTags } = get();
-        set({ loadingState: 'filtered', errorState: null });
         try {
-          const { data, error } = await fetchEntriesService(
-            activeMetaTag,
-            activeIntentTag,
-            activeContentTags
-          );
+          const { data, error } = await fetchEntriesPaginatedService(0, PAGE_SIZE);
           if (error) throw error;
-          // IMPORTANT: When backend fetches based on tags, update allEntries
-          // and then immediately re-apply client-side filters
-          // This seems wrong - backend fetch should only fetch filtered data?
-          // Let's reconsider. fetchEntriesService should fetch ONLY based on tags.
-          // The result should be placed in a temporary state or directly used?
-          // Simpler: Fetch ALL initially, then filter purely client-side.
-          // Let's modify fetchInitialEntries and remove debouncedFetch for now.
-          
-          // -- REVISED APPROACH: Fetch all, filter client side --
-          // set({ filteredEntries: data || [], loadingState: 'idle' }); 
+
+          const fetchedEntries = data || [];
+          const newHighlightedTagColors = calculateHighlightedTagColors(fetchedEntries);
+          const newDisplayEntries = filterLoadedEntries(fetchedEntries, get()); // Filter initial batch
+
+          set({
+            loadedEntries: fetchedEntries,
+            displayEntries: newDisplayEntries,
+            highlightedTagColors: newHighlightedTagColors,
+            currentPage: 1, // First page loaded
+            hasMoreEntries: fetchedEntries.length === PAGE_SIZE,
+          });
         } catch (error: any) {
-          // ... error handling ...
+          console.error("Failed to load initial entries:", error);
+          set({ errorState: `Failed to load entries: ${error.message}`, hasMoreEntries: false });
+        } finally {
+          set({ isLoadingInitial: false });
         }
-      }, 300); // 300ms debounce (KEEP DEBOUNCE? No, remove fetch on filter change)
+      },
 
-      return {
-        ...initialState,
+      loadMoreEntries: async () => {
+        const { isLoadingInitial, isLoadingMore, hasMoreEntries, currentPage, loadedEntries } = get();
+        if (isLoadingInitial || isLoadingMore || !hasMoreEntries) {
+          return;
+        }
 
-        fetchInitialEntries: async () => {
-          set({ loadingState: 'initial', errorState: null });
-          try {
-            // Fetch ALL entries
-            const { data, error } = await fetchAllEntriesService();
-            if (error) throw error;
-            const fetchedEntries = data || [];
-            const newHighlightedTagColors = calculateHighlightedTagColors(fetchedEntries);
-            
-            // Apply initial filters (current date, empty search/tags)
-            const initialFiltered = applyFilters({ 
-              ...initialState, // Use initial filters
-              allEntries: fetchedEntries, 
-              highlightedTagColors: newHighlightedTagColors 
-            });
-            
-            set({
-              allEntries: fetchedEntries,
-              filteredEntries: initialFiltered, // Set filtered based on initial state
-              highlightedTagColors: newHighlightedTagColors,
-              loadingState: 'idle',
-              errorState: null, 
-            });
-          } catch (error: any) {
-            // ... error handling ...
-          }
-        },
+        set({ isLoadingMore: true, errorState: null });
+        try {
+          const offset = currentPage * PAGE_SIZE;
+          const { data, error } = await fetchEntriesPaginatedService(offset, PAGE_SIZE);
+          if (error) throw error;
 
-        setFiltersAndFetch: (newFilters) => {
-          // 1. Update the filter state
-          set(state => ({ ...state, ...newFilters }));
-          // 2. Re-apply client-side filters with the *new* state
-          set(state => ({ filteredEntries: applyFilters(state) }));
-          // 3. No backend fetch needed here
-        },
+          const fetchedEntries = data || [];
+          const combinedEntries = [...loadedEntries, ...fetchedEntries];
+          const newHighlightedTagColors = calculateHighlightedTagColors(combinedEntries); // Recalculate on combined
+          const newDisplayEntries = filterLoadedEntries(combinedEntries, get()); // Filter combined batch
 
-        addEntry: async (content) => {
-          const { selectedDate } = get();
-          set({ loadingState: 'adding', errorState: null });
+          set({
+            loadedEntries: combinedEntries,
+            displayEntries: newDisplayEntries,
+            highlightedTagColors: newHighlightedTagColors,
+            currentPage: currentPage + 1,
+            hasMoreEntries: fetchedEntries.length === PAGE_SIZE,
+          });
+        } catch (error: any) {
+          console.error("Failed to load more entries:", error);
+          set({ errorState: `Failed to load more entries: ${error.message}`, hasMoreEntries: false }); // Stop trying if load more fails
+        } finally {
+          set({ isLoadingMore: false });
+        }
+      },
 
-          try {
-            // 1. Add the basic entry via service
-            const { data: insertedData, error: insertError } = await addEntryService(selectedDate, content);
-            if (insertError) throw insertError;
-            if (!insertedData) throw new Error("Service returned no data on add.");
+      setFilters: (newFilters) => {
+        // 1. Update filter state
+        set(state => ({
+            searchQuery: newFilters.searchQuery !== undefined ? newFilters.searchQuery : state.searchQuery,
+            activeMetaTag: newFilters.activeMetaTag !== undefined ? newFilters.activeMetaTag : state.activeMetaTag,
+            activeIntentTag: newFilters.activeIntentTag !== undefined ? newFilters.activeIntentTag : state.activeIntentTag,
+            activeContentTags: newFilters.activeContentTags !== undefined ? newFilters.activeContentTags : state.activeContentTags,
+        }));
+        // 2. Re-apply client-side filters to *currently loaded* entries
+        set(state => ({
+            displayEntries: filterLoadedEntries(state.loadedEntries, state)
+        }));
+      },
 
-            // 2. Optimistic UI update
-            const entryForUi: Entry = { ...insertedData, tags: [], meta_tag: null, intent_tag: null };
-            set(state => {
-              const newAllEntries = [entryForUi, ...state.allEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-              const newHighlightedTagColors = calculateHighlightedTagColors(newAllEntries);
-              // Get potentially updated state for filtering
-              const tempState = { ...state, allEntries: newAllEntries, highlightedTagColors: newHighlightedTagColors }; 
-              return {
-                allEntries: newAllEntries,
-                filteredEntries: applyFilters(tempState), // Re-apply filters
-                highlightedTagColors: newHighlightedTagColors,
-                loadingState: 'tagging'
-              };
-            });
+      addEntry: async (content, date) => {
+        set({ isProcessingEntry: true, errorState: null });
+        try {
+          // 1. Add the basic entry via service
+          const { data: insertedData, error: insertError } = await addEntryService(date, content);
+          if (insertError) throw insertError;
+          if (!insertedData) throw new Error("Service returned no data on add.");
 
-            // 3. Trigger background tagging (no await needed for UI)
-            (async () => {
-              try {
-                const contentToTag = insertedData.content;
-                const fetchOptions = { 
-                  method: 'POST', 
+          // 2. Refresh the list from the start to ensure consistency (Simplest approach)
+          // This implicitly handles tag colors and filtering.
+          // Don't await this, let it run, but reset processing state immediately after triggering
+          get().loadInitialEntries();
+
+          // 3. Trigger background tagging (can run independently after refresh starts)
+          (async () => {
+            try {
+              const contentToTag = insertedData.content;
+              const fetchOptions = {
+                  method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ content: contentToTag })
-                };
-                
-                const [metaResponse, intentResponse, tagsResponse] = await Promise.all([
-                  fetch('/api/classify-meta', fetchOptions),
-                  fetch('/api/classify-intent', fetchOptions),
-                  fetch('/api/tags', fetchOptions)
-                ]);
+              };
+              const [metaResponse, intentResponse, tagsResponse] = await Promise.all([
+                 fetch('/api/classify-meta', fetchOptions),
+                 fetch('/api/classify-intent', fetchOptions),
+                 fetch('/api/tags', fetchOptions)
+              ]);
 
-                // Consider more robust error checking here
-                if (!metaResponse.ok) console.warn('Meta tag API failed');
-                if (!intentResponse.ok) console.warn('Intent tag API failed');
-                if (!tagsResponse.ok) console.warn('Content tag API failed');
+              // Consider more robust error checking here
+              if (!metaResponse.ok) console.warn('Meta tag API failed');
+              if (!intentResponse.ok) console.warn('Intent tag API failed');
+              if (!tagsResponse.ok) console.warn('Content tag API failed');
 
-                const metaResult = metaResponse.ok ? await metaResponse.json() : {};
-                const intentResult = intentResponse.ok ? await intentResponse.json() : {};
-                const tagsResult = tagsResponse.ok ? await tagsResponse.json() : {};
+              const metaResult = metaResponse.ok ? await metaResponse.json() : {};
+              const intentResult = intentResponse.ok ? await intentResponse.json() : {};
+              const tagsResult = tagsResponse.ok ? await tagsResponse.json() : {};
 
-                const updatePayload: Partial<Entry> = {};
-                if (metaResult.metaTag) { // Use metaTag (camelCase)
-                    updatePayload.meta_tag = metaResult.metaTag; // Assign TO meta_tag (snake_case)
-                }
-                if (intentResult.intentTag) { // Use intentTag (camelCase)
-                    updatePayload.intent_tag = intentResult.intentTag; // Assign TO intent_tag (snake_case)
-                }
-                if (tagsResult.tags) {
-                    updatePayload.tags = tagsResult.tags;
-                }
+              const updatePayload: Partial<Entry> = {};
+                if (metaResult.metaTag) { updatePayload.meta_tag = metaResult.metaTag; }
+                if (intentResult.intentTag) { updatePayload.intent_tag = intentResult.intentTag; }
+                if (tagsResult.tags) { updatePayload.tags = tagsResult.tags; }
 
-                if (Object.keys(updatePayload).length > 0) {
-                    // Update the backend DB (using Supabase client directly for simplicity here,
-                    // ideally could be another service call)
-                   const { error: updateError } = await supabase
-                    .from('entries')
-                    .update(updatePayload)
-                    .eq('id', insertedData.id);
-                    
-                   if (updateError) {
-                      console.error('Error updating entry with tags in DB:', updateError);
-                      // Optionally set an error state specific to tagging
-                   } else {
-                      // Update the state via a dedicated action
-                      get().updateEntryTags(insertedData.id, updatePayload);
-                   }
-                }
-              } catch (taggingError) {
-                console.error("Error during background tagging process:", taggingError);
-                // Optionally set an error state specific to tagging
-              } finally {
-                // Reset loading state regardless of tagging success/failure
-                set(state => state.loadingState === 'tagging' ? { loadingState: 'idle' } : {});
+              if (Object.keys(updatePayload).length > 0) {
+                 const { error: updateError } = await supabase
+                  .from('entries')
+                  .update(updatePayload)
+                  .eq('id', insertedData.id);
+
+                 if (updateError) {
+                    console.error('Error updating entry with tags in DB:', updateError);
+                 }
+                 // Re-enable this call to update the UI after tagging completes:
+                 // Instead of just passing payload, fetch the full updated entry
+                 const { data: updatedEntryData, error: fetchError } = await supabase
+                   .from('entries')
+                   .select('*')
+                   .eq('id', insertedData.id)
+                   .single();
+
+                 if (fetchError) {
+                   console.error('Error fetching updated entry after tagging:', fetchError);
+                 } else if (updatedEntryData) {
+                   // Call updateEntryTags with the full, updated entry
+                   get().updateEntryTags(insertedData.id, updatedEntryData as Entry);
+                 }
               }
-            })();
+            } catch (taggingError) {
+              console.error("Error during background tagging process:", taggingError);
+            }
+          })();
 
-          } catch (error: any) {
-            console.error("Failed to add entry:", error);
-            set({ errorState: `Failed to add entry: ${error.message}`, loadingState: 'idle' });
-          }
-        },
+        } catch (error: any) {
+          console.error("Failed to add entry:", error);
+          set({ errorState: `Failed to add entry: ${error.message}` });
+        } finally {
+           set({ isProcessingEntry: false }); // Reset processing indicator immediately
+        }
+      },
 
-        // Action specifically for updating tags in the state after background process
-        updateEntryTags: (entryId, tags) => {
+      // Action specifically for updating tags in the state after background process
+      // Modified to accept full Entry or Partial<Entry>
+       updateEntryTags: (entryId, entryUpdate: Partial<Entry> | Entry) => {
            set(state => {
-              const newAllEntries = state.allEntries.map(entry => 
-                 entry.id === entryId ? { ...entry, ...tags } : entry
-              );
-              const newHighlightedTagColors = calculateHighlightedTagColors(newAllEntries);
-              const tempState = { ...state, allEntries: newAllEntries, highlightedTagColors: newHighlightedTagColors };
+              let entryUpdated = false;
+              const newLoadedEntries = state.loadedEntries.map(entry => {
+                 if (entry.id === entryId) {
+                    entryUpdated = true;
+                    // Merge partial update or replace with full entry
+                    return { ...entry, ...entryUpdate }; 
+                 }
+                 return entry;
+              });
+
+              if (!entryUpdated) return {}; // Entry not found in loaded list
+
+              const newHighlightedTagColors = calculateHighlightedTagColors(newLoadedEntries);
+              const newDisplayEntries = filterLoadedEntries(newLoadedEntries, state); // Re-filter
+
               return {
-                  allEntries: newAllEntries,
-                  filteredEntries: applyFilters(tempState), // Re-apply filters
+                  loadedEntries: newLoadedEntries,
+                  displayEntries: newDisplayEntries,
                   highlightedTagColors: newHighlightedTagColors,
               };
            });
         },
 
-        updateEntry: async (entryId, content) => {
-          set({ loadingState: 'updating', errorState: null });
-          try {
-            // 1. Update via service
-            const { data: updatedData, error: updateError } = await updateEntryContentService(entryId, content);
-            if (updateError) throw updateError;
-            if (!updatedData) throw new Error("Service returned no data on update.");
+      updateEntry: async (entryId, content) => {
+        set({ isProcessingEntry: true, errorState: null });
+        try {
+          // 1. Update via service
+          const { data: updatedData, error: updateError } = await updateEntryContentService(entryId, content);
+          if (updateError) throw updateError;
+          if (!updatedData) throw new Error("Service returned no data on update.");
 
-            // 2. Update state
-            set(state => {
-              const newAllEntries = state.allEntries.map(entry => 
-                 entry.id === entryId ? updatedData : entry
-              );
-              // Need to recalculate colors if content changes? No, tags aren't changing here yet.
-              const tempState = { ...state, allEntries: newAllEntries };
-              return {
-                allEntries: newAllEntries,
-                filteredEntries: applyFilters(tempState), // Re-apply filters
-                loadingState: 'idle',
-              };
-            });
+          // 2. Refresh list from start
+          // Don't await this
+          get().loadInitialEntries();
 
-            // TODO: Add tag re-generation logic here if needed in the future
+          // TODO: Add tag re-generation logic here if needed in the future
 
-          } catch (error: any) {
-            console.error("Failed to update entry:", error);
-            set({ errorState: `Failed to update entry: ${error.message}`, loadingState: 'idle' });
-          }
-        },
+        } catch (error: any) {
+          console.error("Failed to update entry:", error);
+          set({ errorState: `Failed to update entry: ${error.message}` });
+        } finally {
+           set({ isProcessingEntry: false }); // Reset immediately
+        }
+      },
 
-        deleteEntry: async (entryId) => {
-          // Optimistic removal
-          const originalAllEntries = get().allEntries;
-          const originalFilteredEntries = get().filteredEntries;
-          const newAllEntries = get().allEntries.filter(entry => entry.id !== entryId);
-          const newHighlightedTagColors = calculateHighlightedTagColors(newAllEntries);
-          const tempState = { ...get(), allEntries: newAllEntries, highlightedTagColors: newHighlightedTagColors }; // Use get() for current filters
-          set({
-             allEntries: newAllEntries,
-             filteredEntries: applyFilters(tempState), // Re-apply filters
-             highlightedTagColors: newHighlightedTagColors,
-             loadingState: 'deleting',
-             errorState: null,
-          });
+      deleteEntry: async (entryId) => {
+        set({ isProcessingEntry: true, errorState: null });
+        // No optimistic removal in this simple flow
 
-          try {
-             const { error } = await deleteEntryService(entryId);
-             if (error) throw error;
-             // Success, reset loading state
-             set({ loadingState: 'idle' });
-          } catch (error: any) {
-             console.error("Failed to delete entry:", error);
-             // Revert state and re-filter
-             const revertedState = { ...get(), allEntries: originalAllEntries, highlightedTagColors: calculateHighlightedTagColors(originalAllEntries) };
-             set({
-                errorState: `Failed to delete entry: ${error.message}`,
-                loadingState: 'idle',
-                allEntries: originalAllEntries,
-                filteredEntries: applyFilters(revertedState), // Re-apply filters on revert
-                highlightedTagColors: revertedState.highlightedTagColors,
-             });
-          }
-        },
+        try {
+           const { error } = await deleteEntryService(entryId);
+           if (error) throw error;
 
-        openEditorDialog: (entryToEdit = null) => {
-          set({ 
-            isEditorOpen: true,
-            editingEntry: entryToEdit, // Set to null for Add mode, or entry for Edit mode
-            errorState: null // Clear any previous errors when opening dialog
-          });
-        },
+           // Refresh list from start on success
+           // Don't await this
+           get().loadInitialEntries();
 
-        closeEditorDialog: () => {
-          set({ 
-            isEditorOpen: false, 
-            editingEntry: null 
-          });
-        },
+        } catch (error: any) {
+           console.error("Failed to delete entry:", error);
+           set({ errorState: `Failed to delete entry: ${error.message}` });
+        } finally {
+            set({ isProcessingEntry: false }); // Reset immediately
+        }
+      },
 
-        setSelectedDate: (date) => {
-          set({ selectedDate: date });
-          // Re-apply filters when date changes
-          set(state => ({ filteredEntries: applyFilters(state) }));
-        },
+      // Dialog actions remain largely the same
+      openEditorDialog: (entryToEdit = null) => {
+        set({
+          isEditorOpen: true,
+          editingEntry: entryToEdit,
+          errorState: null
+        });
+      },
 
-        // TODO: Implement other actions (add, update, delete, dialog toggle)
-      };
-    },
+      closeEditorDialog: () => {
+        set({
+          isEditorOpen: false,
+          editingEntry: null
+        });
+      },
+
+    }),
     { name: 'JournalStore' } // Name for Redux DevTools
   )
 ); 
