@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useJournalStore } from '@/stores/journalStore';
-import { clsx } from 'clsx';
+import clsx from 'clsx';
 import type { Entry } from '@/types';
 
 // Helper function to format seconds into M:SS
@@ -20,6 +20,26 @@ const formatTime = (totalSeconds: number): string => {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
+/**
+ * Main page component for the Thoughtkeeper application.
+ * 
+ * Features:
+ * - Displays journal entries grouped by date with infinite scrolling.
+ * - Allows adding text entries via a dialog.
+ * - Implements voice note recording:
+ *    - Uses Web Audio API (AudioContext, AnalyserNode) for audio processing.
+ *    - Renders a real-time scrolling waveform visualizer on an HTML Canvas
+ *      during recording, showing recent audio activity.
+ *    - Displays a timer during recording (max 60 seconds).
+ *    - Handles starting, stopping, and discarding recordings.
+ *    - Simulates sending audio to a backend for transcription.
+ *    - Manages recording, processing, and error states.
+ * - Provides search functionality for loaded entries.
+ * - Styles date separator headers like cards and includes entry counts.
+ * - Utilizes Zustand (via useJournalStore) for managing application state 
+ *   (entries, loading states, filters, etc.).
+ * - Uses Tailwind CSS for styling with Shadcn UI components.
+ */
 export default function Home() {
   const {
     searchQuery,
@@ -420,13 +440,16 @@ export default function Home() {
                 {errorState && (
                   <p className="text-red-600 text-sm">Error: {errorState}</p>
                 )}
+                {/* Combined Loading/Processing Indicator */} 
                 {(isLoadingInitial || isProcessingEntry || isProcessingAudio) && !errorState && (
-                  <div className="flex items-center justify-start">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    {(isProcessingEntry || isProcessingAudio) && 
-                      <span className="text-sm text-muted-foreground ml-2">
-                        {isProcessingAudio ? 'Processing audio...' : 'Processing entry...'}
-                      </span>}
+                  <div className="flex items-center justify-start text-sm text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    {
+                      // Show specific message based on state, prioritize audio
+                      isProcessingAudio ? <span>Processing audio...</span> :
+                      isProcessingEntry ? <span>Processing entry...</span> :
+                      isLoadingInitial ? <span>Loading...</span> : null
+                    }
                   </div>
                 )}
               </div>
