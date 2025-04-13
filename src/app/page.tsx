@@ -470,6 +470,7 @@ export default function Home() {
       <main className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
           <div className="flex justify-between items-center flex-shrink-0 gap-2 sm:gap-4 border-b pb-2 px-2 sm:px-0">
+            
             <div className="flex items-center flex-shrink-0">
               <img 
                 src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523"
@@ -494,7 +495,7 @@ export default function Home() {
             </div>
 
             {isRecording && !isProcessingAudio && (
-              <div className="flex-grow mx-2 sm:mx-4">
+              <div className="flex-grow mx-2 sm:mx-4"> 
                 <canvas 
                   ref={canvasRef}
                   height="30" 
@@ -503,25 +504,21 @@ export default function Home() {
               </div>
             )}
 
-            {/* Right Side (Search, Buttons) */}
             <div className="flex items-center flex-wrap gap-2 flex-shrink-0 justify-end">
               
-              {/* Inner container for non-wrapping core controls */}
               <div className="flex items-center gap-2">
-                {/* Search Input */}
                 {!isRecording && !isProcessingAudio && (
                   <Input
                     type="search"
-                    placeholder="Search entries..."
-                    value={localSearchQuery}
-                    onChange={handleSearchChange}
+                    placeholder="Search entries..." 
+                    value={localSearchQuery} 
+                    onChange={handleSearchChange} 
                     className={clsx(
                         'w-full max-w-xs',
-                        'hidden sm:block'
+                        'hidden sm:block' 
                     )}
                   />
                 )}
-                {/* Default Buttons (Voice & Text) */}
                 {!isRecording && !isProcessingAudio && (
                   <>
                     <Button
@@ -552,10 +549,7 @@ export default function Home() {
                   </>
                 )}
               </div>
-              {/* END: Inner container for non-wrapping core controls */}
 
-              {/* Other controls remain direct children of the outer flex-wrap container */}
-              {/* Recording Buttons */}
               {isRecording && !isProcessingAudio && (
                  <>
                     <span 
@@ -566,7 +560,6 @@ export default function Home() {
                     >
                       {formatTime(recordingTime)} / 1:00
                     </span>
-                    {/* Reverted style */}
                     <Button
                       variant="default" 
                       onClick={handleSendClick}
@@ -578,7 +571,6 @@ export default function Home() {
                       <Check className="h-4 w-4 sm:mr-2" /> 
                       <span className="hidden sm:inline">Transcribe</span>
                     </Button>
-                    {/* Reverted style */}
                     <Button
                       variant="outline" 
                       onClick={stopRecordingAndDiscard}
@@ -592,16 +584,9 @@ export default function Home() {
                     </Button>
                  </>
               )}
-              {/* Processing Indicator */}
-              {isProcessingAudio && (
-                 <div className="flex items-center justify-center text-sm text-muted-foreground px-3">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    <span>Processing...</span>
-                 </div>
-              )}
             </div>
           </div>
-
+          
           {audioError && (
               <div className="flex justify-end">
                 <p className="text-red-600 text-sm mt-1">{audioError}</p>
@@ -674,7 +659,6 @@ export default function Home() {
 
             {!isLoadingInitial && !errorState && (
               <>
-                {/* Message when filters hide all loaded entries */}
                 {displayEntries.length === 0 && loadedEntries.length > 0 && isAnyFilterActive && (
                   <p className="pt-4 text-center text-gray-500">No loaded entries found matching filters.</p>
                 )}
@@ -716,7 +700,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* End of list indicator */}
                 {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (
                   <div className="text-center text-muted-foreground text-sm py-8">
                     {isAnyFilterActive ? "End of loaded entries matching filters." : "That\'s all folks!"}

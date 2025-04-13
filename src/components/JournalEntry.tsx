@@ -93,7 +93,7 @@ export function JournalEntry({
     const lowerCaseTag = tag.toLowerCase();
     const isClickable = true;
     const colorInfo = highlightedTagColors[lowerCaseTag];
-    const baseClasses = "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
+    const baseClasses = "inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
     let colorClasses = 'border-transparent bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     let hoverClasses = isClickable ? 'hover:opacity-80' : '';
 
