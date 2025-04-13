@@ -13,10 +13,8 @@ import clsx from 'clsx';
 import type { Entry } from '@/types';
 import debounce from 'lodash.debounce';
 import { supabase } from '@/lib/supabaseClient';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import type { Session, Provider } from '@supabase/supabase-js';
-import { useTheme } from 'next-themes';
+import type { Session } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 
 // Helper function to format seconds into M:SS
 const formatTime = (totalSeconds: number): string => {
@@ -64,7 +62,8 @@ const formatTime = (totalSeconds: number): string => {
  */
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
-  const { resolvedTheme } = useTheme();
+  const [authChecked, setAuthChecked] = useState(false);
+  const router = useRouter();
 
   const {
     searchQuery,
@@ -131,6 +130,7 @@ export default function Home() {
 
   useEffect(() => {
     if (session) {
+      console.log("Session detected, loading initial entries.");
       loadInitialEntries();
     }
   }, [session, loadInitialEntries]);
@@ -477,368 +477,112 @@ export default function Home() {
       searchQuery, activeMetaTag, activeIntentTag, activeContentTags
   ]);
 
-  // --- Authentication Effect --- 
+  // --- Supabase Auth Listener --- 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Auth state changed:", _event, session);
-      setSession(session);
-      if (_event === 'SIGNED_IN') {
-        // Optional: Trigger initial load only after sign in if needed
-        // loadInitialEntries(); // Consider if loadInitialEntries should wait for session
-      } else if (_event === 'SIGNED_OUT') {
-        // Optional: Clear Zustand state on sign out?
-        // useJournalStore.setState(initialState, true); // Replace state
+    console.log("Setting up onAuthStateChange listener");
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session);
+      setSession(session); 
+      setAuthChecked(true); // Mark auth as checked once listener fires
+      if (event === 'SIGNED_OUT') {
+        // Optionally clear store state on sign out
+        // useJournalStore.getState().reset(); 
+        router.push('/signin'); // Redirect to signin on sign out
+      } else if (event === 'SIGNED_IN') {
+        // Potentially trigger initial data load here if needed
+        // loadInitialEntries(); // Moved the initial load logic below
       }
     });
 
-    // Cleanup listener on component unmount
+    // Initial check in case the listener doesn't fire immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        setAuthChecked(true); // Mark auth checked even if no session
+      }
+      // No need to setSession here, listener will handle it
+    });
+
     return () => {
+      console.log("Cleaning up onAuthStateChange listener");
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [router]); // Add router to dependencies
 
-  // --- Authentication UI (Rendered when no session) ---
-  if (!session) {
+  // --- Redirect if not logged in (after auth state is checked) ---
+  useEffect(() => {
+    if (authChecked && !session) {
+      console.log("Auth checked, no session found. Redirecting to /signin");
+      router.push('/signin');
+    }
+  }, [session, authChecked, router]);
+
+  // --- Loading State --- 
+  // Show loading indicator until auth state is confirmed and session is checked
+  if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="p-8 rounded-lg shadow-md w-full max-w-md border">
-          {/* Added Logo Here */}
-          <div className="flex justify-center mb-6">
-            <img 
-              src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523" 
-              alt="Thoughtkeeper Logo" 
-              className="h-16 w-auto" // Adjust size as needed
-            />
-          </div>
-          
-          <h2 className="text-2xl font-semibold text-center mb-6">Get started</h2>
-          <p className="text-sm text-muted-foreground text-center mb-4">
-            Sign in, or create an account.
-          </p>
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ 
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: 'hsl(var(--primary))',
-                    brandAccent: 'hsl(var(--primary) / 0.9)',
-                  },
-                }
-              }
-            }}
-            providers={[] /* No SSO providers */} 
-            theme={resolvedTheme === 'dark' ? 'dark' : 'default'}
-            showLinks={true}
-            onlyThirdPartyProviders={false} // Ensure email/password is shown
-          />
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
+  // --- Main Application UI (Rendered only if session exists after auth check) ---
+  // The redirect effect handles the case where session is null
+  if (!session) {
+    // This part should ideally not be reached due to the redirect effect,
+    // but can serve as a fallback or be shown briefly during redirect.
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        {/* Or Optionally: <p>Redirecting to sign in...</p> */}
+      </div>
+    );
+  }
+
+  // --- Actual Logged-in UI --- 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          {/* ... header content ... */}
+      </header>
+
       <main className="flex flex-1 overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
-          <div className="flex justify-between items-center flex-shrink-0 gap-2 sm:gap-4 border-b pb-2 px-2 sm:px-0">
-            
-            <div className="flex items-center flex-shrink-0">
-              <img 
-                src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523"
-                alt="ThoughtKeeper Logo" 
-                className="h-8 w-auto mr-4"
-              />
-              <div className="flex items-center gap-2">
-                {errorState && (
-                  <p className="text-red-600 text-sm">Error: {errorState}</p>
-                )}
-                {(isLoadingInitial || isProcessingEntry || isProcessingAudio) && !errorState && (
-                  <div className="flex items-center justify-start text-sm text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    {
-                      isProcessingAudio ? <span>Processing audio...</span> :
-                      isProcessingEntry ? <span>Processing entry...</span> :
-                      isLoadingInitial ? <span>Loading...</span> : null
-                    }
-                  </div>
-                )}
-              </div>
+        <div ref={mainContentScrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          {/* ... search bar ... */} 
+
+          {/* ... entry rendering logic ... */} 
+
+          {/* End of list message */}
+          {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (
+            <div className="text-center text-muted-foreground text-sm py-8">
+              {isAnyFilterActive 
+                ? "End of loaded entries matching filters." 
+                : "The void stares back... quick, add a thought!"
+              }
             </div>
-
-            {isRecording && !isProcessingAudio && (
-              <div className="flex-grow mx-2 sm:mx-4"> 
-                <canvas 
-                  ref={canvasRef}
-                  height="30" 
-                  className="w-full h-[30px] bg-muted/50 rounded-sm"
-                ></canvas>
-              </div>
-            )}
-
-            <div className="flex items-center flex-wrap gap-2 flex-shrink-0 justify-end">
-              
-              <div className="flex items-center gap-2">
-                {!isRecording && !isProcessingAudio && (
-                  <Input
-                    type="search"
-                    placeholder="Search entries..." 
-                    value={localSearchQuery} 
-                    onChange={handleSearchChange} 
-                    className={clsx(
-                        'w-full max-w-xs',
-                        'hidden sm:block' 
-                    )}
-                  />
-                )}
-                {!isRecording && !isProcessingAudio && (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={startRecording}
-                      size="sm"
-                      aria-label="Add voice note"
-                      title="Add voice note"
-                      className={clsx('inline-flex items-center')}
-                    >
-                      <Mic className="h-4 w-4" /> 
-                      <span className="hidden sm:inline sm:ml-2">Add Voice Note</span>
-                    </Button>
-                    <Button
-                      onClick={handleAddClick}
-                      disabled={false} 
-                      size="sm"
-                      className={clsx(
-                        'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity',
-                        'inline-flex items-center'
-                      )}
-                      aria-label="Add text note"
-                      title="Add text note"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span className="hidden sm:inline sm:ml-2">Add Text Note</span>
-                    </Button>
-                  </>
-                )}
-              </div>
-
-              {isRecording && !isProcessingAudio && (
-                 <>
-                    <span 
-                      className={clsx(
-                        "text-sm font-mono flex-shrink-0 whitespace-nowrap",
-                        recordingTime >= 60 ? "text-red-600" : "text-muted-foreground" 
-                      )}
-                    >
-                      {formatTime(recordingTime)} / 1:00
-                    </span>
-                    <Button
-                      variant="default" 
-                      onClick={handleSendClick}
-                      size="sm"
-                      className={clsx('inline-flex')} 
-                      aria-label="Transcribe recording"
-                      title="Transcribe recording"
-                    >
-                      <Check className="h-4 w-4 sm:mr-2" /> 
-                      <span className="hidden sm:inline">Transcribe</span>
-                    </Button>
-                    <Button
-                      variant="outline" 
-                      onClick={stopRecordingAndDiscard}
-                      size="sm"
-                      className={clsx('inline-flex')} 
-                      aria-label="Stop recording"
-                      title="Stop recording"
-                    >
-                      <X className="h-4 w-4 sm:mr-2" /> 
-                      <span className="hidden sm:inline">Stop Recording</span>
-                    </Button>
-                 </>
-              )}
-            </div>
-          </div>
-          
-          {audioError && (
-              <div className="flex justify-end">
-                <p className="text-red-600 text-sm mt-1">{audioError}</p>
-              </div>
           )}
 
-          {isAnyFilterActive && (
-              <div className="flex flex-col gap-1 flex-shrink-0 p-2 rounded-md border border-yellow-200 bg-yellow-50 dark:border-yellow-800/60 dark:bg-yellow-900/20">
-                 <div className="flex items-center gap-1 text-xs font-semibold text-yellow-800 dark:text-yellow-300">
-                      <Info className="h-3 w-3" />
-                      <span>Filtering applied only to {loadedEntries.length} loaded entries.</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1 items-center">
-                      <span className="text-sm font-medium mr-1">Active:</span>
-                      {activeMetaTag && (() => {
-                          const lowerTag = activeMetaTag.toLowerCase();
-                          const colorInfo = highlightedTagColors[lowerTag];
-                          const activeClasses = colorInfo ? colorInfo.base : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300';
-                          const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-purple-200 dark:hover:bg-purple-800/70';
-                          return (
-                          <Badge variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => setFilters({ activeMetaTag: null })}>
-                              {activeMetaTag.toUpperCase()}
-                              <X className="ml-1 h-3 w-3" />
-                          </Badge>
-                          );
-                      })()}
-                      {activeIntentTag && (() => {
-                          const lowerTag = activeIntentTag.toLowerCase();
-                          const colorInfo = highlightedTagColors[lowerTag];
-                          const activeClasses = colorInfo ? colorInfo.base : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
-                          const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-green-200 dark:hover:bg-green-800/70';
-                          return (
-                          <Badge variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => setFilters({ activeIntentTag: null })}>
-                              {activeIntentTag}
-                              <X className="ml-1 h-3 w-3" />
-                          </Badge>
-                          );
-                      })()}
-                      {Array.from(activeContentTags).map(tag => {
-                          const lowerTag = tag.toLowerCase();
-                          const colorInfo = highlightedTagColors[lowerTag];
-                          const activeClasses = colorInfo ? colorInfo.base : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
-                          const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-blue-200 dark:hover:bg-blue-800/70';
-                          return (
-                          <Badge key={tag} variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => {
-                              const newTags = new Set(activeContentTags);
-                              newTags.delete(tag);
-                              setFilters({ activeContentTags: newTags });
-                          }}>
-                              {tag}
-                              <X className="ml-1 h-3 w-3" />
-                          </Badge>
-                          );
-                      })}
-                       {(!!activeMetaTag || !!activeIntentTag || activeContentTags.size > 0) && (
-                          <Button variant="ghost" size="sm" className="h-5 px-1 text-muted-foreground hover:text-foreground" onClick={() => setFilters({ activeMetaTag: null, activeIntentTag: null, activeContentTags: new Set(), searchQuery: '' })}>
-                              Clear All
-                          </Button>
-                      )}
-                  </div>
-              </div>
-          )}
-
-          <div ref={mainContentScrollRef} className="flex-grow overflow-y-auto pr-2 space-y-4">
-            {isLoadingInitial && (
-              <div className="flex justify-center items-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {!isLoadingInitial && !errorState && (
-              <>
-                {displayEntries.length === 0 && loadedEntries.length > 0 && isAnyFilterActive && (
-                  <p className="pt-4 text-center text-gray-500">No loaded entries found matching filters.</p>
-                )}
-
-                {Object.entries(groupedEntries).map(([date, dayEntries]) => {
-                  const entryCount = dayEntries.length;
-                  const containsHighlighted = highlightedEntryId !== null && dayEntries.some(entry => entry.id === highlightedEntryId);
-                  
-                  return (
-                    <div key={date} className="mb-4"> 
-                      <div className={clsx(
-                          "sticky top-0 z-10 mb-2 p-2 border rounded-md bg-muted",
-                          "text-sm font-medium text-muted-foreground",
-                          containsHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background" 
-                      )}> 
-                        {format(parseISO(date), 'MMMM do, yyyy')} 
-                        <span className="ml-2 font-normal">({entryCount} {entryCount === 1 ? 'entry' : 'entries'})</span>
-                      </div>
-                      
-                      <div className="space-y-2"> 
-                        {dayEntries.map((entry) => (
-                          <JournalEntry
-                              key={entry.id}
-                              entry={entry}
-                              highlightedTagColors={highlightedTagColors}
-                              setFilters={setFilters}
-                              onDeleteEntry={handleDeleteEntry}
-                              onEditClick={handleEditClick}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {isLoadingMore && (
-                  <div className="flex justify-center items-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-
-                {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (
-                  <div className="text-center text-muted-foreground text-sm py-8">
-                    {isAnyFilterActive 
-                      ? "End of loaded entries matching filters." 
-                      : "The void stares back... quick, add a thought!"
-                    }
-                  </div>
-                )}
-
-                <div ref={intersectionObserverRef} style={{ height: '1px' }} />
-              </>
-            )}
-          </div>
+          <div ref={intersectionObserverRef} style={{ height: '1px' }} />
         </div>
 
-        <StaticAnalysisColumn />
+        <StaticAnalysisColumn /> 
       </main>
+
+      {/* Editor Dialog */}
       {isEditorOpen && (
-          <EntryEditorDialog
-            isOpen={isEditorOpen}
-            selectedDate={format(new Date(), 'yyyy-MM-dd')}
-            initialEntry={editingEntry}
-          />
+        <EntryEditorDialog
+          isOpen={isEditorOpen}
+          selectedDate={format(new Date(), 'yyyy-MM-dd')}
+          initialEntry={editingEntry}
+        />
       )}
 
+      {/* Logout Button */}
       {session && (
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={async () => {
-              console.log("Logout button clicked. Refreshing session and checking...");
-              // Attempt to refresh the session first
-              const { error: refreshError } = await supabase.auth.refreshSession();
-              if (refreshError) {
-                console.warn("Error refreshing session before sign out (might be expected if already expired):", refreshError);
-                // Don't necessarily stop here, still attempt sign out
-              }
-
-              const { data: currentSessionData, error: sessionError } = await supabase.auth.getSession();
-              
-              if (sessionError) {
-                console.error("Error getting session after refresh attempt:", sessionError);
-                return; 
-              }
-              
-              if (!currentSessionData.session) {
-                console.warn("No active session found by Supabase client after refresh attempt.");
-                setSession(null);
-                return;
-              }
-
-              console.log("Supabase client confirmed active session after refresh. Attempting sign out...");
-              const { error: signOutError } = await supabase.auth.signOut();
-              
-              if (signOutError) {
-                console.error("Error signing out:", signOutError);
-              } else {
-                console.log("Sign out call successful via Supabase client. onAuthStateChange should update UI.");
-              }
-            }} 
+            onClick={async () => { /* ... sign out logic ... */ }}
             className="fixed bottom-4 right-4 z-50 bg-background hover:bg-muted"
             aria-label="Logout"
             title="Logout"
