@@ -87,7 +87,11 @@ export const fetchAllEntriesService = async (): Promise<{ data: Entry[] | null; 
  * Does not handle AI tag generation here.
  * Returns the newly created entry data and error object.
  */
-export const addEntryService = async (date: string, content: string): Promise<{ data: Entry | null; error: Error | null }> => {
+export const addEntryService = async (
+    date: string, 
+    content: string, 
+    entryType: 'voice' | 'text' // Added entryType parameter
+): Promise<{ data: Entry | null; error: Error | null }> => {
     const trimmedContent = content.trim();
     if (!trimmedContent) {
         return { data: null, error: new Error("Content cannot be empty.") };
@@ -96,7 +100,11 @@ export const addEntryService = async (date: string, content: string): Promise<{ 
     try {
         const { data, error } = await supabase
             .from('entries')
-            .insert({ date: date, content: trimmedContent })
+            .insert({ 
+                date: date, 
+                content: trimmedContent, 
+                entry_type: entryType // Include entry_type in the insert payload
+            })
             .select()
             .single();
 

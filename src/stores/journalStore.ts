@@ -294,7 +294,8 @@ export const useJournalStore = create<JournalState & JournalActions>()(
       addEntry: async (contentHtml: string, date: string) => {
         set({ isProcessingEntry: true, errorState: null });
         try {
-          const { data: newEntry, error: serviceError } = await addEntryService(date, contentHtml);
+          // Pass 'text' as the entryType
+          const { data: newEntry, error: serviceError } = await addEntryService(date, contentHtml, 'text');
           if (serviceError) throw serviceError;
           if (!newEntry) throw new Error("Service returned no data on add.");
 
@@ -306,9 +307,10 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             loadedEntries: updatedLoadedEntries,
             displayEntries: newDisplayEntries,
             highlightedTagColors: newHighlightedTagColors,
+            isProcessingEntry: false 
           });
 
-          // Trigger background tagging for manually added entries too
+          // Trigger background tagging
           (async () => {
             try {
               const contentToTag = newEntry.content; // Use content from the newly created entry
@@ -367,7 +369,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             } catch (taggingError) {
               console.error("Error during background tagging process for manual entry:", taggingError);
             }
-          })(); // End background tagging async IIFE
+          })();
 
         } catch (error: any) {
           console.error("Failed to add entry:", error);
@@ -465,12 +467,12 @@ export const useJournalStore = create<JournalState & JournalActions>()(
          const entryDate = format(new Date(), 'yyyy-MM-dd'); // Use today's date
 
          try {
-            // 1. Add the basic entry via service using the transcription as content
-            const { data: newEntry, error: serviceError } = await addEntryService(entryDate, transcription);
+            // 1. Pass 'voice' as the entryType
+            const { data: newEntry, error: serviceError } = await addEntryService(entryDate, transcription, 'voice');
             if (serviceError) throw serviceError;
             if (!newEntry) throw new Error("Service returned no data on transcription add.");
 
-            // 2. Optimistically add to state
+            // 2. Optimistically add to state & set processing false
             const updatedLoadedEntries = [newEntry, ...get().loadedEntries];
             const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoadedEntries);
             const newDisplayEntries = filterLoadedEntries(updatedLoadedEntries, get());
@@ -479,7 +481,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
                loadedEntries: updatedLoadedEntries,
                displayEntries: newDisplayEntries,
                highlightedTagColors: newHighlightedTagColors,
-               isProcessingEntry: false
+               isProcessingEntry: false // Set processing false here
             });
 
             // 3. Trigger background tagging (similar to manual addEntry)

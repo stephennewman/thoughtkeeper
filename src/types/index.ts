@@ -9,7 +9,11 @@ export interface SupabaseEntry {
   intent_tag?: string | null;
 }
 
-export interface Entry extends SupabaseEntry {}
+export interface Entry extends SupabaseEntry {
+  user_id: string;
+  updated_at: string;
+  entry_type?: 'voice' | 'text';
+}
 
 export interface MacroSummary {
   mood: string;

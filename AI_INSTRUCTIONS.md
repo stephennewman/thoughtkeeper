@@ -1,9 +1,10 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.5.0 (Added Scoring Rubric)
-**Date:** 2024-07-25
+**Document Version:** 2.5.1 (Card Redesign, Entry Type, Voice Complete)
+**Date:** 2024-07-26
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
+**Development Environment Note:** User is developing within the Cursor editor.
 **MAINTENANCE NOTE:** This document is critical for context but requires frequent updates to stay synchronized with the codebase. Please update it after significant feature changes, refactors, or bug fixes.
 
 ## 1. Project Overview & Current State
@@ -17,54 +18,60 @@
 *   Styling: Tailwind CSS
 *   UI Components: shadcn/ui, **react-intersection-observer**
 *   Icons: lucide-react
-*   Database: Supabase (PostgreSQL)
+*   Database: Supabase (PostgreSQL) - **Includes DB Migrations via Supabase CLI**
 *   AI Backend: OpenAI API (via `openai` npm package)
 *   Testing: **Vitest** (Unit tests for Zustand store)
 *   Deployment: Netlify (via GitHub integration)
 *   Code Storage: GitHub
 
 **Core Features Implemented:**
-*   **Layout:** Three-column layout on large screens (Sidebar Navigation, Main Content, Static Analysis). Sidebar component (`<JournalSidebar />`) is rendered, displaying tag filters, but full navigation features (e.g., date jump) are future work.
+*   **Layout:** Three-column layout on large screens (Sidebar Navigation, Main Content, Static Analysis).
 *   **Journal Entry CRUD:** Creation, viewing, editing, and deletion via Dialog Modal.
-    *   Fixed bug preventing text note creation due to incorrect argument order in `addEntry` store action.
 *   **Continuous Feed & Infinite Scroll:** Main content area displays a chronologically descending feed of entries.
     *   Fetches entries page-by-page from backend (`fetchEntriesPaginatedService`).
     *   Uses `react-intersection-observer` to trigger loading more entries on scroll.
     *   Groups entries by date with sticky date headers.
-    *   Fixed React key error caused by duplicate entries during pagination (`loadMoreEntries` store action).
 *   Multiple entries allowed per day.
 *   **Centralized State:** Application state managed by **Zustand store** (`src/stores/journalStore.ts`), including **paginated entries**, filters, UI state, and actions.
-    *   State structure updated for pagination (`loadedEntries`, `displayEntries`, `currentPage`, `hasMoreEntries`, loading flags).
-    *   Actions added/modified for pagination (`loadInitialEntries`, `loadMoreEntries`).
+    *   Actions handle optimistic updates and background tagging processes.
+    *   Processing state (`isProcessingEntry`) optimized for better UI feedback.
 *   **Data Service Layer:** Supabase CRUD operations abstracted into `src/lib/entryService.ts`.
     *   Added `fetchEntriesPaginatedService` for basic chronological pagination.
     *   **Note:** Contains a separate `fetchEntriesService` function with server-side filtering logic (tags/search) that is currently **not used** by the main feed pagination.
 *   **Centralized Types:** Core types defined in `src/types/index.ts`.
 *   **Unit Tested Store:** Key store actions covered by Vitest unit tests. **Verification needed to confirm tests cover recent pagination/state logic.**
-*   **Main Entry Feed:** Displays continuous feed (see above).
+*   **Entry Type Tracking:**
+    *   Added `entry_type` column ('voice' or 'text') to `entries` table via Supabase migration (`supabase/migrations`).
+    *   `addEntryService`, `addEntry`, and `addEntryWithTranscription` updated to set and save the correct `entry_type`.
+*   **Entry Card Redesign:**
+    *   `JournalEntry` component layout updated.
+    *   Content area is primary focus.
+    *   Metadata (Entry Type Icon/Text, Time, Tags, Spinner) consolidated into a footer area below the content.
+    *   Options menu positioned top-right.
 *   Data persistence using **Supabase** database.
 *   **Dual Tagging System (Meta, Intent, Content):** Auto-generated on new entry save via API routes.
     *   Meta/Intent tags stored with original case.
     *   Content tags stored lowercase.
-    *   Fixed issues with API response parsing and camelCase/snake_case mismatches during tag updates.
-    *   **Resolved** issue where tags didn't appear without refresh after adding entry.
+    *   Tags are applied in the background after initial entry creation.
 *   **Client-Side Filtering & Search:**
     *   Filtering by Meta, Intent, and Content tags, and search query.
     *   Filtering is applied **client-side** to the *currently loaded set of entries* (`loadedEntries`) via `filterLoadedEntries` function in store, updating the `displayEntries`.
     *   Provides instant filtering **only on visible data**. **(KNOWN LIMITATION)**
     *   UI includes a banner indicating filter scope limitation.
-*   **Consistent Tag Colors:** Calculated based on tag type (Meta, Intent, Content) for **all unique tags** within `loadedEntries`. Uses distinct palettes with stronger colors (e.g., `bg-*-600` series) for better visibility. Applied consistently to Analysis column, Active Filter badges, and Entry cards (via Zustand state `highlightedTagColors`).
+*   **Consistent Tag Colors:** Calculated based on tag type for **all unique tags** within `loadedEntries`.
 *   **Improved Filter UX:** Active filters displayed as dismissible badges.
-    *   Fixed inconsistency: Clicking tags on entry cards now correctly toggles filters (including multiple content tags) like the sidebar, instead of replacing all active filters.
-*   **Main Content Controls:** Consolidated top bar with Logo (left), Error/Status, Search, Add Entry button (right).
-    *   Improved mobile responsiveness: Buttons use icon-only display on small screens, header layout adjusted to prevent overflow.
+*   **Main Content Controls:** Consolidated top bar with Logo, Status/Error, Search, Add Entry buttons.
+    *   Improved mobile responsiveness.
 *   Rich Text Editor (TipTap) used within the entry editor dialog.
-*   Entry list display using styled cards with hover effect, options menu, metadata footer.
 *   Static Analysis Column: Displays top tags based on **all currently loaded entries** (`loadedEntries` state).
-*   **Voice Recording:** Frontend UI implemented for recording audio notes, including timer and waveform visualizer (`page.tsx`).
+*   **Voice Recording & Transcription: COMPLETE**
+    *   Frontend UI for recording audio notes.
+    *   Backend API route (`/api/transcribe`) uses **real OpenAI Whisper API** for transcription.
+    *   Transcribed text is used to create a new entry directly (bypassing editor), marked with `entry_type: 'voice'`. 
 
 **AI Features Implemented / Status:**
 *   Tag generation (Meta, Intent, Content) via API routes on *new* entry save.
+*   **Voice Transcription** via Whisper API on *new* voice note save.
 *   **NOTE:** Tag re-generation on *edit* is **not** implemented.
 
 **Deployment Status:**
@@ -86,8 +93,6 @@ Used in Section 6 to assess the severity and impact of identified problems or ri
 *   **51-80 (High):** Significant impact on usability, reliability, or security. Misleads users or blocks core functionality. High priority to address.
 *   **81-100 (Critical):** Severe impact. Major security vulnerability, significant data integrity risk, application fundamentally unstable or unusable for core purposes. Must be addressed urgently.
 
-*(Other rubrics like Effort or Impact scoring could be added here if needed)*
-
 ## 3. Naming Conventions (Renumbered, previously 2)
 
 To ensure consistency and clarity across the codebase, please adhere to the following naming conventions:
@@ -100,42 +105,28 @@ To ensure consistency and clarity across the codebase, please adhere to the foll
 *   **API Routes:** Use **lowercase-hyphenated** paths (e.g., `/api/classify-intent`).
 *   **CSS Classes:** Use standard **Tailwind utility classes**. Avoid custom CSS.
 
-**Key Standardized Names:**
-
-*   **Main Page Component:** `Home` (implicit via `src/app/page.tsx`)
-*   **Sidebar Component:** `JournalSidebar`
-*   **Analysis Column Component:** `StaticAnalysisColumn`
-*   **Entry Display Component:** `JournalEntry`
-*   **Entry Editor Component:** `EntryEditorDialog`
-*   **State Management Hook:** `useJournalStore`
-*   **Data Service File:** `entryService.ts`
-*   **Core Data Type:** `Entry`
-
-*Minor Discrepancy Note:* Button labels use "Add... Note" while the underlying component/data model is `JournalEntry`. This is acceptable for user-facing text.
-
 ## 4. Key Decisions & Rationale (Renumbered, previously 3)
 *   **State Management (Zustand):** Refactored from component-local state to address complexity, prop drilling, and state-related bugs. Improved maintainability and enabled consistent state access.
 *   **Data Access Layer (`entryService.ts`):** Centralized Supabase interactions, simplifying components and store logic.
 *   **Continuous Feed (Minimal):** Implemented pagination for data loading (`fetchEntriesPaginatedService`) and infinite scroll UI. **Filtering (search, tags) remains client-side**, operating only on loaded data for initial implementation speed. This introduces a **known limitation** where filters do not reflect the entire dataset. Server-side filtering is deferred.
 *   **CRUD Refresh:**
-    *   **Add:** Triggers a reload of the feed from the first page (`loadInitialEntries`) for simplicity and data consistency after AI tagging completes.
+    *   **Add (Text & Voice):** Creates entry, optimistically updates UI, then triggers background AI tagging. Processing indicator is brief.
     *   **Update/Delete:** Modify the client-side state (`loadedEntries` and `displayEntries`) directly for a faster UX, without a full reload. (This avoids re-fetching all pages).
-*   **Centralized Tag Color Logic:** Moved color calculation based on tag type (Meta, Intent, Content) into Zustand store. Assigns a distinct, strong color to *every unique tag* encountered in `loadedEntries` to ensure consistent UI representation and improve visibility (removed previous frequency threshold).
+*   **Centralized Tag Color Logic:** Moved color calculation based on tag type (Meta, Intent, Content) into Zustand store.
+*   **Voice Note Creation Flow:** Transcribed text directly creates a new entry (type 'voice') without showing the editor, maintaining consistency with the background tagging flow of text entries.
 
 ## 5. Future Development Considerations & Improvements (Renumbered, previously 4)
 1.  **Implement Server-Side Filtering:** Refactor `fetchEntriesPaginatedService` and store actions to apply filters (search, tags) on the backend during paginated fetches. This will fix the filter scope limitation. **(High Priority Follow-up)**
-2.  **Improve CRUD UX:** Implement more seamless updates after Add/Edit/Delete instead of reloading the entire feed (e.g., client-side insertion/update/removal if possible). **(Medium Priority)**
-3.  **Implement Authentication & Row Level Security (RLS):** **(Postponed but High Priority Security Risk)**.
-4.  **Refine Sidebar:** Implement date navigation (e.g., heatmap, date list with jump-to-offset logic) or other useful tools.
-5.  **Populate Static Analysis Column:** Implement meaningful analysis (consider if it should analyze only loaded data or require full data fetch).
+2.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY. **(Postponed but High Priority Security Risk)**.
+3.  **Improve CRUD UX:** Implement more seamless updates after Edit/Delete (currently modifies client state directly, might need refinement). Consider Add UX (currently adds to top optimistically).
+4.  **Refine Sidebar:** Implement date navigation or other useful tools.
+5.  **Populate Static Analysis Column:** Implement meaningful analysis.
 6.  **Complete Rich Text Editing:** Ensure formatting preservation on edit save.
 7.  **Refine AI Features:** Consider tag re-gen on edit, integrate summary saving, optimize costs.
 8.  **Improve Mobile Responsiveness & Test Thoroughly.**
 9.  **Robust Error Handling & User Feedback.**
 10. **Verify/Update Unit Tests:** Ensure store tests cover pagination, filtering, and new state logic.
-11. **Address Console Warnings/Errors:** Review any remaining warnings (e.g., from TipTap or other dependencies).
-    *   Resolved React duplicate key error by fixing pagination logic in store (`loadMoreEntries`).
-    *   Resolved Zustand/React snapshot warning in `JournalEntry` component by selecting state slices individually.
+11. **Address Console Warnings/Errors:** Review any remaining warnings.
 
 ## 6. Critical Information & Risks (Renumbered, previously 5 - UPDATED CONTENT)
 
@@ -147,25 +138,23 @@ Stack-ranked list of known problems and risks based on assessed score:
     *   **Problem:** Filtering (search, tags) only applies to *loaded* entries, not the entire dataset. Can mislead users and prevent finding all relevant information. High usability/data integrity impact.
 3.  **AI Feature Dependency & Cost (Score: ~60/100)**
     *   **Problem:** Relies on external AI APIs (OpenAI). Introduces dependency risks (downtime, changes) and operational costs.
-4.  **Voice Transcription Incomplete (Score: 50/100)**
-    *   **Problem:** Voice recording UI exists, but the backend API call is simulated. Feature appears functional but isn't, leading to user confusion and potential data loss (untranscribed recordings).
-5.  **Client-Side Filtering Performance (Score: ~40/100)**
+4.  **Client-Side Filtering Performance (Score: ~40/100)**
     *   **Problem:** Filtering performance could degrade if a very large number of entries are loaded client-side. Mitigated by pagination currently, fully resolved by server-side filtering.
-6.  **State Management Complexity (Score: ~20/100)**
+5.  **State Management Complexity (Score: ~20/100)**
     *   **Problem:** Inherent complexity in managing application state. Mostly mitigated by Zustand refactor.
-7.  **Prop Drilling (Score: ~15/100)**
+6.  **Prop Drilling (Score: ~15/100)**
     *   **Problem:** Significantly reduced by Zustand. Minimal risk.
 
+*(Removed "Voice Transcription Incomplete" risk as it is now resolved)*
+
 ## 7. Current Branch Status (Renumbered, previously 6)
-*   `main`: Contains latest updates including tag color improvements, pagination fix, text entry fix, and header responsiveness adjustments.
+*   `main`: Contains latest updates including real voice transcription, entry card redesign (footer metadata), and entry type tracking.
 
 ## 8. Next Steps / Priorities (Revised) (Renumbered, previously 7)
-1.  **Implement Real Voice Transcription API Call** (See Future Development #2).
-2.  **Implement Server-Side Filtering:** (See Future Development #1).
-3.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY.
-4.  **Verify/Update Unit Tests:** (See Future Development #10).
-5.  **(Optional) Merge `feat/continuous-feed-minimal` into `main` if stable enough after testing/fixes.**
-6.  **(Remaining priorities shift down)**
+1.  **Implement Server-Side Filtering:** (See Future Development #1). **(NEXT UP)**
+2.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY.
+3.  **Verify/Update Unit Tests:** (See Future Development #10).
+4.  **(Remaining priorities shift down)**
 
 ## 9. Voice Recording Limits (IMPORTANT) (Renumbered, previously 8)
 
