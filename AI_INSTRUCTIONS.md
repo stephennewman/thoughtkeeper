@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.5.3 (Mobile UI Fixes, Wrap-up)
+**Document Version:** 2.5.4 (Basic Auth/RLS Implemented)
 **Date:** 2024-07-26
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
@@ -16,49 +16,45 @@
 *   Language: TypeScript
 *   State Management: **Zustand**
 *   Styling: Tailwind CSS
-*   UI Components: shadcn/ui, **react-intersection-observer**
+*   UI Components: shadcn/ui, **react-intersection-observer**, `@supabase/auth-ui-react`
 *   Icons: lucide-react
 *   Database: Supabase (PostgreSQL) - Includes DB Migrations via Supabase CLI
+*   Authentication: **Supabase Auth** (Email/Password enabled)
 *   AI Backend: OpenAI API (via `openai` npm package)
 *   Testing: **Vitest** (Unit tests for Zustand store)
 *   Deployment: Netlify (via GitHub integration)
 *   Code Storage: GitHub
 
 **Core Features Implemented:**
+*   **Authentication:** Basic email/password signup and login implemented using Supabase Auth and `@supabase/auth-ui-react`. App conditionally renders Auth UI or Journal UI.
+*   **Row Level Security (RLS):** RLS is **ENABLED** on the `entries` table. Basic policies are in place ensuring users can only access/modify their own entries (based on `user_id` matching `auth.uid()`).
 *   **Layout:** Three-column layout on large screens.
-*   **Journal Entry CRUD:** Creation, viewing, editing, and deletion via Dialog Modal.
+*   **Journal Entry CRUD:** Creation, viewing, editing, and deletion via Dialog Modal (now respects RLS).
+    *   New entries are correctly associated with the logged-in user's ID.
 *   **Continuous Feed & Infinite Scroll:** Displays entries chronologically, grouped by date.
     *   Uses `react-intersection-observer` for infinite scroll.
 *   Multiple entries allowed per day.
 *   **Centralized State:** Application state managed by **Zustand store** (`src/stores/journalStore.ts`).
 *   **Data Service Layer:** Supabase CRUD operations abstracted into `src/lib/entryService.ts`.
-    *   `fetchEntriesPaginatedService` handles fetching entries with **server-side filtering and pagination**.
+    *   `fetchEntriesPaginatedService` handles fetching entries with **server-side filtering and pagination**, respecting RLS.
+    *   `addEntryService` now includes `user_id`.
 *   **Centralized Types:** Core types defined in `src/types/index.ts`.
 *   **Unit Tested Store:** Basic store tests exist. **Verification needed.**
-*   **Entry Type Tracking:** DB column and logic implemented to track 'voice' vs 'text' entries.
-*   **Entry Card Redesign:** Footer metadata layout (Type, Time, Tags).
-    *   Tag shapes unified (rounded squares).
+*   **Entry Type Tracking:** DB column and logic implemented.
+*   **Entry Card Redesign:** Footer metadata layout, unified tag shape.
 *   Data persistence using **Supabase**.
-*   **Dual Tagging System (Meta, Intent, Content):** Auto-generated on new entry save via API routes (background process).
-*   **Server-Side Filtering & Search: COMPLETE**
-    *   Filtering performed server-side.
-    *   Search uses Supabase `textSearch` on `search_vector` column.
-    *   Search input is **debounced** in the UI.
-*   **Consistent Tag Colors:** Calculated based on tag type for all unique tags within loaded entries.
-*   **Improved Filter UX:** Active filters displayed as dismissible badges.
-*   **Main Content Controls:** Consolidated top bar, responsive.
-    *   Recording buttons are now icon-only on small screens for better fit.
-*   Rich Text Editor (TipTap) used within the entry editor dialog.
+*   **Dual Tagging System (Meta, Intent, Content):** Auto-generated on new entry save (background process).
+*   **Server-Side Filtering & Search: COMPLETE**.
+*   **Consistent Tag Colors:** Calculated based on loaded entries.
+*   **Improved Filter UX:** Active filters displayed.
+*   **Main Content Controls:** Consolidated top bar, responsive buttons.
+*   Rich Text Editor (TipTap) used.
 *   Static Analysis Column: Displays top tags based on loaded entries.
-*   **Voice Recording & Transcription: COMPLETE**
-    *   Uses real OpenAI Whisper API.
-    *   Creates 'voice' type entry directly.
-    *   Canvas rendering error fixed.
-    *   Duplicate processing indicator fixed.
+*   **Voice Recording & Transcription: COMPLETE**.
 
 **AI Features Implemented / Status:**
-*   Tag generation (Meta, Intent, Content) on new entry save.
-*   Voice Transcription via Whisper API on new voice note save.
+*   Tag generation on new entry save.
+*   Voice Transcription on new voice note save.
 *   **NOTE:** Tag re-generation on *edit* is **not** implemented.
 
 **Deployment Status:** Deployed to Netlify, CI from `main`.
@@ -88,50 +84,52 @@ To ensure consistency and clarity across the codebase, please adhere to the foll
 *   **API Routes:** Use **lowercase-hyphenated** paths (e.g., `/api/classify-intent`).
 *   **CSS Classes:** Use standard **Tailwind utility classes**. Avoid custom CSS.
 
-## 4. Key Decisions & Rationale (Renumbered, previously 3)
-*   **State Management (Zustand):** Refactored from component-local state to address complexity, prop drilling, and state-related bugs. Improved maintainability and enabled consistent state access.
-*   **Data Access Layer (`entryService.ts`):** Centralized Supabase interactions, simplifying components and store logic.
-*   **Continuous Feed (Minimal):** Implemented pagination for data loading (`fetchEntriesPaginatedService`) and infinite scroll UI. **Filtering (search, tags) remains client-side**, operating only on loaded data for initial implementation speed. This introduces a **known limitation** where filters do not reflect the entire dataset. Server-side filtering is deferred.
-*   **CRUD Refresh:**
-    *   **Add (Text & Voice):** Creates entry, optimistically updates UI, then triggers background AI tagging. Processing indicator is brief.
-    *   **Update/Delete:** Modify the client-side state (`loadedEntries` and `displayEntries`) directly for a faster UX, without a full reload. (This avoids re-fetching all pages).
-*   **Centralized Tag Color Logic:** Moved color calculation based on tag type (Meta, Intent, Content) into Zustand store.
-*   **Voice Note Creation Flow:** Transcribed text directly creates a new entry (type 'voice') without showing the editor, maintaining consistency with the background tagging flow of text entries.
+## 4. Key Decisions & Rationale (Updated)
+*   **State Management (Zustand):** Centralized state.
+*   **Data Access Layer (`entryService.ts`):** Centralized DB interactions.
+*   **Continuous Feed & Filtering:** Uses server-side filtering and pagination for scalability and correctness.
+*   **CRUD Refresh:** Add ops optimistically update UI; Edit/Delete modify client state directly (potential refinement needed).
+*   **Centralized Tag Color Logic:** Consistent tag appearance.
+*   **Voice Note Creation Flow:** Direct creation without editor.
+*   **Authentication/RLS:** Implemented basic Supabase Auth (Email) and RLS on `entries` table for essential security.
 
-## 5. Future Development Considerations & Improvements (Renumbered, previously 4)
-1.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY. **(High Priority Follow-up)**
-2.  **Improve CRUD UX:** Refine updates after Edit/Delete/Add.
-3.  **Refine Sidebar:** Implement date navigation or other tools.
-4.  **Populate Static Analysis Column:** Implement meaningful analysis.
-5.  **Complete Rich Text Editing:** Ensure formatting preservation.
-6.  **Refine AI Features:** Tag re-gen on edit, summaries, cost optimization.
-7.  **Improve Mobile Responsiveness & Test Thoroughly.**
-8.  **Robust Error Handling & User Feedback.**
-9.  **Verify/Update Unit Tests:** Ensure tests cover pagination, filtering, etc.
-10. **Address Console Warnings/Errors.**
+## 5. Future Development Considerations & Improvements (Updated)
+1.  **Refine Auth UX:** Improve error handling, redirects, password reset flow, add providers (Google etc.).
+2.  **Handle Existing Data:** Assign `user_id` to pre-RLS entries if needed for User 1.
+3.  **Make `user_id` Non-Nullable:** Alter `entries` table column constraint once existing data is handled.
+4.  **Verify/Update Unit Tests:** Crucial after recent changes.
+5.  **Improve CRUD UX:** Refine updates after Edit/Delete/Add.
+6.  **Refine Sidebar:** Implement date navigation or other tools.
+7.  **Populate Static Analysis Column:** Implement meaningful analysis.
+8.  **Complete Rich Text Editing:** Ensure formatting preservation.
+9.  **Refine AI Features:** Tag re-gen on edit, summaries, cost optimization.
+10. **Improve Mobile Responsiveness & Test Thoroughly.**
+11. **Robust Error Handling & User Feedback.**
+12. **Address Console Warnings/Errors.**
 
 ## 6. Critical Information & Risks (UPDATED CONTENT)
 
 Stack-ranked list of known problems and risks based on assessed score:
 
-1.  **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100)**
-    *   **Problem:** Highest security risk. Lack of RLS could allow unauthorized data access in a multi-user scenario. Critical for data privacy.
-2.  **AI Feature Dependency & Cost (Score: ~60/100)**
+1.  **AI Feature Dependency & Cost (Score: ~60/100)**
     *   **Problem:** Relies on external AI APIs (OpenAI). Introduces dependency risks (downtime, changes) and operational costs.
+2.  **Auth UX / Features Incomplete (Score: ~40/100) [NEW]**
+    *   **Problem:** Current Auth is basic (Email only, minimal UX). Missing features like password reset, robust error handling, other providers.
 3.  **State Management Complexity (Score: ~20/100)**
     *   **Problem:** Inherent complexity in managing application state. Mostly mitigated by Zustand refactor.
 4.  **Prop Drilling (Score: ~15/100)**
     *   **Problem:** Significantly reduced by Zustand. Minimal risk.
 
-*(Removed "Filter Scope Limitation" and related "Client-Side Filtering Performance" risks as they are resolved by server-side filtering)*
+*(Removed "RLS Disabled" risk as basic RLS is now implemented)*
 
-## 7. Current Branch Status (Renumbered, previously 6)
-*   `main`: Contains latest updates including responsive button fixes, server-side filtering, debounced search, voice transcription, card redesign, and entry type tracking.
+## 7. Current Branch Status 
+*   `main`: Contains latest updates including basic Auth/RLS implementation.
 
-## 8. Next Steps / Priorities (Revised) (Renumbered, previously 7)
-1.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY. **(NEXT UP)**
-2.  **Verify/Update Unit Tests:** (See Future Development #9).
-3.  **(Remaining priorities shift down)**
+## 8. Next Steps / Priorities (Revised)
+1.  **(Optional but Recommended) Assign `user_id` to existing entries for User 1.**
+2.  **Refine Auth UX / Add Features:** Password reset, error handling, etc. (See Future Dev #1)
+3.  **Verify/Update Unit Tests:** (See Future Dev #4).
+4.  **(Remaining priorities shift down)**
 
 ## 9. Voice Recording Limits (IMPORTANT) (Renumbered, previously 8)
 

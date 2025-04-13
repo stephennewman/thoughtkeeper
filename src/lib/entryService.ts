@@ -114,13 +114,12 @@ export const fetchAllEntriesService = async (): Promise<{ data: Entry[] | null; 
 
 /**
  * Adds a new entry to the database.
- * Does not handle AI tag generation here.
  * Returns the newly created entry data and error object.
  */
 export const addEntryService = async (
     date: string, 
     content: string, 
-    entryType: 'voice' | 'text' // Added entryType parameter
+    entryType: 'voice' | 'text' 
 ): Promise<{ data: Entry | null; error: Error | null }> => {
     const trimmedContent = content.trim();
     if (!trimmedContent) {
@@ -128,12 +127,22 @@ export const addEntryService = async (
     }
 
     try {
+        // Fetch the current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+            console.error("Error fetching user or user not logged in:", userError);
+            return { data: null, error: new Error("User not authenticated.") };
+        }
+
+        // Insert entry with user_id
         const { data, error } = await supabase
             .from('entries')
             .insert({ 
                 date: date, 
                 content: trimmedContent, 
-                entry_type: entryType // Include entry_type in the insert payload
+                entry_type: entryType, 
+                user_id: user.id // Include the user ID
             })
             .select()
             .single();
@@ -141,7 +150,6 @@ export const addEntryService = async (
         if (error) {
             throw error;
         }
-        // Return the basic entry structure, tags/summary will be added later
         return { data: data as Entry, error: null }; 
     } catch (error: any) {
         console.error('Error in addEntryService:', error);

@@ -12,6 +12,10 @@ import { useJournalStore } from '@/stores/journalStore';
 import clsx from 'clsx';
 import type { Entry } from '@/types';
 import debounce from 'lodash.debounce';
+import { supabase } from '@/lib/supabaseClient';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import type { Session, Provider } from '@supabase/supabase-js';
 
 // Helper function to format seconds into M:SS
 const formatTime = (totalSeconds: number): string => {
@@ -58,6 +62,8 @@ const formatTime = (totalSeconds: number): string => {
  * 4. **Error Handling:** Improve API error handling.
  */
 export default function Home() {
+  const [session, setSession] = useState<Session | null>(null);
+
   const {
     searchQuery,
     activeMetaTag,
@@ -122,14 +128,16 @@ export default function Home() {
   }, [debouncedSetSearchFilter]);
 
   useEffect(() => {
-    loadInitialEntries();
-  }, [loadInitialEntries]);
+    if (session) {
+      loadInitialEntries();
+    }
+  }, [session, loadInitialEntries]);
 
   useEffect(() => {
-    if (inView && !isLoadingInitial && !isLoadingMore && hasMoreEntries) {
+    if (inView && !isLoadingInitial && !isLoadingMore && hasMoreEntries && session) {
       loadMoreEntries();
     }
-  }, [inView, isLoadingInitial, isLoadingMore, hasMoreEntries, loadMoreEntries]);
+  }, [inView, isLoadingInitial, isLoadingMore, hasMoreEntries, loadMoreEntries, session]);
 
   // --- Effect for Recording Timer --- 
   useEffect(() => {
@@ -463,11 +471,61 @@ export default function Home() {
     return Object.keys(groupedEntries).sort((a, b) => parseISO(b).getTime() - parseISO(a).getTime());
   }, [groupedEntries]);
 
-  const isAnyFilterActive = !!searchQuery || !!activeMetaTag || !!activeIntentTag || activeContentTags.size > 0;
+  const isAnyFilterActive = useMemo(() => !!searchQuery || !!activeMetaTag || !!activeIntentTag || activeContentTags.size > 0, [
+      searchQuery, activeMetaTag, activeIntentTag, activeContentTags
+  ]);
+
+  // --- Authentication Effect --- 
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Auth state changed:", _event, session);
+      setSession(session);
+      if (_event === 'SIGNED_IN') {
+        // Optional: Trigger initial load only after sign in if needed
+        // loadInitialEntries(); // Consider if loadInitialEntries should wait for session
+      } else if (_event === 'SIGNED_OUT') {
+        // Optional: Clear Zustand state on sign out?
+        // useJournalStore.setState(initialState, true); // Replace state
+      }
+    });
+
+    // Cleanup listener on component unmount
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (!session) {
+    // Render Auth UI if not logged in
+    return (
+      <div className="flex justify-center items-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
+        <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow dark:bg-gray-800">
+          <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Welcome to ThoughtKeeper</h2>
+          <Auth 
+            supabaseClient={supabase}
+            appearance={{ theme: ThemeSupa }} 
+            theme="dark" // Or "light" based on preference
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen">
-      <main className="flex flex-1 overflow-hidden">
+      <header className="absolute top-4 right-4 z-50">
+        <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>
+          Logout
+        </Button>
+      </header>
+
+      <main className="flex flex-1 overflow-hidden pt-10">
         <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
           <div className="flex justify-between items-center flex-shrink-0 gap-2 sm:gap-4 border-b pb-2 px-2 sm:px-0">
             
