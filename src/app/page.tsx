@@ -217,8 +217,8 @@ export default function Home() {
             canvas.height = currentHeight;
         }
 
-        // 2. Shift existing waveform ONLY occasionally
-        if (frameCount % shiftFrequency === 0) {
+        // 2. Shift existing waveform ONLY occasionally AND if width is sufficient
+        if (frameCount % shiftFrequency === 0 && currentWidth > step) {
           const imageData = canvasCtx.getImageData(step, 0, currentWidth - step, currentHeight);
           canvasCtx.putImageData(imageData, 0, 0);
           // 3. Clear the newly exposed area on the right
@@ -566,25 +566,29 @@ export default function Home() {
                     >
                       {formatTime(recordingTime)} / 1:00
                     </span>
+                    {/* Reverted style */}
                     <Button
-                      variant="default"
+                      variant="default" 
                       onClick={handleSendClick}
                       size="sm"
-                      className={clsx('inline-flex')}
+                      className={clsx('inline-flex')} 
                       aria-label="Transcribe recording"
                       title="Transcribe recording"
                     >
-                      <Check className="mr-2 h-4 w-4" /> Transcribe
+                      <Check className="h-4 w-4 sm:mr-2" /> 
+                      <span className="hidden sm:inline">Transcribe</span>
                     </Button>
+                    {/* Reverted style */}
                     <Button
-                      variant="outline"
+                      variant="outline" 
                       onClick={stopRecordingAndDiscard}
                       size="sm"
-                      className={clsx('inline-flex')}
+                      className={clsx('inline-flex')} 
                       aria-label="Stop recording"
                       title="Stop recording"
                     >
-                      <X className="mr-2 h-4 w-4" /> Stop Recording
+                      <X className="h-4 w-4 sm:mr-2" /> 
+                      <span className="hidden sm:inline">Stop Recording</span>
                     </Button>
                  </>
               )}
