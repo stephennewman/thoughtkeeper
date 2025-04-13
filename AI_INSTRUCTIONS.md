@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.5.2 (Server-Side Filtering Implemented)
+**Document Version:** 2.5.3 (Mobile UI Fixes, Wrap-up)
 **Date:** 2024-07-26
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
@@ -18,67 +18,50 @@
 *   Styling: Tailwind CSS
 *   UI Components: shadcn/ui, **react-intersection-observer**
 *   Icons: lucide-react
-*   Database: Supabase (PostgreSQL) - **Includes DB Migrations via Supabase CLI**
+*   Database: Supabase (PostgreSQL) - Includes DB Migrations via Supabase CLI
 *   AI Backend: OpenAI API (via `openai` npm package)
 *   Testing: **Vitest** (Unit tests for Zustand store)
 *   Deployment: Netlify (via GitHub integration)
 *   Code Storage: GitHub
 
 **Core Features Implemented:**
-*   **Layout:** Three-column layout on large screens (Sidebar Navigation, Main Content, Static Analysis).
+*   **Layout:** Three-column layout on large screens.
 *   **Journal Entry CRUD:** Creation, viewing, editing, and deletion via Dialog Modal.
-*   **Continuous Feed & Infinite Scroll:** Main content area displays a chronologically descending feed of entries.
-    *   Fetches entries page-by-page from backend (`fetchEntriesPaginatedService`).
-    *   Uses `react-intersection-observer` to trigger loading more entries on scroll.
-    *   Groups entries by date with sticky date headers.
+*   **Continuous Feed & Infinite Scroll:** Displays entries chronologically, grouped by date.
+    *   Uses `react-intersection-observer` for infinite scroll.
 *   Multiple entries allowed per day.
-*   **Centralized State:** Application state managed by **Zustand store** (`src/stores/journalStore.ts`), including **paginated entries**, filters, UI state, and actions.
-    *   Actions handle optimistic updates and background tagging processes.
-    *   Processing state (`isProcessingEntry`) optimized for better UI feedback.
+*   **Centralized State:** Application state managed by **Zustand store** (`src/stores/journalStore.ts`).
 *   **Data Service Layer:** Supabase CRUD operations abstracted into `src/lib/entryService.ts`.
-    *   Added `fetchEntriesPaginatedService` for basic chronological pagination.
-    *   **Note:** Contains a separate `fetchEntriesService` function with server-side filtering logic (tags/search) that is currently **not used** by the main feed pagination.
+    *   `fetchEntriesPaginatedService` handles fetching entries with **server-side filtering and pagination**.
 *   **Centralized Types:** Core types defined in `src/types/index.ts`.
-*   **Unit Tested Store:** Key store actions covered by Vitest unit tests. **Verification needed to confirm tests cover recent pagination/state logic.**
-*   **Entry Type Tracking:**
-    *   Added `entry_type` column ('voice' or 'text') to `entries` table via Supabase migration (`supabase/migrations`).
-    *   `addEntryService`, `addEntry`, and `addEntryWithTranscription` updated to set and save the correct `entry_type`.
-*   **Entry Card Redesign:**
-    *   `JournalEntry` component layout updated.
-    *   Content area is primary focus.
-    *   Metadata (Entry Type Icon/Text, Time, Tags, Spinner) consolidated into a footer area below the content.
-    *   Options menu positioned top-right.
-*   Data persistence using **Supabase** database.
-*   **Dual Tagging System (Meta, Intent, Content):** Auto-generated on new entry save via API routes.
-    *   Meta/Intent tags stored with original case.
-    *   Content tags stored lowercase.
-    *   Tags are applied in the background after initial entry creation.
+*   **Unit Tested Store:** Basic store tests exist. **Verification needed.**
+*   **Entry Type Tracking:** DB column and logic implemented to track 'voice' vs 'text' entries.
+*   **Entry Card Redesign:** Footer metadata layout (Type, Time, Tags).
+    *   Tag shapes unified (rounded squares).
+*   Data persistence using **Supabase**.
+*   **Dual Tagging System (Meta, Intent, Content):** Auto-generated on new entry save via API routes (background process).
 *   **Server-Side Filtering & Search: COMPLETE**
-    *   Filtering by Meta, Intent, Content tags, and search query is now performed **server-side** via `fetchEntriesPaginatedService`.
-    *   Fixes the previous client-side scope limitation.
+    *   Filtering performed server-side.
     *   Search uses Supabase `textSearch` on `search_vector` column.
-    *   Search input is **debounced** in the UI for better performance.
-*   **Consistent Tag Colors:** Calculated based on tag type for **all unique tags** within `loadedEntries`.
+    *   Search input is **debounced** in the UI.
+*   **Consistent Tag Colors:** Calculated based on tag type for all unique tags within loaded entries.
 *   **Improved Filter UX:** Active filters displayed as dismissible badges.
-*   **Main Content Controls:** Consolidated top bar with Logo, Status/Error, Search, Add Entry buttons.
-    *   Improved mobile responsiveness.
+*   **Main Content Controls:** Consolidated top bar, responsive.
+    *   Recording buttons are now icon-only on small screens for better fit.
 *   Rich Text Editor (TipTap) used within the entry editor dialog.
-*   Static Analysis Column: Displays top tags based on **all currently loaded entries** (`loadedEntries` state).
+*   Static Analysis Column: Displays top tags based on loaded entries.
 *   **Voice Recording & Transcription: COMPLETE**
-    *   Frontend UI for recording audio notes.
-    *   Backend API route (`/api/transcribe`) uses **real OpenAI Whisper API** for transcription.
-    *   Transcribed text is used to create a new entry directly (bypassing editor), marked with `entry_type: 'voice'`. 
+    *   Uses real OpenAI Whisper API.
+    *   Creates 'voice' type entry directly.
+    *   Canvas rendering error fixed.
+    *   Duplicate processing indicator fixed.
 
 **AI Features Implemented / Status:**
-*   Tag generation (Meta, Intent, Content) via API routes on *new* entry save.
-*   **Voice Transcription** via Whisper API on *new* voice note save.
+*   Tag generation (Meta, Intent, Content) on new entry save.
+*   Voice Transcription via Whisper API on new voice note save.
 *   **NOTE:** Tag re-generation on *edit* is **not** implemented.
 
-**Deployment Status:**
-*   Deployed to Netlify at `https://thoughtkeeper.netlify.app`.
-*   Continuous deployment from the `main` branch on GitHub.
-*   Requires `OPENAI_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-*   Uses Node.js 20.x.
+**Deployment Status:** Deployed to Netlify, CI from `main`.
 
 ## 2. Scoring Rubrics (NEW SECTION)
 
@@ -143,7 +126,7 @@ Stack-ranked list of known problems and risks based on assessed score:
 *(Removed "Filter Scope Limitation" and related "Client-Side Filtering Performance" risks as they are resolved by server-side filtering)*
 
 ## 7. Current Branch Status (Renumbered, previously 6)
-*   `main`: Contains latest updates including server-side filtering, debounced search, voice transcription, card redesign, and entry type tracking.
+*   `main`: Contains latest updates including responsive button fixes, server-side filtering, debounced search, voice transcription, card redesign, and entry type tracking.
 
 ## 8. Next Steps / Priorities (Revised) (Renumbered, previously 7)
 1.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY. **(NEXT UP)**
