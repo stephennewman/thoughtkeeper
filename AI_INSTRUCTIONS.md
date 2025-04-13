@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.5.1 (Card Redesign, Entry Type, Voice Complete)
+**Document Version:** 2.5.2 (Server-Side Filtering Implemented)
 **Date:** 2024-07-26
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
@@ -53,11 +53,11 @@
     *   Meta/Intent tags stored with original case.
     *   Content tags stored lowercase.
     *   Tags are applied in the background after initial entry creation.
-*   **Client-Side Filtering & Search:**
-    *   Filtering by Meta, Intent, and Content tags, and search query.
-    *   Filtering is applied **client-side** to the *currently loaded set of entries* (`loadedEntries`) via `filterLoadedEntries` function in store, updating the `displayEntries`.
-    *   Provides instant filtering **only on visible data**. **(KNOWN LIMITATION)**
-    *   UI includes a banner indicating filter scope limitation.
+*   **Server-Side Filtering & Search: COMPLETE**
+    *   Filtering by Meta, Intent, Content tags, and search query is now performed **server-side** via `fetchEntriesPaginatedService`.
+    *   Fixes the previous client-side scope limitation.
+    *   Search uses Supabase `textSearch` on `search_vector` column.
+    *   Search input is **debounced** in the UI for better performance.
 *   **Consistent Tag Colors:** Calculated based on tag type for **all unique tags** within `loadedEntries`.
 *   **Improved Filter UX:** Active filters displayed as dismissible badges.
 *   **Main Content Controls:** Consolidated top bar with Logo, Status/Error, Search, Add Entry buttons.
@@ -116,45 +116,39 @@ To ensure consistency and clarity across the codebase, please adhere to the foll
 *   **Voice Note Creation Flow:** Transcribed text directly creates a new entry (type 'voice') without showing the editor, maintaining consistency with the background tagging flow of text entries.
 
 ## 5. Future Development Considerations & Improvements (Renumbered, previously 4)
-1.  **Implement Server-Side Filtering:** Refactor `fetchEntriesPaginatedService` and store actions to apply filters (search, tags) on the backend during paginated fetches. This will fix the filter scope limitation. **(High Priority Follow-up)**
-2.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY. **(Postponed but High Priority Security Risk)**.
-3.  **Improve CRUD UX:** Implement more seamless updates after Edit/Delete (currently modifies client state directly, might need refinement). Consider Add UX (currently adds to top optimistically).
-4.  **Refine Sidebar:** Implement date navigation or other useful tools.
-5.  **Populate Static Analysis Column:** Implement meaningful analysis.
-6.  **Complete Rich Text Editing:** Ensure formatting preservation on edit save.
-7.  **Refine AI Features:** Consider tag re-gen on edit, integrate summary saving, optimize costs.
-8.  **Improve Mobile Responsiveness & Test Thoroughly.**
-9.  **Robust Error Handling & User Feedback.**
-10. **Verify/Update Unit Tests:** Ensure store tests cover pagination, filtering, and new state logic.
-11. **Address Console Warnings/Errors:** Review any remaining warnings.
+1.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY. **(High Priority Follow-up)**
+2.  **Improve CRUD UX:** Refine updates after Edit/Delete/Add.
+3.  **Refine Sidebar:** Implement date navigation or other tools.
+4.  **Populate Static Analysis Column:** Implement meaningful analysis.
+5.  **Complete Rich Text Editing:** Ensure formatting preservation.
+6.  **Refine AI Features:** Tag re-gen on edit, summaries, cost optimization.
+7.  **Improve Mobile Responsiveness & Test Thoroughly.**
+8.  **Robust Error Handling & User Feedback.**
+9.  **Verify/Update Unit Tests:** Ensure tests cover pagination, filtering, etc.
+10. **Address Console Warnings/Errors.**
 
-## 6. Critical Information & Risks (Renumbered, previously 5 - UPDATED CONTENT)
+## 6. Critical Information & Risks (UPDATED CONTENT)
 
 Stack-ranked list of known problems and risks based on assessed score:
 
 1.  **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100)**
     *   **Problem:** Highest security risk. Lack of RLS could allow unauthorized data access in a multi-user scenario. Critical for data privacy.
-2.  **Filter Scope Limitation (Score: 70/100)**
-    *   **Problem:** Filtering (search, tags) only applies to *loaded* entries, not the entire dataset. Can mislead users and prevent finding all relevant information. High usability/data integrity impact.
-3.  **AI Feature Dependency & Cost (Score: ~60/100)**
+2.  **AI Feature Dependency & Cost (Score: ~60/100)**
     *   **Problem:** Relies on external AI APIs (OpenAI). Introduces dependency risks (downtime, changes) and operational costs.
-4.  **Client-Side Filtering Performance (Score: ~40/100)**
-    *   **Problem:** Filtering performance could degrade if a very large number of entries are loaded client-side. Mitigated by pagination currently, fully resolved by server-side filtering.
-5.  **State Management Complexity (Score: ~20/100)**
+3.  **State Management Complexity (Score: ~20/100)**
     *   **Problem:** Inherent complexity in managing application state. Mostly mitigated by Zustand refactor.
-6.  **Prop Drilling (Score: ~15/100)**
+4.  **Prop Drilling (Score: ~15/100)**
     *   **Problem:** Significantly reduced by Zustand. Minimal risk.
 
-*(Removed "Voice Transcription Incomplete" risk as it is now resolved)*
+*(Removed "Filter Scope Limitation" and related "Client-Side Filtering Performance" risks as they are resolved by server-side filtering)*
 
 ## 7. Current Branch Status (Renumbered, previously 6)
-*   `main`: Contains latest updates including real voice transcription, entry card redesign (footer metadata), and entry type tracking.
+*   `main`: Contains latest updates including server-side filtering, debounced search, voice transcription, card redesign, and entry type tracking.
 
 ## 8. Next Steps / Priorities (Revised) (Renumbered, previously 7)
-1.  **Implement Server-Side Filtering:** (See Future Development #1). **(NEXT UP)**
-2.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY.
-3.  **Verify/Update Unit Tests:** (See Future Development #10).
-4.  **(Remaining priorities shift down)**
+1.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY. **(NEXT UP)**
+2.  **Verify/Update Unit Tests:** (See Future Development #9).
+3.  **(Remaining priorities shift down)**
 
 ## 9. Voice Recording Limits (IMPORTANT) (Renumbered, previously 8)
 

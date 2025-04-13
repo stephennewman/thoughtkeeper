@@ -2,16 +2,23 @@ import { supabase } from '@/lib/supabaseClient';
 import type { Entry } from '@/types';
 
 /**
- * Fetches entries from Supabase based on query and/or tag filters.
- * Handles search override and combined tag filtering logic.
- * Returns data and error object.
+ * Fetches entries from Supabase, applying pagination and optional filters.
+ * Search query overrides tag filters.
+ * Requires a 'search_vector' tsvector column on the 'entries' table for text search.
+ * Returns paginated data and error object.
  */
-export const fetchEntriesService = async (
-    // query: string, // Removed query parameter
+export const fetchEntriesPaginatedService = async (
+    offset: number,
+    limit: number,
+    // Added filter parameters:
+    searchQuery: string,
     metaTag: string | null,
     intentTag: string | null,
     contentTags: Set<string>
 ): Promise<{ data: Entry[] | null; error: Error | null }> => {
+    if (limit <= 0) {
+        return { data: [], error: null }; 
+    }
     try {
         let supabaseQuery = supabase
             .from('entries')
@@ -19,49 +26,72 @@ export const fetchEntriesService = async (
             .order('date', { ascending: false })
             .order('created_at', { ascending: false });
 
-        // const trimmedQuery = query.trim(); // Removed query logic
+        const trimmedQuery = searchQuery.trim();
 
-        // Apply filters
-        // if (trimmedQuery) { // Removed query logic
-        //     // Search overrides tag filters
-        //     supabaseQuery = supabaseQuery.textSearch('search_vector', trimmedQuery, {
-        //         type: 'websearch',
-        //         config: 'english'
-        //     });
-        // } else { // Removed query logic
-            // Apply tag filters (AND logic across types)
+        // Apply filters OR search
+        if (trimmedQuery) {
+            // Search overrides tag filters
+            console.log(`Applying search filter: "${trimmedQuery}"`);
+            supabaseQuery = supabaseQuery.textSearch('search_vector', trimmedQuery, {
+                type: 'websearch',
+                config: 'english'
+            });
+        } else {
+            // Apply tag filters if no search query (AND logic across types)
+            let filtersApplied = false;
             if (metaTag) {
+                console.log(`Applying meta tag filter: ${metaTag}`);
                 supabaseQuery = supabaseQuery.eq('meta_tag', metaTag);
+                filtersApplied = true;
             }
             if (intentTag) {
+                console.log(`Applying intent tag filter: ${intentTag}`);
                 supabaseQuery = supabaseQuery.eq('intent_tag', intentTag);
+                filtersApplied = true;
             }
             if (contentTags.size > 0) {
-                // Use .or() with .cs. (contains) for each tag
-                // Build filter string like: tags.cs.["tag1"],tags.cs.["tag2"]
-                const orFilters = Array.from(contentTags).map(tag => 
-                    // Ensure tag is properly escaped within the JSON string
-                    `tags.cs.${JSON.stringify([tag])}`
+                const tagsArray = Array.from(contentTags);
+                console.log(`Applying content tag filters: ${tagsArray.join(', ')}`);
+                // Option 1: Contains ALL tags (using .cs with array)
+                // supabaseQuery = supabaseQuery.cs('tags', tagsArray);
+                
+                // Option 2: Contains ANY tag (using .or with .cs)
+                const orFilters = tagsArray.map(tag => 
+                    `tags.cs.${JSON.stringify([tag])}` // Check if tag is in the tags array
                 ).join(',');
                 supabaseQuery = supabaseQuery.or(orFilters);
+                filtersApplied = true;
             }
-        // } // Removed query logic
+            if (filtersApplied) {
+                 console.log("Tag filters applied.");
+            } else {
+                 console.log("No search or tag filters applied.");
+            }
+        }
+
+        // Apply pagination AFTER filtering/searching
+        supabaseQuery = supabaseQuery.range(offset, offset + limit - 1);
+        console.log("Applying pagination: offset", offset, "limit", limit);
 
         const { data, error } = await supabaseQuery;
 
         if (error) {
+            // Log the specific Supabase error
+            console.error('Supabase query error in fetchEntriesPaginatedService:', error);
             throw error;
         }
+        console.log(`Fetched ${data?.length ?? 0} entries.`);
         return { data: (data as Entry[]) || [], error: null };
 
     } catch (error: any) {
-        console.error('Error in fetchEntriesService:', error);
-        return { data: null, error: new Error(`Failed to fetch entries: ${error.message}`) };
+        console.error('Error in fetchEntriesPaginatedService:', error);
+        return { data: null, error: new Error(`Failed to fetch paginated entries: ${error.message}`) };
     }
 };
 
 /**
  * Fetches all entries, ordered by date and creation time.
+ * Generally should NOT be used in production UI due to performance.
  * Returns data and error object.
  */
 export const fetchAllEntriesService = async (): Promise<{ data: Entry[] | null; error: Error | null }> => {
@@ -166,37 +196,6 @@ export const deleteEntryService = async (id: string): Promise<{ error: Error | n
     } catch (error: any) {
         console.error('Error in deleteEntryService:', error);
         return { error: new Error(`Failed to delete entry: ${error.message}`) };
-    }
-};
-
-/**
- * Fetches entries chronologically with pagination.
- * Does NOT apply filters (search, tags) server-side.
- * Returns paginated data and error object.
- */
-export const fetchEntriesPaginatedService = async (
-    offset: number,
-    limit: number
-): Promise<{ data: Entry[] | null; error: Error | null }> => {
-    if (limit <= 0) {
-        return { data: [], error: null }; // Or handle as an error
-    }
-    try {
-        const { data, error } = await supabase
-            .from('entries')
-            .select('*')
-            .order('date', { ascending: false })
-            .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1);
-
-        if (error) {
-            throw error;
-        }
-        return { data: (data as Entry[]) || [], error: null };
-
-    } catch (error: any) {
-        console.error('Error in fetchEntriesPaginatedService:', error);
-        return { data: null, error: new Error(`Failed to fetch paginated entries: ${error.message}`) };
     }
 };
 

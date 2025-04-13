@@ -208,26 +208,40 @@ export const useJournalStore = create<JournalState & JournalActions>()(
 
       loadInitialEntries: async () => {
         if (get().isLoadingInitial) return; // Prevent concurrent initial loads
+        console.log("loadInitialEntries triggered");
+        // Get current filters *before* setting loading state
+        const { searchQuery, activeMetaTag, activeIntentTag, activeContentTags } = get();
+
         set({
           isLoadingInitial: true,
-          isLoadingMore: false, // Ensure not interfering
+          isLoadingMore: false, 
           errorState: null,
-          currentPage: 0,
-          loadedEntries: [],
-          displayEntries: [],
-          hasMoreEntries: true, // Assume more initially
+          currentPage: 0, // Reset page number
+          loadedEntries: [], // Clear existing entries
+          displayEntries: [], // Clear display entries
+          hasMoreEntries: true, 
         });
         try {
-          const { data, error } = await fetchEntriesPaginatedService(0, PAGE_SIZE);
+          // Pass current filters to the service
+          const { data, error } = await fetchEntriesPaginatedService(
+            0, // offset for first page
+            PAGE_SIZE,
+            searchQuery,
+            activeMetaTag,
+            activeIntentTag,
+            activeContentTags
+          );
           if (error) throw error;
 
           const fetchedEntries = data || [];
+          console.log(`Initial fetch successful, received ${fetchedEntries.length} entries.`);
           const newHighlightedTagColors = calculateHighlightedTagColors(fetchedEntries);
-          const newDisplayEntries = filterLoadedEntries(fetchedEntries, get()); // Filter initial batch
+          // NO MORE CLIENT-SIDE FILTERING HERE - displayEntries == loadedEntries initially
+          // const newDisplayEntries = filterLoadedEntries(fetchedEntries, get());
 
           set({
             loadedEntries: fetchedEntries,
-            displayEntries: newDisplayEntries,
+            displayEntries: fetchedEntries, // Display exactly what was fetched
             highlightedTagColors: newHighlightedTagColors,
             currentPage: 1, // First page loaded
             hasMoreEntries: fetchedEntries.length === PAGE_SIZE,
@@ -236,59 +250,115 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           console.error("Failed to load initial entries:", error);
           set({ errorState: `Failed to load entries: ${error.message}`, hasMoreEntries: false });
         } finally {
+          console.log("loadInitialEntries finished");
           set({ isLoadingInitial: false });
         }
       },
 
       loadMoreEntries: async () => {
-        const { isLoadingInitial, isLoadingMore, hasMoreEntries, currentPage, loadedEntries } = get();
+        const { 
+            isLoadingInitial, 
+            isLoadingMore, 
+            hasMoreEntries, 
+            currentPage, 
+            loadedEntries, 
+            // Get current filters for the next page load
+            searchQuery, 
+            activeMetaTag, 
+            activeIntentTag, 
+            activeContentTags 
+        } = get();
+
         if (isLoadingInitial || isLoadingMore || !hasMoreEntries) {
           return;
         }
+        console.log(`loadMoreEntries triggered for page ${currentPage + 1}`);
 
         set({ isLoadingMore: true, errorState: null });
         try {
           const offset = currentPage * PAGE_SIZE;
-          const { data, error } = await fetchEntriesPaginatedService(offset, PAGE_SIZE);
+          // Pass current filters to the service for subsequent pages
+          const { data, error } = await fetchEntriesPaginatedService(
+            offset,
+            PAGE_SIZE,
+            searchQuery,
+            activeMetaTag,
+            activeIntentTag,
+            activeContentTags
+          );
           if (error) throw error;
 
           const fetchedEntries = data || [];
+          console.log(`More entries fetch successful, received ${fetchedEntries.length} entries.`);
           
-          // --- Prevent Duplicates --- 
+          // Prevent duplicates (optional, but good practice if server might re-send)
           const existingIds = new Set(loadedEntries.map(entry => entry.id));
           const uniqueFetchedEntries = fetchedEntries.filter(entry => !existingIds.has(entry.id));
-          // --- End Prevent Duplicates ---
+          if (uniqueFetchedEntries.length < fetchedEntries.length) {
+            console.warn("Duplicate entries detected and filtered during loadMore.");
+          }
 
-          // const combinedEntries = [...loadedEntries, ...fetchedEntries]; // Original
-          const combinedEntries = [...loadedEntries, ...uniqueFetchedEntries]; // Use unique entries
+          const combinedEntries = [...loadedEntries, ...uniqueFetchedEntries]; 
           const newHighlightedTagColors = calculateHighlightedTagColors(combinedEntries);
-          const newDisplayEntries = filterLoadedEntries(combinedEntries, get()); // Filter combined batch
+          // NO MORE CLIENT-SIDE FILTERING HERE - displayEntries == loadedEntries
+          // const newDisplayEntries = filterLoadedEntries(combinedEntries, get());
 
           set({
             loadedEntries: combinedEntries,
-            displayEntries: newDisplayEntries,
+            displayEntries: combinedEntries, // Display exactly what was fetched/combined
             highlightedTagColors: newHighlightedTagColors,
             currentPage: currentPage + 1,
-            hasMoreEntries: fetchedEntries.length === PAGE_SIZE,
+            hasMoreEntries: fetchedEntries.length === PAGE_SIZE, // Check original fetched length
           });
         } catch (error: any) {
           console.error("Failed to load more entries:", error);
-          set({ errorState: `Failed to load more entries: ${error.message}`, hasMoreEntries: false }); // Stop trying if load more fails
+          set({ errorState: `Failed to load more entries: ${error.message}`, hasMoreEntries: false }); 
         } finally {
+          console.log("loadMoreEntries finished");
           set({ isLoadingMore: false });
         }
       },
 
       setFilters: (filters) => {
         const currentState = get();
-        const updatedFilters = {
-          searchQuery: filters.searchQuery !== undefined ? filters.searchQuery : currentState.searchQuery,
-          activeMetaTag: filters.activeMetaTag !== undefined ? filters.activeMetaTag : currentState.activeMetaTag,
-          activeIntentTag: filters.activeIntentTag !== undefined ? filters.activeIntentTag : currentState.activeIntentTag,
-          activeContentTags: filters.activeContentTags !== undefined ? filters.activeContentTags : currentState.activeContentTags,
-        };
-        const newDisplayEntries = filterLoadedEntries(currentState.loadedEntries, updatedFilters);
-        set({ ...updatedFilters, displayEntries: newDisplayEntries });
+        // Determine if any filter values actually changed
+        const queryChanged = filters.searchQuery !== undefined && filters.searchQuery !== currentState.searchQuery;
+        const metaChanged = filters.activeMetaTag !== undefined && filters.activeMetaTag !== currentState.activeMetaTag;
+        const intentChanged = filters.activeIntentTag !== undefined && filters.activeIntentTag !== currentState.activeIntentTag;
+        const contentChanged = filters.activeContentTags !== undefined && 
+          (filters.activeContentTags.size !== currentState.activeContentTags.size || 
+           !Array.from(filters.activeContentTags).every(tag => currentState.activeContentTags.has(tag)));
+
+        const filtersDidChange = queryChanged || metaChanged || intentChanged || contentChanged;
+
+        if (!filtersDidChange) {
+          console.log("setFilters called but no change detected.");
+          return; // No need to do anything if filters haven't changed
+        }
+
+        console.log("setFilters triggered with changes:", filters);
+
+        // Update the filter state fields
+        set(state => ({
+          searchQuery: filters.searchQuery !== undefined ? filters.searchQuery : state.searchQuery,
+          activeMetaTag: filters.activeMetaTag !== undefined ? filters.activeMetaTag : state.activeMetaTag,
+          activeIntentTag: filters.activeIntentTag !== undefined ? filters.activeIntentTag : state.activeIntentTag,
+          activeContentTags: filters.activeContentTags !== undefined ? filters.activeContentTags : state.activeContentTags,
+          // --- RESET Pagination state when filters change --- 
+          // currentPage: 0,       // Reset happens within loadInitialEntries
+          // loadedEntries: [],    // Reset happens within loadInitialEntries
+          // displayEntries: [], // Reset happens within loadInitialEntries
+          // hasMoreEntries: true, // Reset happens within loadInitialEntries
+          errorState: null,     // Clear previous errors
+        }));
+
+        // --- REMOVE Client-side filtering --- 
+        // const newDisplayEntries = filterLoadedEntries(currentState.loadedEntries, updatedFilters);
+        // set({ ...updatedFilters, displayEntries: newDisplayEntries });
+
+        // --- TRIGGER Server-side refresh --- 
+        // Call loadInitialEntries to fetch data based on the *newly set* filters
+        get().loadInitialEntries(); 
       },
 
       addEntry: async (contentHtml: string, date: string) => {
@@ -547,8 +617,6 @@ export const useJournalStore = create<JournalState & JournalActions>()(
       },
 
     }),
-    {
-      name: 'journal-storage', // name of the item in the storage (must be unique)
-    }
+    { name: 'journal-store' } // Optional name for devtools
   )
 ); 

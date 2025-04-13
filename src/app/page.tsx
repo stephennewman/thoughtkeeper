@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { useJournalStore } from '@/stores/journalStore';
 import clsx from 'clsx';
 import type { Entry } from '@/types';
+import debounce from 'lodash.debounce';
 
 // Helper function to format seconds into M:SS
 const formatTime = (totalSeconds: number): string => {
@@ -81,6 +82,7 @@ export default function Home() {
     addEntryWithTranscription,
   } = useJournalStore();
 
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -100,6 +102,24 @@ export default function Home() {
     threshold: 0,
     rootMargin: '200px',
   });
+
+  const debouncedSetSearchFilter = useMemo(() => 
+    debounce((value: string) => {
+      console.log("Debounced search triggered:", value);
+      setFilters({ searchQuery: value });
+    }, 300),
+    [setFilters]
+  );
+
+  useEffect(() => {
+    setLocalSearchQuery(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    return () => {
+      debouncedSetSearchFilter.cancel();
+    };
+  }, [debouncedSetSearchFilter]);
 
   useEffect(() => {
     loadInitialEntries();
@@ -277,7 +297,9 @@ export default function Home() {
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFilters({ searchQuery: event.target.value });
+    const newValue = event.target.value;
+    setLocalSearchQuery(newValue);
+    debouncedSetSearchFilter(newValue);
   };
 
   const handleAddClick = () => {
@@ -490,8 +512,8 @@ export default function Home() {
                 {!isRecording && !isProcessingAudio && (
                   <Input
                     type="search"
-                    placeholder="Search loaded entries..."
-                    value={searchQuery}
+                    placeholder="Search entries..."
+                    value={localSearchQuery}
                     onChange={handleSearchChange}
                     className={clsx(
                         'w-full max-w-xs',
