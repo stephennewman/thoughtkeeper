@@ -46,10 +46,10 @@
     *   **Resolved** issue where tags didn't appear without refresh after adding entry.
 *   **Client-Side Filtering & Search:**
     *   Filtering by Meta, Intent, and Content tags, and search query.
-    *   Filtering is applied **client-side** to the *currently loaded set of entries* (`loadedEntries`) via `filterLoadedEntries` function in store.
+    *   Filtering is applied **client-side** to the *currently loaded set of entries* (`loadedEntries`) via `filterLoadedEntries` function in store, updating the `displayEntries`.
     *   Provides instant filtering **only on visible data**. **(KNOWN LIMITATION)**
     *   UI includes a banner indicating filter scope limitation.
-*   **Consistent Tag Colors:** Calculated based on `loadedEntries`, applied to Analysis column, Active Filter badges, and Entry cards.
+*   **Consistent Tag Colors:** Calculated based on tag type (Meta, Intent, Content) for **all unique tags** within `loadedEntries`. Uses distinct palettes with stronger colors (e.g., `bg-*-600` series) for better visibility. Applied consistently to Analysis column, Active Filter badges, and Entry cards (via Zustand state `highlightedTagColors`).
 *   **Improved Filter UX:** Active filters displayed as dismissible badges.
 *   **Main Content Controls:** Consolidated top bar with Logo (left), Error/Status, Search, Add Entry button (right).
 *   Rich Text Editor (TipTap) used within the entry editor dialog.
@@ -70,8 +70,10 @@
 *   **State Management (Zustand):** Refactored from component-local state to address complexity, prop drilling, and state-related bugs. Improved maintainability and enabled consistent state access.
 *   **Data Access Layer (`entryService.ts`):** Centralized Supabase interactions, simplifying components and store logic.
 *   **Continuous Feed (Minimal):** Implemented pagination for data loading (`fetchEntriesPaginatedService`) and infinite scroll UI. **Filtering (search, tags) remains client-side**, operating only on loaded data for initial implementation speed. This introduces a **known limitation** where filters do not reflect the entire dataset. Server-side filtering is deferred.
-*   **CRUD Refresh:** Add/Update/Delete operations trigger a reload of the feed from the first page for simplicity and data consistency.
-*   **Centralized Tag Color Logic:** Moved color calculation based on global frequency into Zustand store to ensure consistent UI representation.
+*   **CRUD Refresh:**
+    *   **Add:** Triggers a reload of the feed from the first page (`loadInitialEntries`) for simplicity and data consistency after AI tagging completes.
+    *   **Update/Delete:** Modify the client-side state (`loadedEntries` and `displayEntries`) directly for a faster UX, without a full reload. (This avoids re-fetching all pages).
+*   **Centralized Tag Color Logic:** Moved color calculation based on tag type (Meta, Intent, Content) into Zustand store. Assigns a distinct, strong color to *every unique tag* encountered in `loadedEntries` to ensure consistent UI representation and improve visibility (removed previous frequency threshold).
 
 ## 3. Future Development Considerations & Improvements
 1.  **Implement Server-Side Filtering:** Refactor `fetchEntriesPaginatedService` and store actions to apply filters (search, tags) on the backend during paginated fetches. This will fix the filter scope limitation. **(High Priority Follow-up)**
@@ -103,3 +105,10 @@
 3.  **Implement Server-Side Filtering:** (See Future Development #1).
 4.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY.
 5.  **(Remaining priorities shift down)**
+
+## Voice Recording Limits (IMPORTANT)
+
+*   **Serverless Timeout:** The `/api/transcribe` route has a `maxDuration` of 60 seconds (set in the file). This is the primary constraint.
+*   **Practical Limit:** Due to the server timeout covering upload + Whisper processing + response, users should be advised to keep recordings around **1-2 minutes** for reliability.
+*   **Hard Limit:** Recordings longer than **~3-4 minutes** are very likely to hit the 60-second timeout and fail.
+*   **Whisper Limit:** The OpenAI Whisper API has a 25MB file size limit, which is usually much longer than the serverless timeout allows.
