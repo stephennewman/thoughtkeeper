@@ -88,81 +88,63 @@ const initialState: JournalState = {
   highlightedTagColors: {},
 };
 
-// --- Define Gradient Color Palettes ---
+// --- Define Stronger Color Palettes with Dark Mode --- 
 const metaTagColors = [
-  // { base: '!bg-gradient-to-r !from-purple-500 !to-pink-500 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-br !from-red-500 !to-orange-500 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-l !from-fuchsia-600 !to-purple-600 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-r !from-rose-400 !to-red-500 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-b !from-pink-400 !to-purple-500 text-white', hover: 'hover:brightness-110' },
-  { base: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300', hover: 'hover:bg-purple-200 dark:hover:bg-purple-800/70' },
-  { base: 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300', hover: 'hover:bg-pink-200 dark:hover:bg-pink-800/70' },
-  { base: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300', hover: 'hover:bg-red-200 dark:hover:bg-red-800/70' },
-  { base: 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300', hover: 'hover:bg-rose-200 dark:hover:bg-rose-800/70' },
-  { base: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/50 dark:text-fuchsia-300', hover: 'hover:bg-fuchsia-200 dark:hover:bg-fuchsia-800/70' },
+  { base: 'bg-purple-600 dark:bg-purple-500 text-white', hover: 'hover:bg-purple-700 dark:hover:bg-purple-600' },
+  { base: 'bg-pink-600 dark:bg-pink-500 text-white', hover: 'hover:bg-pink-700 dark:hover:bg-pink-600' },
+  { base: 'bg-red-600 dark:bg-red-500 text-white', hover: 'hover:bg-red-700 dark:hover:bg-red-600' },
+  { base: 'bg-orange-600 dark:bg-orange-500 text-white', hover: 'hover:bg-orange-700 dark:hover:bg-orange-600' },
+  { base: 'bg-fuchsia-600 dark:bg-fuchsia-500 text-white', hover: 'hover:bg-fuchsia-700 dark:hover:bg-fuchsia-600' },
 ];
 const intentTagColors = [
-  // { base: '!bg-gradient-to-r !from-green-500 !to-teal-500 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-br !from-lime-500 !to-emerald-600 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-l !from-cyan-500 !to-green-500 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-r !from-teal-400 !to-cyan-600 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-b !from-emerald-400 !to-lime-500 text-white', hover: 'hover:brightness-110' },
-  { base: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300', hover: 'hover:bg-green-200 dark:hover:bg-green-800/70' },
-  { base: 'bg-lime-100 text-lime-800 dark:bg-lime-900/50 dark:text-lime-300', hover: 'hover:bg-lime-200 dark:hover:bg-lime-800/70' },
-  { base: 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300', hover: 'hover:bg-teal-200 dark:hover:bg-teal-800/70' },
-  { base: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300', hover: 'hover:bg-emerald-200 dark:hover:bg-emerald-800/70' },
-  { base: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300', hover: 'hover:bg-cyan-200 dark:hover:bg-cyan-800/70' },
+  { base: 'bg-green-600 dark:bg-green-500 text-white', hover: 'hover:bg-green-700 dark:hover:bg-green-600' },
+  { base: 'bg-teal-600 dark:bg-teal-500 text-white', hover: 'hover:bg-teal-700 dark:hover:bg-teal-600' },
+  { base: 'bg-cyan-600 dark:bg-cyan-500 text-white', hover: 'hover:bg-cyan-700 dark:hover:bg-cyan-600' },
+  { base: 'bg-lime-600 dark:bg-lime-500 text-white', hover: 'hover:bg-lime-700 dark:hover:bg-lime-600' }, 
+  { base: 'bg-emerald-600 dark:bg-emerald-500 text-white', hover: 'hover:bg-emerald-700 dark:hover:bg-emerald-600' },
 ];
 const contentTagColors = [
-  // { base: '!bg-gradient-to-r !from-blue-500 !to-indigo-500 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-br !from-sky-500 !to-violet-600 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-l !from-indigo-500 !to-blue-600 text-white', hover: 'hover:brightness-110' },
-  // // Adding a contrasting one
-  // { base: '!bg-gradient-to-r !from-yellow-300 !via-orange-400 !to-red-500 text-white', hover: 'hover:brightness-110' },
-  // { base: '!bg-gradient-to-b !from-violet-400 !to-sky-500 text-white', hover: 'hover:brightness-110' },
-  { base: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300', hover: 'hover:bg-blue-200 dark:hover:bg-blue-800/70' },
-  { base: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300', hover: 'hover:bg-indigo-200 dark:hover:bg-indigo-800/70' },
-  { base: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300', hover: 'hover:bg-sky-200 dark:hover:bg-sky-800/70' },
-  { base: 'bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300', hover: 'hover:bg-violet-200 dark:hover:bg-violet-800/70' },
+  { base: 'bg-blue-600 dark:bg-blue-500 text-white', hover: 'hover:bg-blue-700 dark:hover:bg-blue-600' },
+  { base: 'bg-indigo-600 dark:bg-indigo-500 text-white', hover: 'hover:bg-indigo-700 dark:hover:bg-indigo-600' },
+  { base: 'bg-sky-600 dark:bg-sky-500 text-white', hover: 'hover:bg-sky-700 dark:hover:bg-sky-600' },
+  { base: 'bg-violet-600 dark:bg-violet-500 text-white', hover: 'hover:bg-violet-700 dark:hover:bg-violet-600' },
+  { base: 'bg-yellow-500 dark:bg-yellow-400 text-gray-900', hover: 'hover:bg-yellow-600 dark:hover:bg-yellow-500' }, // Adjusted yellow slightly, kept dark text
 ];
 // --- End Color Palettes ---
 
-// --- Helper function to calculate tag colors (Move from JournalEntry.tsx) ---
+// --- Helper function to calculate tag colors (Simplified: No frequency threshold) ---
 const calculateHighlightedTagColors = (entries: Entry[]): { [lowerCaseTag: string]: { base: string; hover: string } } => {
-    const counts: { [key: string]: number } = {};
     const colors: { [lowerCaseTag: string]: { base: string; hover: string } } = {};
     let metaColorIndex = 0;
     let intentColorIndex = 0;
     let contentColorIndex = 0;
-    const assignedMetaColors: { [key: string]: boolean } = {};
-    const assignedIntentColors: { [key: string]: boolean } = {};
-    const assignedContentColors: { [key: string]: boolean } = {};
+    const assignedTags: Set<string> = new Set(); // Track assigned tags (lowercase)
 
     entries.forEach(entry => {
+      // Meta Tag Processing
       if (entry.meta_tag) {
         const lowerTag = entry.meta_tag.toLowerCase();
-        counts[lowerTag] = (counts[lowerTag] || 0) + 1;
-        if (counts[lowerTag] >= 2 && !assignedMetaColors[lowerTag]) {
+        if (!assignedTags.has(lowerTag)) { // Assign color only once
            colors[lowerTag] = metaTagColors[metaColorIndex % metaTagColors.length];
-           assignedMetaColors[lowerTag] = true;
+           assignedTags.add(lowerTag);
            metaColorIndex++;
         }
       }
+      // Intent Tag Processing
       if (entry.intent_tag) {
         const lowerTag = entry.intent_tag.toLowerCase();
-        counts[lowerTag] = (counts[lowerTag] || 0) + 1;
-         if (counts[lowerTag] >= 2 && !assignedIntentColors[lowerTag]) {
+         if (!assignedTags.has(lowerTag)) { // Assign color only once
            colors[lowerTag] = intentTagColors[intentColorIndex % intentTagColors.length];
-           assignedIntentColors[lowerTag] = true;
+           assignedTags.add(lowerTag);
            intentColorIndex++;
         }
       }
+      // Content Tags Processing
       entry.tags?.forEach(tag => {
         const lowerTag = tag.toLowerCase();
-        counts[lowerTag] = (counts[lowerTag] || 0) + 1;
-         if (counts[lowerTag] >= 2 && !assignedContentColors[lowerTag]) {
+         if (!assignedTags.has(lowerTag)) { // Assign color only once
            colors[lowerTag] = contentTagColors[contentColorIndex % contentTagColors.length];
-           assignedContentColors[lowerTag] = true;
+           assignedTags.add(lowerTag);
            contentColorIndex++;
         }
       });

@@ -6,6 +6,21 @@ module.exports = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  // Safelist the dynamic background colors for tags
+  safelist: [
+    {
+      pattern: /^(bg-(?:purple|pink|red|orange|fuchsia|green|teal|cyan|lime|emerald|blue|indigo|sky|violet|yellow)-(?:500|600|700))$/,
+    },
+    {
+      pattern: /^(dark:bg-(?:purple|pink|red|orange|fuchsia|green|teal|cyan|lime|emerald|blue|indigo|sky|violet|yellow)-(?:400|500|600))$/,
+    },
+    {
+      pattern: /^(hover:bg-(?:purple|pink|red|orange|fuchsia|green|teal|cyan|lime|emerald|blue|indigo|sky|violet|yellow)-(?:600|700))$/,
+    },
+    {
+      pattern: /^(dark:hover:bg-(?:purple|pink|red|orange|fuchsia|green|teal|cyan|lime|emerald|blue|indigo|sky|violet|yellow)-(?:500|600))$/,
+    },
+  ],
   theme: {
   	container: {
   		center: true,
