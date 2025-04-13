@@ -23,22 +23,38 @@ const formatTime = (totalSeconds: number): string => {
 /**
  * Main page component for the Thoughtkeeper application.
  * 
- * Features:
+ * --- Core Features ---
  * - Displays journal entries grouped by date with infinite scrolling.
  * - Allows adding text entries via a dialog.
- * - Implements voice note recording:
- *    - Uses Web Audio API (AudioContext, AnalyserNode) for audio processing.
- *    - Renders a real-time scrolling waveform visualizer on an HTML Canvas
- *      during recording, showing recent audio activity.
- *    - Displays a timer during recording (max 60 seconds).
- *    - Handles starting, stopping, and discarding recordings.
- *    - Simulates sending audio to a backend for transcription.
- *    - Manages recording, processing, and error states.
  * - Provides search functionality for loaded entries.
  * - Styles date separator headers like cards and includes entry counts.
- * - Utilizes Zustand (via useJournalStore) for managing application state 
- *   (entries, loading states, filters, etc.).
+ * - Utilizes Zustand (via useJournalStore) for managing application state.
  * - Uses Tailwind CSS for styling with Shadcn UI components.
+ * 
+ * --- Voice Note Feature ---
+ * - Implements voice note recording using Web Audio API (AudioContext, AnalyserNode).
+ * - Renders a real-time scrolling waveform visualizer on Canvas (1px/frame shift).
+ * - Displays a timer during recording (max 60 seconds).
+ * - Handles starting, stopping (send/transcribe), and discarding recordings.
+ * - Manages recording, processing (local state: isProcessingAudio), and error states.
+ * - Currently SIMULATES sending audio to backend via transcribeAndCreateEntry.
+ * 
+ * --- Current Status & Known Issues (As of last interaction) ---
+ * - Waveform visualizer speed/appearance seems satisfactory.
+ * - Day headers are styled correctly.
+ * - **Double "Processing..." Indicator:** A key issue is the appearance of two 
+ *   "Processing..." indicators after stopping a recording to transcribe. One is likely
+ *   from local `isProcessingAudio` state, the other from Zustand's `isProcessingEntry`.
+ *   Previous attempts to fix this were reverted.
+ * - **Backend Simulation:** Audio transcription/entry creation is simulated in 
+ *   `transcribeAndCreateEntry` and doesn't hit a real API.
+ * 
+ * --- Likely Next Steps ---
+ * 1. **Fix Double Processing Indicator:** Consolidate processing state management.
+ * 2. **Implement Real API Call:** Replace simulation in `transcribeAndCreateEntry` 
+ *    with `fetch` to `/api/transcribe`.
+ * 3. **Refine Data Flow:** Ensure real API response correctly triggers store actions.
+ * 4. **Error Handling:** Improve API error handling.
  */
 export default function Home() {
   const {
@@ -429,7 +445,7 @@ export default function Home() {
     <div className="flex flex-col h-screen">
       <main className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
-          <div className="flex justify-between items-center flex-shrink-0 gap-4 border-b pb-2 h-12">
+          <div className="flex justify-between items-center flex-shrink-0 gap-2 sm:gap-4 border-b pb-2 px-2 sm:px-0">
             <div className="flex items-center flex-shrink-0">
               <img 
                 src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523"
@@ -440,12 +456,10 @@ export default function Home() {
                 {errorState && (
                   <p className="text-red-600 text-sm">Error: {errorState}</p>
                 )}
-                {/* Combined Loading/Processing Indicator */} 
                 {(isLoadingInitial || isProcessingEntry || isProcessingAudio) && !errorState && (
                   <div className="flex items-center justify-start text-sm text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin mr-2" />
                     {
-                      // Show specific message based on state, prioritize audio
                       isProcessingAudio ? <span>Processing audio...</span> :
                       isProcessingEntry ? <span>Processing entry...</span> :
                       isLoadingInitial ? <span>Loading...</span> : null
@@ -456,7 +470,7 @@ export default function Home() {
             </div>
 
             {isRecording && !isProcessingAudio && (
-              <div className="flex-grow mx-4">
+              <div className="flex-grow mx-2 sm:mx-4">
                 <canvas 
                   ref={canvasRef}
                   height="30" 
@@ -465,21 +479,25 @@ export default function Home() {
               </div>
             )}
 
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {!isRecording && !isProcessingAudio && (
-                <Input
-                  type="search"
-                  placeholder="Search loaded entries..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  className={clsx(
-                      'w-full max-w-xs',
-                      'hidden sm:block'
-                  )}
-                />
-              )}
+            {/* Right Side (Search, Buttons) */}
+            <div className="flex items-center flex-wrap gap-2 flex-shrink-0 justify-end">
               
-              <div className="flex items-center justify-end gap-2">
+              {/* Inner container for non-wrapping core controls */}
+              <div className="flex items-center gap-2">
+                {/* Search Input */}
+                {!isRecording && !isProcessingAudio && (
+                  <Input
+                    type="search"
+                    placeholder="Search loaded entries..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    className={clsx(
+                        'w-full max-w-xs',
+                        'hidden sm:block'
+                    )}
+                  />
+                )}
+                {/* Default Buttons (Voice & Text) */}
                 {!isRecording && !isProcessingAudio && (
                   <>
                     <Button
@@ -488,28 +506,34 @@ export default function Home() {
                       size="sm"
                       aria-label="Add voice note"
                       title="Add voice note"
-                      className={clsx('inline-flex')}
+                      className={clsx('inline-flex items-center')}
                     >
-                      <Mic className="mr-2 h-4 w-4" /> Add Voice Note
+                      <Mic className="h-4 w-4" /> 
+                      <span className="hidden sm:inline sm:ml-2">Add Voice Note</span>
                     </Button>
                     <Button
                       onClick={handleAddClick}
                       disabled={false} 
                       size="sm"
                       className={clsx(
-                        'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity flex-shrink-0',
-                        'inline-flex'
+                        'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity',
+                        'inline-flex items-center'
                       )}
                       aria-label="Add text note"
                       title="Add text note"
                     >
-                      <FileText className="mr-2 h-4 w-4" /> Add Text Note
+                      <FileText className="h-4 w-4" />
+                      <span className="hidden sm:inline sm:ml-2">Add Text Note</span>
                     </Button>
                   </>
                 )}
+              </div>
+              {/* END: Inner container for non-wrapping core controls */}
 
-                {isRecording && !isProcessingAudio && (
-                  <>
+              {/* Other controls remain direct children of the outer flex-wrap container */}
+              {/* Recording Buttons */}
+              {isRecording && !isProcessingAudio && (
+                 <>
                     <span 
                       className={clsx(
                         "text-sm font-mono flex-shrink-0 whitespace-nowrap",
@@ -538,16 +562,15 @@ export default function Home() {
                     >
                       <X className="mr-2 h-4 w-4" /> Stop Recording
                     </Button>
-                  </>
-                )}
-
-                {isProcessingAudio && (
-                   <div className="flex items-center justify-center text-sm text-muted-foreground px-3">
-                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                      <span>Processing...</span>
-                   </div>
-                )}
-              </div>
+                 </>
+              )}
+              {/* Processing Indicator */}
+              {isProcessingAudio && (
+                 <div className="flex items-center justify-center text-sm text-muted-foreground px-3">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    <span>Processing...</span>
+                 </div>
+              )}
             </div>
           </div>
 
@@ -630,26 +653,21 @@ export default function Home() {
                    <p className="pt-4 text-center text-gray-500">No entries yet. Click 'Add Entry' to start!</p>
                 )}
 
-                {/* Group entries by date */} 
                 {Object.entries(groupedEntries).map(([date, dayEntries]) => {
                   const entryCount = dayEntries.length;
-                  // Determine if this date group contains the highlighted entry
                   const containsHighlighted = highlightedEntryId !== null && dayEntries.some(entry => entry.id === highlightedEntryId);
                   
                   return (
                     <div key={date} className="mb-4"> 
-                      {/* --- Day Header Bar --- */}
                       <div className={clsx(
-                          "sticky top-0 z-10 mb-2 p-2 border rounded-md bg-muted", // Apply card-like styles
+                          "sticky top-0 z-10 mb-2 p-2 border rounded-md bg-muted",
                           "text-sm font-medium text-muted-foreground",
-                          // Add highlight styles if this group contains the highlighted entry
                           containsHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background" 
                       )}> 
                         {format(parseISO(date), 'MMMM do, yyyy')} 
-                        <span className="ml-2 font-normal">({entryCount} {entryCount === 1 ? 'entry' : 'entries'})</span> {/* Add entry count */}
+                        <span className="ml-2 font-normal">({entryCount} {entryCount === 1 ? 'entry' : 'entries'})</span>
                       </div>
                       
-                      {/* Entries for this date */} 
                       <div className="space-y-2"> 
                         {dayEntries.map((entry) => (
                           <JournalEntry
@@ -672,10 +690,11 @@ export default function Home() {
                   </div>
                 )}
 
-                {!hasMoreEntries && displayEntries.length > 0 && (
-                  <p className="pt-4 pb-4 text-center text-sm text-gray-500">
-                    {isAnyFilterActive ? "End of loaded entries matching filters." : "End of journal."}
-                  </p>
+                {/* End of list indicator */}
+                {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (
+                  <div className="text-center text-muted-foreground text-sm py-8">
+                    {isAnyFilterActive ? "End of loaded entries matching filters." : "That\'s all folks!"}
+                  </div>
                 )}
 
                 <div ref={intersectionObserverRef} style={{ height: '1px' }} />

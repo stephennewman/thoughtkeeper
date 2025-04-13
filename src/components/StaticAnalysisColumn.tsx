@@ -85,7 +85,8 @@ export const StaticAnalysisColumn: React.FC = () => {
       } else {
         // For content tags, allow selecting multiple, but let's stick to single selection for now for consistency
         // newContentTags.add(tag); // Toggle on
-        newContentTags = new Set([tag]); // Select only this one
+        // newContentTags = new Set([tag]); // Select only this one
+        newContentTags.add(tag); // ALLOW MULTIPLE
       }
     }
     

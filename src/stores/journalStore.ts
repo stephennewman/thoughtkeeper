@@ -253,7 +253,14 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           if (error) throw error;
 
           const fetchedEntries = data || [];
-          const combinedEntries = [...loadedEntries, ...fetchedEntries];
+          
+          // --- Prevent Duplicates --- 
+          const existingIds = new Set(loadedEntries.map(entry => entry.id));
+          const uniqueFetchedEntries = fetchedEntries.filter(entry => !existingIds.has(entry.id));
+          // --- End Prevent Duplicates ---
+
+          // const combinedEntries = [...loadedEntries, ...fetchedEntries]; // Original
+          const combinedEntries = [...loadedEntries, ...uniqueFetchedEntries]; // Use unique entries
           const newHighlightedTagColors = calculateHighlightedTagColors(combinedEntries);
           const newDisplayEntries = filterLoadedEntries(combinedEntries, get()); // Filter combined batch
 

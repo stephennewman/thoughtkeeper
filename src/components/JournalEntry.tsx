@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Entry, TagType } from '@/types'; // Import from centralized types
-// Remove direct store import if not needed for simple state like isProcessingEntry
-// import { useJournalStore } from '@/stores/journalStore';
+import { useJournalStore } from '@/stores/journalStore'; // IMPORT THE STORE
 import clsx from 'clsx';
 
 // Define props for the component
@@ -35,20 +34,40 @@ export function JournalEntry({
   onEditClick,
   setFilters // Destructure setFilters
 }: JournalEntryProps) {
+  // Get current filter state from store - Select individually
+  const activeMetaTag = useJournalStore((state) => state.activeMetaTag);
+  const activeIntentTag = useJournalStore((state) => state.activeIntentTag);
+  const activeContentTags = useJournalStore((state) => state.activeContentTags);
+
   // Simplified check for tag generation spinner (can be refined)
   // Assumes tags are missing only during initial processing after creation
   const isGenerating = !entry.meta_tag && !entry.intent_tag && !entry.tags && entry.content; // Check content exists
 
-  // Handle tag clicks by calling setFilters from props
+  // Handle tag clicks by calling setFilters from props - UPDATED LOGIC
   const handleTagClick = (tag: string, type: TagType) => {
-    // Reset other filters when a tag is clicked for simplicity
+    let newMetaTag = activeMetaTag;
+    let newIntentTag = activeIntentTag;
+    let newContentTags = new Set(activeContentTags);
+
     if (type === 'meta') {
-      setFilters({ activeMetaTag: tag, activeIntentTag: null, activeContentTags: new Set(), searchQuery: '' });
+      newMetaTag = activeMetaTag === tag ? null : tag; // Toggle
     } else if (type === 'intent') {
-      setFilters({ activeIntentTag: tag, activeMetaTag: null, activeContentTags: new Set(), searchQuery: '' });
-    } else if (type === 'content') {
-      setFilters({ activeContentTags: new Set([tag]), activeMetaTag: null, activeIntentTag: null, searchQuery: '' });
+      newIntentTag = activeIntentTag === tag ? null : tag; // Toggle
+    } else { // type === 'content'
+      if (newContentTags.has(tag)) {
+        newContentTags.delete(tag); // Toggle off
+      } else {
+        newContentTags.add(tag); // Toggle on - Allow multiple content tags
+      }
     }
+    
+    // Call store action with updated filters, preserving others
+    setFilters({
+      searchQuery: '', // Always clear search on tag click
+      activeMetaTag: newMetaTag,
+      activeIntentTag: newIntentTag,
+      activeContentTags: newContentTags
+    });
   };
 
   const handleStartEdit = () => {

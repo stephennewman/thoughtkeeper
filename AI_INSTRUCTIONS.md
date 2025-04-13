@@ -1,9 +1,10 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.3.0
-**Date:** 2024-07-22
+**Document Version:** 2.4.0 (Updated post-coloring/bugfix cycle)
+**Date:** 2024-07-25
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
+**MAINTENANCE NOTE:** This document is critical for context but requires frequent updates to stay synchronized with the codebase. Please update it after significant feature changes, refactors, or bug fixes.
 
 ## 1. Project Overview & Current State
 
@@ -23,23 +24,26 @@
 *   Code Storage: GitHub
 
 **Core Features Implemented:**
-*   **Layout:** Three-column layout on large screens (Sidebar Navigation, Main Content, Static Analysis). **Sidebar is currently empty.**
-*   Journal entry creation, viewing, editing, and deletion via Dialog Modal.
+*   **Layout:** Three-column layout on large screens (Sidebar Navigation, Main Content, Static Analysis). Sidebar component (`<JournalSidebar />`) is rendered, displaying tag filters, but full navigation features (e.g., date jump) are future work.
+*   **Journal Entry CRUD:** Creation, viewing, editing, and deletion via Dialog Modal.
+    *   Fixed bug preventing text note creation due to incorrect argument order in `addEntry` store action.
 *   **Continuous Feed & Infinite Scroll:** Main content area displays a chronologically descending feed of entries.
     *   Fetches entries page-by-page from backend (`fetchEntriesPaginatedService`).
     *   Uses `react-intersection-observer` to trigger loading more entries on scroll.
     *   Groups entries by date with sticky date headers.
+    *   Fixed React key error caused by duplicate entries during pagination (`loadMoreEntries` store action).
 *   Multiple entries allowed per day.
 *   **Centralized State:** Application state managed by **Zustand store** (`src/stores/journalStore.ts`), including **paginated entries**, filters, UI state, and actions.
     *   State structure updated for pagination (`loadedEntries`, `displayEntries`, `currentPage`, `hasMoreEntries`, loading flags).
     *   Actions added/modified for pagination (`loadInitialEntries`, `loadMoreEntries`).
 *   **Data Service Layer:** Supabase CRUD operations abstracted into `src/lib/entryService.ts`.
     *   Added `fetchEntriesPaginatedService` for basic chronological pagination.
+    *   **Note:** Contains a separate `fetchEntriesService` function with server-side filtering logic (tags/search) that is currently **not used** by the main feed pagination.
 *   **Centralized Types:** Core types defined in `src/types/index.ts`.
-*   **Unit Tested Store:** Key store actions covered by Vitest unit tests. **Tests likely need updates for pagination state/actions.**
+*   **Unit Tested Store:** Key store actions covered by Vitest unit tests. **Verification needed to confirm tests cover recent pagination/state logic.**
 *   **Main Entry Feed:** Displays continuous feed (see above).
 *   Data persistence using **Supabase** database.
-*   Dual Tagging System (Meta, Intent, Content): Auto-generated on new entry save via API routes.
+*   **Dual Tagging System (Meta, Intent, Content):** Auto-generated on new entry save via API routes.
     *   Meta/Intent tags stored with original case.
     *   Content tags stored lowercase.
     *   Fixed issues with API response parsing and camelCase/snake_case mismatches during tag updates.
@@ -51,10 +55,13 @@
     *   UI includes a banner indicating filter scope limitation.
 *   **Consistent Tag Colors:** Calculated based on tag type (Meta, Intent, Content) for **all unique tags** within `loadedEntries`. Uses distinct palettes with stronger colors (e.g., `bg-*-600` series) for better visibility. Applied consistently to Analysis column, Active Filter badges, and Entry cards (via Zustand state `highlightedTagColors`).
 *   **Improved Filter UX:** Active filters displayed as dismissible badges.
+    *   Fixed inconsistency: Clicking tags on entry cards now correctly toggles filters (including multiple content tags) like the sidebar, instead of replacing all active filters.
 *   **Main Content Controls:** Consolidated top bar with Logo (left), Error/Status, Search, Add Entry button (right).
+    *   Improved mobile responsiveness: Buttons use icon-only display on small screens, header layout adjusted to prevent overflow.
 *   Rich Text Editor (TipTap) used within the entry editor dialog.
 *   Entry list display using styled cards with hover effect, options menu, metadata footer.
-*   Static Analysis Column: Displays top tags based on **loaded and filtered** entries (`displayEntries`).
+*   Static Analysis Column: Displays top tags based on **all currently loaded entries** (`loadedEntries` state).
+*   **Voice Recording:** Frontend UI implemented for recording audio notes, including timer and waveform visualizer (`page.tsx`).
 
 **AI Features Implemented / Status:**
 *   Tag generation (Meta, Intent, Content) via API routes on *new* entry save.
@@ -85,7 +92,10 @@
 7.  **Refine AI Features:** Consider tag re-gen on edit, integrate summary saving, optimize costs.
 8.  **Improve Mobile Responsiveness & Test Thoroughly.**
 9.  **Robust Error Handling & User Feedback.**
-10. **Update Unit Tests:** Ensure store tests cover pagination and new state logic.
+10. **Verify/Update Unit Tests:** Ensure store tests cover pagination, filtering, and new state logic.
+11. **Address Console Warnings/Errors:** Review any remaining warnings (e.g., from TipTap or other dependencies).
+    *   Resolved React duplicate key error by fixing pagination logic in store (`loadMoreEntries`).
+    *   Resolved Zustand/React snapshot warning in `JournalEntry` component by selecting state slices individually.
 
 ## 4. Critical Information & Risks
 *   **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100).** Remains highest risk.
@@ -97,14 +107,15 @@
 *   **(Other previous risks remain relevant...)**
 
 ## Current Branch Status
-*   `feat/continuous-feed-minimal`: **Implemented.** Contains basic paginated data loading, infinite scroll UI, date grouping, and *client-side filtering* on loaded data. Known limitation: filters are not comprehensive. Ready for review/testing.
+*   `main`: Contains latest updates including tag color improvements, pagination fix, text entry fix, and header responsiveness adjustments.
 
 ## Next Steps / Priorities (Revised)
-1.  **Thoroughly Test `feat/continuous-feed-minimal`.**
-2.  **(Optional) Merge `feat/continuous-feed-minimal` into `main` if stable enough.**
-3.  **Implement Server-Side Filtering:** (See Future Development #1).
-4.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY.
-5.  **(Remaining priorities shift down)**
+1.  **Implement Real Voice Transcription API Call** (See Future Development #2).
+2.  **Implement Server-Side Filtering:** (See Future Development #1).
+3.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY.
+4.  **Verify/Update Unit Tests:** (See Future Development #10).
+5.  **(Optional) Merge `feat/continuous-feed-minimal` into `main` if stable enough after testing/fixes.**
+6.  **(Remaining priorities shift down)**
 
 ## Voice Recording Limits (IMPORTANT)
 
