@@ -126,8 +126,9 @@ export const StaticAnalysisColumn: React.FC = () => {
                 // Get specific color from store map or default
                 const lowerTag = tag.toLowerCase();
                 const colorInfo = highlightedTagColors[lowerTag];
-                const activeClasses = colorInfo ? colorInfo.base : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300'; // Default purple
-                const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-purple-200 dark:hover:bg-purple-800/70'; // Default purple
+                const defaultClasses = 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:opacity-80'; // Default gray
+                const activeClasses = colorInfo ? colorInfo.base : defaultClasses;
+                const hoverClasses = colorInfo ? colorInfo.hover : ''; // Hover is part of base for gradient, use default hover otherwise
                 const ringClasses = 'ring-purple-500 dark:ring-purple-400'; // Ring color fixed to type
 
                 return (
@@ -174,8 +175,9 @@ export const StaticAnalysisColumn: React.FC = () => {
                 // Get specific color from store map or default
                 const lowerTag = tag.toLowerCase();
                 const colorInfo = highlightedTagColors[lowerTag];
-                const activeClasses = colorInfo ? colorInfo.base : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'; // Default green
-                const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-green-200 dark:hover:bg-green-800/70'; // Default green
+                const defaultClasses = 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:opacity-80'; // Default gray
+                const activeClasses = colorInfo ? colorInfo.base : defaultClasses;
+                const hoverClasses = colorInfo ? colorInfo.hover : ''; // Hover is part of base for gradient, use default hover otherwise
                 const ringClasses = 'ring-green-600 dark:ring-green-500'; // Ring color fixed to type
 
                 return (
@@ -222,8 +224,9 @@ export const StaticAnalysisColumn: React.FC = () => {
                 // Get specific color from store map or default
                 const lowerTag = tag.toLowerCase();
                 const colorInfo = highlightedTagColors[lowerTag];
-                const activeClasses = colorInfo ? colorInfo.base : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'; // Default blue
-                const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-blue-200 dark:hover:bg-blue-800/70'; // Default blue
+                const defaultClasses = 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:opacity-80'; // Default gray
+                const activeClasses = colorInfo ? colorInfo.base : defaultClasses;
+                const hoverClasses = colorInfo ? colorInfo.hover : ''; // Hover is part of base for gradient, use default hover otherwise
                 const ringClasses = 'ring-blue-500 dark:ring-blue-400'; // Ring color fixed to type
 
                 return (

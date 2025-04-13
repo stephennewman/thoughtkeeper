@@ -88,8 +88,13 @@ const initialState: JournalState = {
   highlightedTagColors: {},
 };
 
-// --- Define Color Palettes (Move from JournalEntry.tsx) ---
+// --- Define Gradient Color Palettes ---
 const metaTagColors = [
+  // { base: '!bg-gradient-to-r !from-purple-500 !to-pink-500 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-br !from-red-500 !to-orange-500 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-l !from-fuchsia-600 !to-purple-600 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-r !from-rose-400 !to-red-500 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-b !from-pink-400 !to-purple-500 text-white', hover: 'hover:brightness-110' },
   { base: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300', hover: 'hover:bg-purple-200 dark:hover:bg-purple-800/70' },
   { base: 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300', hover: 'hover:bg-pink-200 dark:hover:bg-pink-800/70' },
   { base: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300', hover: 'hover:bg-red-200 dark:hover:bg-red-800/70' },
@@ -97,6 +102,11 @@ const metaTagColors = [
   { base: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/50 dark:text-fuchsia-300', hover: 'hover:bg-fuchsia-200 dark:hover:bg-fuchsia-800/70' },
 ];
 const intentTagColors = [
+  // { base: '!bg-gradient-to-r !from-green-500 !to-teal-500 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-br !from-lime-500 !to-emerald-600 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-l !from-cyan-500 !to-green-500 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-r !from-teal-400 !to-cyan-600 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-b !from-emerald-400 !to-lime-500 text-white', hover: 'hover:brightness-110' },
   { base: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300', hover: 'hover:bg-green-200 dark:hover:bg-green-800/70' },
   { base: 'bg-lime-100 text-lime-800 dark:bg-lime-900/50 dark:text-lime-300', hover: 'hover:bg-lime-200 dark:hover:bg-lime-800/70' },
   { base: 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300', hover: 'hover:bg-teal-200 dark:hover:bg-teal-800/70' },
@@ -104,6 +114,12 @@ const intentTagColors = [
   { base: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300', hover: 'hover:bg-cyan-200 dark:hover:bg-cyan-800/70' },
 ];
 const contentTagColors = [
+  // { base: '!bg-gradient-to-r !from-blue-500 !to-indigo-500 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-br !from-sky-500 !to-violet-600 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-l !from-indigo-500 !to-blue-600 text-white', hover: 'hover:brightness-110' },
+  // // Adding a contrasting one
+  // { base: '!bg-gradient-to-r !from-yellow-300 !via-orange-400 !to-red-500 text-white', hover: 'hover:brightness-110' },
+  // { base: '!bg-gradient-to-b !from-violet-400 !to-sky-500 text-white', hover: 'hover:brightness-110' },
   { base: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300', hover: 'hover:bg-blue-200 dark:hover:bg-blue-800/70' },
   { base: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300', hover: 'hover:bg-indigo-200 dark:hover:bg-indigo-800/70' },
   { base: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300', hover: 'hover:bg-sky-200 dark:hover:bg-sky-800/70' },
@@ -289,7 +305,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
       addEntry: async (contentHtml: string, date: string) => {
         set({ isProcessingEntry: true, errorState: null });
         try {
-          const { data: newEntry, error: serviceError } = await addEntryService(contentHtml, date);
+          const { data: newEntry, error: serviceError } = await addEntryService(date, contentHtml);
           if (serviceError) throw serviceError;
           if (!newEntry) throw new Error("Service returned no data on add.");
 
