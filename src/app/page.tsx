@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import type { Session, Provider } from '@supabase/supabase-js';
+import { useTheme } from 'next-themes';
 
 // Helper function to format seconds into M:SS
 const formatTime = (totalSeconds: number): string => {
@@ -63,6 +64,7 @@ const formatTime = (totalSeconds: number): string => {
  */
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
+  const { resolvedTheme } = useTheme();
 
   const {
     searchQuery,
@@ -501,16 +503,41 @@ export default function Home() {
     };
   }, []);
 
+  // --- Authentication UI (Rendered when no session) ---
   if (!session) {
-    // Render Auth UI if not logged in
     return (
-      <div className="flex justify-center items-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
-        <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow dark:bg-gray-800">
-          <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Welcome to ThoughtKeeper</h2>
-          <Auth 
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="p-8 rounded-lg shadow-md w-full max-w-md border">
+          {/* Added Logo Here */}
+          <div className="flex justify-center mb-6">
+            <img 
+              src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523" 
+              alt="Thoughtkeeper Logo" 
+              className="h-16 w-auto" // Adjust size as needed
+            />
+          </div>
+          
+          <h2 className="text-2xl font-semibold text-center mb-6">Get started</h2>
+          <p className="text-sm text-muted-foreground text-center mb-4">
+            Sign in, or create an account.
+          </p>
+          <Auth
             supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }} 
-            theme="dark" // Or "light" based on preference
+            appearance={{ 
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: 'hsl(var(--primary))',
+                    brandAccent: 'hsl(var(--primary) / 0.9)',
+                  },
+                }
+              }
+            }}
+            providers={[] /* No SSO providers */} 
+            theme={resolvedTheme === 'dark' ? 'dark' : 'default'}
+            showLinks={true}
+            onlyThirdPartyProviders={false} // Ensure email/password is shown
           />
         </div>
       </div>
@@ -781,7 +808,37 @@ export default function Home() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => supabase.auth.signOut()} 
+            onClick={async () => {
+              console.log("Logout button clicked. Refreshing session and checking...");
+              // Attempt to refresh the session first
+              const { error: refreshError } = await supabase.auth.refreshSession();
+              if (refreshError) {
+                console.warn("Error refreshing session before sign out (might be expected if already expired):", refreshError);
+                // Don't necessarily stop here, still attempt sign out
+              }
+
+              const { data: currentSessionData, error: sessionError } = await supabase.auth.getSession();
+              
+              if (sessionError) {
+                console.error("Error getting session after refresh attempt:", sessionError);
+                return; 
+              }
+              
+              if (!currentSessionData.session) {
+                console.warn("No active session found by Supabase client after refresh attempt.");
+                setSession(null);
+                return;
+              }
+
+              console.log("Supabase client confirmed active session after refresh. Attempting sign out...");
+              const { error: signOutError } = await supabase.auth.signOut();
+              
+              if (signOutError) {
+                console.error("Error signing out:", signOutError);
+              } else {
+                console.log("Sign out call successful via Supabase client. onAuthStateChange should update UI.");
+              }
+            }} 
             className="fixed bottom-4 right-4 z-50 bg-background hover:bg-muted"
             aria-label="Logout"
             title="Logout"
