@@ -519,13 +519,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen">
-      <header className="absolute top-4 right-4 z-50">
-        <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>
-          Logout
-        </Button>
-      </header>
-
-      <main className="flex flex-1 overflow-hidden pt-10">
+      <main className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-y-hidden p-4 gap-2">
           <div className="flex justify-between items-center flex-shrink-0 gap-2 sm:gap-4 border-b pb-2 px-2 sm:px-0">
             
@@ -760,7 +754,10 @@ export default function Home() {
 
                 {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (
                   <div className="text-center text-muted-foreground text-sm py-8">
-                    {isAnyFilterActive ? "End of loaded entries matching filters." : "That\'s all folks!"}
+                    {isAnyFilterActive 
+                      ? "End of loaded entries matching filters." 
+                      : "The void stares back... quick, add a thought!"
+                    }
                   </div>
                 )}
 
@@ -778,6 +775,19 @@ export default function Home() {
             selectedDate={format(new Date(), 'yyyy-MM-dd')}
             initialEntry={editingEntry}
           />
+      )}
+
+      {session && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => supabase.auth.signOut()} 
+            className="fixed bottom-4 right-4 z-50 bg-background hover:bg-muted"
+            aria-label="Logout"
+            title="Logout"
+          >
+            Logout
+          </Button>
       )}
     </div>
   );
