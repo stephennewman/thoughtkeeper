@@ -1,6 +1,6 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.4.0 (Updated post-coloring/bugfix cycle)
+**Document Version:** 2.5.0 (Added Scoring Rubric)
 **Date:** 2024-07-25
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
@@ -73,7 +73,47 @@
 *   Requires `OPENAI_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 *   Uses Node.js 20.x.
 
-## 2. Key Decisions & Rationale
+## 2. Scoring Rubrics (NEW SECTION)
+
+This document uses scoring rubrics to help quantify and prioritize issues. 
+
+### Problem / Risk Scoring (1-100 Scale)
+
+Used in Section 6 to assess the severity and impact of identified problems or risks.
+
+*   **0-20 (Low):** Minor issue, cosmetic, low impact, or already largely mitigated.
+*   **21-50 (Medium):** Moderate impact on usability or development, potential for user confusion, needs attention but not urgent.
+*   **51-80 (High):** Significant impact on usability, reliability, or security. Misleads users or blocks core functionality. High priority to address.
+*   **81-100 (Critical):** Severe impact. Major security vulnerability, significant data integrity risk, application fundamentally unstable or unusable for core purposes. Must be addressed urgently.
+
+*(Other rubrics like Effort or Impact scoring could be added here if needed)*
+
+## 3. Naming Conventions (Renumbered, previously 2)
+
+To ensure consistency and clarity across the codebase, please adhere to the following naming conventions:
+
+*   **Components:** Use **PascalCase** (e.g., `JournalEntry`, `StaticAnalysisColumn`). Component filenames should match (e.g., `JournalEntry.tsx`).
+*   **Hooks:** Use `use` prefix and **camelCase** (e.g., `useJournalStore`).
+*   **Stores/State/Actions (Types):** Use **PascalCase** (e.g., `JournalState`, `JournalActions`).
+*   **Services/Helper Functions/Variables:** Use **camelCase** (e.g., `entryService`, `calculateHighlightedTagColors`). Service filenames can use camelCase (e.g., `entryService.ts`).
+*   **Types/Interfaces:** Use **PascalCase** (e.g., `Entry`, `TagType`).
+*   **API Routes:** Use **lowercase-hyphenated** paths (e.g., `/api/classify-intent`).
+*   **CSS Classes:** Use standard **Tailwind utility classes**. Avoid custom CSS.
+
+**Key Standardized Names:**
+
+*   **Main Page Component:** `Home` (implicit via `src/app/page.tsx`)
+*   **Sidebar Component:** `JournalSidebar`
+*   **Analysis Column Component:** `StaticAnalysisColumn`
+*   **Entry Display Component:** `JournalEntry`
+*   **Entry Editor Component:** `EntryEditorDialog`
+*   **State Management Hook:** `useJournalStore`
+*   **Data Service File:** `entryService.ts`
+*   **Core Data Type:** `Entry`
+
+*Minor Discrepancy Note:* Button labels use "Add... Note" while the underlying component/data model is `JournalEntry`. This is acceptable for user-facing text.
+
+## 4. Key Decisions & Rationale (Renumbered, previously 3)
 *   **State Management (Zustand):** Refactored from component-local state to address complexity, prop drilling, and state-related bugs. Improved maintainability and enabled consistent state access.
 *   **Data Access Layer (`entryService.ts`):** Centralized Supabase interactions, simplifying components and store logic.
 *   **Continuous Feed (Minimal):** Implemented pagination for data loading (`fetchEntriesPaginatedService`) and infinite scroll UI. **Filtering (search, tags) remains client-side**, operating only on loaded data for initial implementation speed. This introduces a **known limitation** where filters do not reflect the entire dataset. Server-side filtering is deferred.
@@ -82,7 +122,7 @@
     *   **Update/Delete:** Modify the client-side state (`loadedEntries` and `displayEntries`) directly for a faster UX, without a full reload. (This avoids re-fetching all pages).
 *   **Centralized Tag Color Logic:** Moved color calculation based on tag type (Meta, Intent, Content) into Zustand store. Assigns a distinct, strong color to *every unique tag* encountered in `loadedEntries` to ensure consistent UI representation and improve visibility (removed previous frequency threshold).
 
-## 3. Future Development Considerations & Improvements
+## 5. Future Development Considerations & Improvements (Renumbered, previously 4)
 1.  **Implement Server-Side Filtering:** Refactor `fetchEntriesPaginatedService` and store actions to apply filters (search, tags) on the backend during paginated fetches. This will fix the filter scope limitation. **(High Priority Follow-up)**
 2.  **Improve CRUD UX:** Implement more seamless updates after Add/Edit/Delete instead of reloading the entire feed (e.g., client-side insertion/update/removal if possible). **(Medium Priority)**
 3.  **Implement Authentication & Row Level Security (RLS):** **(Postponed but High Priority Security Risk)**.
@@ -97,19 +137,29 @@
     *   Resolved React duplicate key error by fixing pagination logic in store (`loadMoreEntries`).
     *   Resolved Zustand/React snapshot warning in `JournalEntry` component by selecting state slices individually.
 
-## 4. Critical Information & Risks
-*   **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100).** Remains highest risk.
-*   **Filter Scope Limitation (Score: 70/100 - NEW):** Filters/search only apply to loaded entries, not the entire dataset. This can be confusing or misleading for users expecting comprehensive filtering. Requires server-side filtering implementation to resolve.
-*   **Client-Side Filtering Performance (Score: ~40/100 - REVISED):** While pagination reduces initial load, client-side filtering performance on `loadedEntries` can still degrade as many pages are loaded. Server-side filtering will mitigate this.
-*   **AI Feature Dependency & Cost (Score: ~60/100):** No change.
-*   **State Management Complexity:** Significantly reduced via Zustand refactor. Score lowered (~20/100).
-*   **Prop Drilling:** Significantly reduced via Zustand refactor. Score lowered (~15/100).
-*   **(Other previous risks remain relevant...)**
+## 6. Critical Information & Risks (Renumbered, previously 5 - UPDATED CONTENT)
 
-## Current Branch Status
+Stack-ranked list of known problems and risks based on assessed score:
+
+1.  **Row Level Security (RLS): INTENTIONALLY DISABLED (Score: 90/100)**
+    *   **Problem:** Highest security risk. Lack of RLS could allow unauthorized data access in a multi-user scenario. Critical for data privacy.
+2.  **Filter Scope Limitation (Score: 70/100)**
+    *   **Problem:** Filtering (search, tags) only applies to *loaded* entries, not the entire dataset. Can mislead users and prevent finding all relevant information. High usability/data integrity impact.
+3.  **AI Feature Dependency & Cost (Score: ~60/100)**
+    *   **Problem:** Relies on external AI APIs (OpenAI). Introduces dependency risks (downtime, changes) and operational costs.
+4.  **Voice Transcription Incomplete (Score: 50/100)**
+    *   **Problem:** Voice recording UI exists, but the backend API call is simulated. Feature appears functional but isn't, leading to user confusion and potential data loss (untranscribed recordings).
+5.  **Client-Side Filtering Performance (Score: ~40/100)**
+    *   **Problem:** Filtering performance could degrade if a very large number of entries are loaded client-side. Mitigated by pagination currently, fully resolved by server-side filtering.
+6.  **State Management Complexity (Score: ~20/100)**
+    *   **Problem:** Inherent complexity in managing application state. Mostly mitigated by Zustand refactor.
+7.  **Prop Drilling (Score: ~15/100)**
+    *   **Problem:** Significantly reduced by Zustand. Minimal risk.
+
+## 7. Current Branch Status (Renumbered, previously 6)
 *   `main`: Contains latest updates including tag color improvements, pagination fix, text entry fix, and header responsiveness adjustments.
 
-## Next Steps / Priorities (Revised)
+## 8. Next Steps / Priorities (Revised) (Renumbered, previously 7)
 1.  **Implement Real Voice Transcription API Call** (See Future Development #2).
 2.  **Implement Server-Side Filtering:** (See Future Development #1).
 3.  **Implement Row Level Security (RLS):** REQUIRED FOR SECURITY.
@@ -117,7 +167,7 @@
 5.  **(Optional) Merge `feat/continuous-feed-minimal` into `main` if stable enough after testing/fixes.**
 6.  **(Remaining priorities shift down)**
 
-## Voice Recording Limits (IMPORTANT)
+## 9. Voice Recording Limits (IMPORTANT) (Renumbered, previously 8)
 
 *   **Serverless Timeout:** The `/api/transcribe` route has a `maxDuration` of 60 seconds (set in the file). This is the primary constraint.
 *   **Practical Limit:** Due to the server timeout covering upload + Whisper processing + response, users should be advised to keep recordings around **1-2 minutes** for reliability.

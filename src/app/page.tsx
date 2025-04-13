@@ -78,6 +78,7 @@ export default function Home() {
     deleteEntry,
     openEditorDialog,
     addEntry,
+    addEntryWithTranscription,
   } = useJournalStore();
 
   const [isRecording, setIsRecording] = useState(false);
@@ -295,8 +296,6 @@ export default function Home() {
     const formData = new FormData();
     formData.append('audio', audioBlob, 'audio.webm');
 
-    let transcription = '';
-
     try {
       console.log("Sending audio to /api/transcribe...");
       const response = await fetch('/api/transcribe', {
@@ -310,20 +309,23 @@ export default function Home() {
       }
 
       const data = await response.json();
-      transcription = data.transcription;
-      console.log("Transcription received:", transcription);
+      const transcript = data.transcript;
+      console.log("Transcription received:", transcript);
 
-      if (transcription) {
-        const { addEntryWithTranscription } = useJournalStore.getState();
+      if (transcript) {
+        // --- REVERTED LOGIC: Call store action to add directly --- 
+        const { addEntryWithTranscription } = useJournalStore.getState(); // Get action from store
         console.log("Calling store action addEntryWithTranscription...");
-        await addEntryWithTranscription(transcription);
+        await addEntryWithTranscription(transcript); // Call action to add entry
         console.log("Store action addEntryWithTranscription completed.");
+        // --- END REVERTED LOGIC --- 
       } else {
-        console.warn("Transcription was empty, not creating entry.");
+        console.warn("Transcription was empty, not creating entry."); // Updated message
+        setAudioError("Transcription failed or returned empty.");
       }
 
     } catch (error: any) {
-      console.error("Error during transcription or entry creation:", error);
+      console.error("Error during transcription or entry creation:", error); // Reverted error context
       setAudioError(error.message || "Failed to process audio entry.");
     } finally {
       setIsProcessingAudio(false);
@@ -646,11 +648,9 @@ export default function Home() {
 
             {!isLoadingInitial && !errorState && (
               <>
+                {/* Message when filters hide all loaded entries */}
                 {displayEntries.length === 0 && loadedEntries.length > 0 && isAnyFilterActive && (
                   <p className="pt-4 text-center text-gray-500">No loaded entries found matching filters.</p>
-                )}
-                {displayEntries.length === 0 && loadedEntries.length === 0 && (
-                   <p className="pt-4 text-center text-gray-500">No entries yet. Click 'Add Entry' to start!</p>
                 )}
 
                 {Object.entries(groupedEntries).map(([date, dayEntries]) => {

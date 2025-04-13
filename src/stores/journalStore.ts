@@ -366,8 +366,6 @@ export const useJournalStore = create<JournalState & JournalActions>()(
               }
             } catch (taggingError) {
               console.error("Error during background tagging process for manual entry:", taggingError);
-            } finally {
-                set({ isProcessingEntry: false }); // Set processing false *after* tagging attempt
             }
           })(); // End background tagging async IIFE
 
@@ -481,6 +479,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
                loadedEntries: updatedLoadedEntries,
                displayEntries: newDisplayEntries,
                highlightedTagColors: newHighlightedTagColors,
+               isProcessingEntry: false
             });
 
             // 3. Trigger background tagging (similar to manual addEntry)
@@ -493,14 +492,18 @@ export const useJournalStore = create<JournalState & JournalActions>()(
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ content: contentToTag })
-                 }; 
+                 };
                 const [metaResponse, intentResponse, tagsResponse] = await Promise.all([
                    fetch('/api/classify-meta', fetchOptions),
                    fetch('/api/classify-intent', fetchOptions),
                    fetch('/api/tags', fetchOptions)
                 ]);
 
-                // ... (Handle API responses and build updatePayload) ...
+                // Consider more robust error checking here
+                if (!metaResponse.ok) console.warn('Meta tag API failed');
+                if (!intentResponse.ok) console.warn('Intent tag API failed');
+                if (!tagsResponse.ok) console.warn('Content tag API failed');
+
                 const metaResult = metaResponse.ok ? await metaResponse.json() : {};
                 const intentResult = intentResponse.ok ? await intentResponse.json() : {};
                 const tagsResult = tagsResponse.ok ? await tagsResponse.json() : {};
@@ -530,8 +533,6 @@ export const useJournalStore = create<JournalState & JournalActions>()(
                 }
               } catch (taggingError) {
                 console.error("Error during background tagging process for voice entry:", taggingError);
-              } finally {
-                  set({ isProcessingEntry: false }); // Set processing false *after* tagging attempt
               }
             })(); // End background tagging async IIFE
 
@@ -539,7 +540,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
          } catch (error: any) {
             console.error("Failed to add transcription entry:", error);
             set({ errorState: `Failed to add entry: ${error.message}`, isProcessingEntry: false });
-            // Do not re-throw here, as the UI handles errors via audioError state
+            // Do not re-throw here, as the UI handles errors via audioError state in page.tsx
          }
       },
 

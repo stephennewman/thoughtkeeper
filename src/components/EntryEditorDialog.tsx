@@ -35,6 +35,8 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
     updateEntry,
     closeEditorDialog,
     isProcessingEntry,
+    // Removed initialEditorContent from destructuring:
+    // initialEditorContent, 
     // Remove unused store state/actions
     // editingEntry, 
     // currentEditorContent, 
@@ -52,11 +54,11 @@ export const EntryEditorDialog: React.FC<EntryEditorDialogProps> = ({
   useEffect(() => {
     if (isOpen) {
       setError(null); // Clear error on open
-      // Set local state based on the initialEntry prop
+      // Reverted: Set local state based only on the initialEntry prop
       setEditorHtml(initialEntry?.content || '');
     } 
     // No cleanup needed here, as content is reset when opened
-  }, [isOpen, initialEntry]); // Depend on isOpen and initialEntry
+  }, [isOpen, initialEntry]); // Reverted dependencies
 
   // Handler for RichTextEditor changes
   const handleContentChange = (state: EditorState) => {
