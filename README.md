@@ -39,6 +39,7 @@ A modern journaling application built with Next.js that helps you preserve and o
 - **Core functionality is stable.** RLS ensures data privacy.
 - Authentication flow uses separate pages (`/signin`, `/signup`).
 - Voice note recording and transcription are functional.
+- **Layout corrected:** Main app uses a two-column layout with header controls integrated into the left column.
 - Basic UI refinements (logout button position, end-of-feed message) are done.
 - Recent dependency updates addressed build warnings.
 

@@ -541,18 +541,263 @@ export default function Home() {
 
   // --- Actual Logged-in UI --- 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          {/* ... header content ... */}
-      </header>
+    // Outermost container: Row layout
+    <div className="flex flex-row min-h-screen bg-background">
+      
+      {/* --- START Left Column (Header + Scrollable Content) --- */}
+      <div className="flex flex-col flex-1 overflow-hidden border-r">
+        {/* Header moved INSIDE the left column */}
+        <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container flex h-14 items-center justify-between px-4 md:px-6 lg:px-8">
+            {/* Left Side: Logo & Status */}
+            <div className="flex items-center flex-shrink-0">
+              <img 
+                src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523"
+                alt="ThoughtKeeper Logo" 
+                className="h-8 w-auto mr-4"
+              />
+              <div className="flex items-center gap-2">
+                {errorState && (
+                  <p className="text-red-600 text-sm">Error: {errorState}</p>
+                )}
+                {(isLoadingInitial || isProcessingEntry || isProcessingAudio) && !errorState && (
+                  <div className="flex items-center justify-start text-sm text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    {
+                      isProcessingAudio ? <span>Processing audio...</span> :
+                      isProcessingEntry ? <span>Processing entry...</span> :
+                      isLoadingInitial ? <span>Loading...</span> : null
+                    }
+                  </div>
+                )}
+              </div>
+            </div>
 
-      <main className="flex flex-1 overflow-hidden">
-        <div ref={mainContentScrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-          {/* ... search bar ... */} 
+            {/* Center: Voice Recording UI (Conditional) */}
+            {isRecording && !isProcessingAudio && (
+              <div className="flex-grow mx-2 sm:mx-4"> 
+                <canvas 
+                  ref={canvasRef}
+                  height="30" 
+                  className="w-full h-[30px] bg-muted/50 rounded-sm"
+                ></canvas>
+              </div>
+            )}
 
-          {/* ... entry rendering logic ... */} 
+            {/* Right Side: Controls */}
+            <div className="flex items-center flex-wrap gap-2 flex-shrink-0 justify-end">
+              <div className="flex items-center gap-2">
+                {/* Search Bar (hidden during recording) */}
+                {!isRecording && !isProcessingAudio && (
+                  <Input
+                    type="search"
+                    placeholder="Search entries..." 
+                    value={localSearchQuery} 
+                    onChange={handleSearchChange} 
+                    className={clsx(
+                        'w-full max-w-xs',
+                        'hidden sm:block' 
+                    )}
+                  />
+                )}
+                {/* Add Buttons (hidden during recording) */}
+                {!isRecording && !isProcessingAudio && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={startRecording}
+                      size="sm"
+                      aria-label="Add voice note"
+                      title="Add voice note"
+                      className={clsx('inline-flex items-center')}
+                    >
+                      <Mic className="h-4 w-4" /> 
+                      <span className="hidden sm:inline sm:ml-2">Add Voice Note</span>
+                    </Button>
+                    <Button
+                      onClick={handleAddClick}
+                      disabled={false} 
+                      size="sm"
+                      className={clsx(
+                        'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity',
+                        'inline-flex items-center'
+                      )}
+                      aria-label="Add text note"
+                      title="Add text note"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span className="hidden sm:inline sm:ml-2">Add Text Note</span>
+                    </Button>
+                  </>
+                )}
+              </div>
 
-          {/* End of list message */}
+              {/* Recording Controls (shown during recording) */}
+              {isRecording && !isProcessingAudio && (
+                 <>
+                    <span 
+                      className={clsx(
+                        "text-sm font-mono flex-shrink-0 whitespace-nowrap",
+                        recordingTime >= 60 ? "text-red-600" : "text-muted-foreground" 
+                      )}
+                    >
+                      {formatTime(recordingTime)} / 1:00
+                    </span>
+                    <Button
+                      variant="default" 
+                      onClick={handleSendClick}
+                      size="sm"
+                      className={clsx('inline-flex')} 
+                      aria-label="Transcribe recording"
+                      title="Transcribe recording"
+                    >
+                      <Check className="h-4 w-4 sm:mr-2" /> 
+                      <span className="hidden sm:inline">Transcribe</span>
+                    </Button>
+                    <Button
+                      variant="outline" 
+                      onClick={stopRecordingAndDiscard}
+                      size="sm"
+                      className={clsx('inline-flex')} 
+                      aria-label="Stop recording"
+                      title="Stop recording"
+                    >
+                      <X className="h-4 w-4 sm:mr-2" /> 
+                      <span className="hidden sm:inline">Stop Recording</span>
+                    </Button>
+                 </>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Scrollable Content Area for Entries */}
+        <div ref={mainContentScrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-4">
+          {/* --- START Main Content Rendering (Restored) --- */}
+          {/* Filter Active Indicator */}
+          {isAnyFilterActive && (
+            <div className="flex flex-col gap-1 flex-shrink-0 p-2 rounded-md border border-yellow-200 bg-yellow-50 dark:border-yellow-800/60 dark:bg-yellow-900/20">
+               <div className="flex items-center gap-1 text-xs font-semibold text-yellow-800 dark:text-yellow-300">
+                    <Info className="h-3 w-3" />
+                    <span>Filtering applied only to {loadedEntries.length} loaded entries.</span>
+                </div>
+                <div className="flex flex-wrap gap-1 items-center">
+                    <span className="text-sm font-medium mr-1">Active:</span>
+                    {/* Meta Tag Filter */} 
+                    {activeMetaTag && (() => {
+                        const lowerTag = activeMetaTag.toLowerCase();
+                        const colorInfo = highlightedTagColors[lowerTag];
+                        const activeClasses = colorInfo ? colorInfo.base : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300';
+                        const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-purple-200 dark:hover:bg-purple-800/70';
+                        return (
+                        <Badge variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => setFilters({ activeMetaTag: null })}>
+                            {activeMetaTag.toUpperCase()}
+                            <X className="ml-1 h-3 w-3" />
+                        </Badge>
+                        );
+                    })()}
+                    {/* Intent Tag Filter */}
+                    {activeIntentTag && (() => {
+                        const lowerTag = activeIntentTag.toLowerCase();
+                        const colorInfo = highlightedTagColors[lowerTag];
+                        const activeClasses = colorInfo ? colorInfo.base : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+                        const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-green-200 dark:hover:bg-green-800/70';
+                        return (
+                        <Badge variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => setFilters({ activeIntentTag: null })}>
+                            {activeIntentTag}
+                            <X className="ml-1 h-3 w-3" />
+                        </Badge>
+                        );
+                    })()}
+                    {/* Content Tags Filter */}
+                    {Array.from(activeContentTags).map(tag => {
+                        const lowerTag = tag.toLowerCase();
+                        const colorInfo = highlightedTagColors[lowerTag];
+                        const activeClasses = colorInfo ? colorInfo.base : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
+                        const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-blue-200 dark:hover:bg-blue-800/70';
+                        return (
+                        <Badge key={tag} variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => {
+                            const newTags = new Set(activeContentTags);
+                            newTags.delete(tag);
+                            setFilters({ activeContentTags: newTags });
+                        }}>
+                            {tag}
+                            <X className="ml-1 h-3 w-3" />
+                        </Badge>
+                        );
+                    })}
+                    {/* Clear All Filters Button */}
+                     {(!!activeMetaTag || !!activeIntentTag || activeContentTags.size > 0) && (
+                        <Button variant="ghost" size="sm" className="h-5 px-1 text-muted-foreground hover:text-foreground" onClick={() => setFilters({ activeMetaTag: null, activeIntentTag: null, activeContentTags: new Set(), searchQuery: '' })}>
+                            Clear All
+                        </Button>
+                    )}
+                </div>
+            </div>
+          )}
+
+          {/* Initial Loading Indicator */}
+          {isLoadingInitial && (
+            <div className="flex justify-center items-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {/* Entry Rendering Logic */}
+          {!isLoadingInitial && !errorState && (
+            <>
+              {/* No Entries Matching Filter Message */}
+              {displayEntries.length === 0 && loadedEntries.length > 0 && isAnyFilterActive && (
+                <p className="pt-4 text-center text-gray-500">No loaded entries found matching filters.</p>
+              )}
+              
+              {/* Grouped Entries Loop */}
+              {Object.entries(groupedEntries).map(([date, dayEntries]) => {
+                const entryCount = dayEntries.length;
+                const containsHighlighted = highlightedEntryId !== null && dayEntries.some(entry => entry.id === highlightedEntryId);
+                
+                return (
+                  <div key={date} className="mb-4"> 
+                    {/* Date Header */}
+                    <div className={clsx(
+                        "sticky top-0 z-10 mb-2 p-2 border rounded-md bg-muted",
+                        "text-sm font-medium text-muted-foreground",
+                        containsHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background" 
+                    )}> 
+                      {format(parseISO(date), 'MMMM do, yyyy')} 
+                      <span className="ml-2 font-normal">({entryCount} {entryCount === 1 ? 'entry' : 'entries'})</span>
+                    </div>
+                    
+                    {/* Entries for the Day */}
+                    <div className="space-y-2"> 
+                      {dayEntries.map((entry) => (
+                        <JournalEntry
+                            key={entry.id}
+                            entry={entry}
+                            highlightedTagColors={highlightedTagColors}
+                            setFilters={setFilters}
+                            onDeleteEntry={handleDeleteEntry}
+                            onEditClick={handleEditClick}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Loading More Indicator */}
+              {isLoadingMore && (
+                <div className="flex justify-center items-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+
+              {/* End of List Message (handled outside this block now) */}
+            </>
+          )}
+          {/* --- END Main Content Rendering --- */}
+          
+          {/* End of list message (moved slightly lower) */}
           {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (
             <div className="text-center text-muted-foreground text-sm py-8">
               {isAnyFilterActive 
@@ -562,13 +807,17 @@ export default function Home() {
             </div>
           )}
 
+          {/* Intersection observer target */}
           <div ref={intersectionObserverRef} style={{ height: '1px' }} />
         </div>
+      </div>
+      {/* --- END Left Column --- */}
 
-        <StaticAnalysisColumn /> 
-      </main>
+      {/* --- START Right Column (Static Analysis) --- */} 
+      <StaticAnalysisColumn /> 
+      {/* --- END Right Column --- */} 
 
-      {/* Editor Dialog */}
+      {/* Editor Dialog (Portal?) - Position might need review */} 
       {isEditorOpen && (
         <EntryEditorDialog
           isOpen={isEditorOpen}
@@ -577,7 +826,7 @@ export default function Home() {
         />
       )}
 
-      {/* Logout Button */}
+      {/* Logout Button (Fixed Position) - Should still work */} 
       {session && (
           <Button 
             variant="outline" 
