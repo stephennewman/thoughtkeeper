@@ -26,8 +26,10 @@ export default function SignUpPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="p-8 rounded-lg shadow-md w-full max-w-md border">
+    <div 
+      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black"
+    >
+      <div className="p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-700 bg-white">
         <div className="flex justify-center mb-6">
           <img 
             src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523" 
@@ -35,6 +37,8 @@ export default function SignUpPage() {
             className="h-16 w-auto"
           />
         </div>
+        
+        <h2 className="text-2xl font-semibold text-center mb-6">Create Account</h2>
         
         <Auth
           supabaseClient={supabase}
@@ -49,14 +53,15 @@ export default function SignUpPage() {
               }
             }
           }}
-          providers={[]}
-          view="sign_up" // Specify sign-up view
+          providers={['google']}
+          socialLayout="horizontal"
+          view="sign_up"
           theme={resolvedTheme === 'dark' ? 'dark' : 'default'}
-          showLinks={false} // We'll add our own link below
-          redirectTo="/" // Redirect to home after sign up (might require email confirmation first)
+          showLinks={false}
+          redirectTo="/"
         />
         <div className="text-center mt-4">
-          <Link href="/signin" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+          <Link href="/signin" className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
             Already have an account? Sign in
           </Link>
         </div>
