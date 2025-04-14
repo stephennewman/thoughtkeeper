@@ -15,7 +15,7 @@ A modern journaling application built with Next.js that helps you preserve and o
 ## Features Implemented
 
 - User Authentication (Supabase Auth with Email/Password)
-  - Separate `/signin` and `/signup` pages.
+  - Separate `/signin` and `/signup` pages (minimalist UI: logo, form, link).
   - Redirects handled via `src/app/page.tsx`.
 - Database: Supabase Postgres
   - `entries` table with `user_id`.

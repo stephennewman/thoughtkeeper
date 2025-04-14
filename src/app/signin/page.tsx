@@ -35,8 +35,6 @@ export default function SignInPage() {
           />
         </div>
         
-        <h2 className="text-2xl font-semibold text-center mb-6">Sign In</h2>
-        
         <Auth
           supabaseClient={supabase}
           appearance={{ 

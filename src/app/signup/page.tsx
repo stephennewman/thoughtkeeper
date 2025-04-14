@@ -36,8 +36,6 @@ export default function SignUpPage() {
           />
         </div>
         
-        <h2 className="text-2xl font-semibold text-center mb-6">Create Account</h2>
-        
         <Auth
           supabaseClient={supabase}
           appearance={{ 
