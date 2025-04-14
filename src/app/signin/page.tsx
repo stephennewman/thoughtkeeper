@@ -35,6 +35,8 @@ export default function SignInPage() {
           />
         </div>
         
+        <h2 className="text-2xl font-semibold text-center mb-6">Sign In</h2>
+        
         <Auth
           supabaseClient={supabase}
           appearance={{ 
@@ -48,11 +50,12 @@ export default function SignInPage() {
               }
             }
           }}
-          providers={[]}
-          view="sign_in" // Specify sign-in view
+          providers={['google']}
+          socialLayout="horizontal"
+          view="sign_in"
           theme={resolvedTheme === 'dark' ? 'dark' : 'default'}
-          showLinks={false} // We'll add our own link below
-          redirectTo="/" // Redirect to home after sign in
+          showLinks={false}
+          redirectTo="/"
         />
         <div className="text-center mt-4">
           <Link href="/signup" className="text-sm text-blue-600 hover:underline dark:text-blue-400">

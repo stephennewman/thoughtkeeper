@@ -5,8 +5,11 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Personal Journal",
-  description: "A beautiful personal journaling app",
+  title: {
+    template: '%s | ThoughtKeeper',
+    default: 'ThoughtKeeper',
+  },
+  description: "Your personal space for thoughts and reflections.",
 };
 
 export default function RootLayout({
