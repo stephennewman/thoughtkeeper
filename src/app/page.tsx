@@ -826,12 +826,41 @@ export default function Home() {
         />
       )}
 
-      {/* Logout Button (Fixed Position) - Should still work */} 
+      {/* Logout Button (Fixed Position - Restored) */}
       {session && (
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={async () => { /* ... sign out logic ... */ }}
+            // Restore the full onClick handler with diagnostics
+            onClick={async () => {
+              console.log("(Restored) Logout button clicked. Refreshing session...");
+              const { error: refreshError } = await supabase.auth.refreshSession();
+              if (refreshError) {
+                console.warn("Error refreshing session before sign out:", refreshError);
+              }
+
+              console.log("Checking session...");
+              const { data: currentSessionData, error: sessionError } = await supabase.auth.getSession();
+              
+              if (sessionError) {
+                console.error("Error getting session after refresh:", sessionError);
+                return; 
+              }
+              
+              if (!currentSessionData.session) {
+                console.warn("No active session found by Supabase after refresh.");
+                return;
+              }
+
+              console.log("Active session confirmed. Attempting sign out...");
+              const { error: signOutError } = await supabase.auth.signOut();
+              
+              if (signOutError) {
+                console.error("Error signing out:", signOutError);
+              } else {
+                console.log("Sign out successful. Auth listener should handle redirect.");
+              }
+            }} 
             className="fixed bottom-4 right-4 z-50 bg-background hover:bg-muted"
             aria-label="Logout"
             title="Logout"
