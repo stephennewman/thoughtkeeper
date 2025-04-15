@@ -1,6 +1,12 @@
 import { supabase } from '@/lib/supabaseClient';
 import type { Entry } from '@/types';
 
+// Define a type for the action items for clarity
+export type ActionItem = {
+    task: string;
+    completed: boolean;
+};
+
 /**
  * Fetches entries from Supabase, applying pagination and optional filters.
  * Search query overrides tag filters.
@@ -114,6 +120,7 @@ export const fetchAllEntriesService = async (): Promise<{ data: Entry[] | null; 
 
 /**
  * Adds a new entry to the database.
+ * Triggers asynchronous extraction of actions after creation.
  * Returns the newly created entry data and error object.
  */
 export const addEntryService = async (
@@ -125,6 +132,8 @@ export const addEntryService = async (
     if (!trimmedContent) {
         return { data: null, error: new Error("Content cannot be empty.") };
     }
+
+    let newEntry: Entry | null = null;
 
     try {
         // Fetch the current user
@@ -150,7 +159,18 @@ export const addEntryService = async (
         if (error) {
             throw error;
         }
-        return { data: data as Entry, error: null }; 
+        newEntry = data as Entry; // Store the newly created entry
+
+        // --- Start: Asynchronously extract and update actions --- 
+        if (newEntry && newEntry.id && newEntry.content) {
+            // Don't await these calls - let them run in the background
+            extractAndSaveActions(newEntry.id, newEntry.content);
+            console.log("[addEntryService] Attempting to call extractAndSaveSummary for entry:", newEntry.id);
+            extractAndSaveSummary(newEntry.id, newEntry.content); // Call summary extraction
+        }
+        // --- End: Asynchronously extract and update actions ---
+
+        return { data: newEntry, error: null }; 
     } catch (error: any) {
         console.error('Error in addEntryService:', error);
         return { data: null, error: new Error(`Failed to add entry: ${error.message}`) };
@@ -159,7 +179,7 @@ export const addEntryService = async (
 
 /**
  * Updates the content of an existing entry.
- * Does not handle AI tag re-generation here.
+ * Triggers asynchronous re-extraction of actions after update.
  * Returns the updated entry data and error object.
  */
 export const updateEntryContentService = async (id: string, content: string): Promise<{ data: Entry | null; error: Error | null }> => {
@@ -168,10 +188,12 @@ export const updateEntryContentService = async (id: string, content: string): Pr
         return { data: null, error: new Error("Content cannot be empty.") };
     }
 
+    let updatedEntry: Entry | null = null;
+
     try {
         const { data, error } = await supabase
             .from('entries')
-            .update({ content: trimmedContent }) // Only update content for now
+            .update({ content: trimmedContent }) // Only update content initially
             .eq('id', id)
             .select()
             .single();
@@ -179,10 +201,149 @@ export const updateEntryContentService = async (id: string, content: string): Pr
         if (error) {
             throw error;
         }
-        return { data: data as Entry, error: null };
+        updatedEntry = data as Entry; // Store the updated entry
+
+        // --- Start: Asynchronously extract and update actions --- 
+        if (updatedEntry && updatedEntry.id && updatedEntry.content) {
+             // Don't await these calls - let them run in the background
+            extractAndSaveActions(updatedEntry.id, updatedEntry.content);
+            console.log("[updateEntryContentService] Attempting to call extractAndSaveSummary for entry:", updatedEntry.id);
+            extractAndSaveSummary(updatedEntry.id, updatedEntry.content); // Call summary extraction
+        }
+        // --- End: Asynchronously extract and update actions ---
+
+        return { data: updatedEntry, error: null };
     } catch (error: any) {
         console.error('Error in updateEntryContentService:', error);
         return { data: null, error: new Error(`Failed to update entry: ${error.message}`) };
+    }
+};
+
+/**
+ * Helper function to call the API, extract actions, and update the DB.
+ * Designed to be called without awaiting.
+ */
+const extractAndSaveActions = async (entryId: string, entryContent: string): Promise<void> => {
+    console.log(`Starting action extraction for entry: ${entryId}`);
+    try {
+        const response = await fetch('/api/extract-actions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ content: entryContent }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`API Error (${response.status}): ${errorData.error || response.statusText}`);
+        }
+
+        const extractedActions: ActionItem[] = await response.json();
+
+        // Validate the structure slightly (basic check)
+        if (!Array.isArray(extractedActions) || (extractedActions.length > 0 && typeof extractedActions[0] !== 'object')) {
+             console.warn(`Received invalid actions structure for entry ${entryId}:`, extractedActions);
+             // Decide whether to save [] or null or do nothing. Saving [] might be safest.
+             // For now, let's skip the update if the structure is clearly wrong.
+             return; 
+        }
+        
+        console.log(`Extracted ${extractedActions.length} actions for entry ${entryId}. Saving...`);
+
+        const { error: updateError } = await supabase
+            .from('entries')
+            .update({ extracted_actions: extractedActions })
+            .eq('id', entryId);
+
+        if (updateError) {
+            console.error(`Failed to save extracted actions for entry ${entryId}:`, updateError);
+        } else {
+            console.log(`Successfully saved extracted actions for entry ${entryId}.`);
+        }
+
+    } catch (error) {
+        console.error(`Error during action extraction/saving for entry ${entryId}:`, error);
+    }
+};
+
+/**
+ * Helper function to call the summary API, extract summary points, and update the DB.
+ * Designed to be called without awaiting.
+ */
+const extractAndSaveSummary = async (entryId: string, entryContent: string): Promise<void> => {
+    console.log(`Starting summary extraction for entry: ${entryId}`);
+    try {
+        const response = await fetch('/api/extract-summary', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ content: entryContent }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`API Error (${response.status}): ${errorData.error || response.statusText}`);
+        }
+
+        const extractedSummary: string[] = await response.json();
+
+        // Validate the structure (expecting array of strings)
+        if (!Array.isArray(extractedSummary) || !extractedSummary.every(item => typeof item === 'string')) {
+             console.warn(`Received invalid summary structure for entry ${entryId}:`, extractedSummary);
+             // Skip update if structure is clearly wrong
+             return; 
+        }
+        
+        console.log(`Extracted ${extractedSummary.length} summary points for entry ${entryId}. Saving...`);
+
+        const { error: updateError } = await supabase
+            .from('entries')
+            .update({ extracted_summary: extractedSummary })
+            .eq('id', entryId);
+
+        if (updateError) {
+            console.error(`Failed to save extracted summary for entry ${entryId}:`, updateError);
+        } else {
+            console.log(`Successfully saved extracted summary for entry ${entryId}.`);
+        }
+
+    } catch (error) {
+        console.error(`Error during summary extraction/saving for entry ${entryId}:`, error);
+    }
+};
+
+/**
+ * Updates only the extracted_actions for a specific entry.
+ * Used for checklist toggling.
+ */
+export const updateEntryActionsService = async (id: string, actions: ActionItem[]): Promise<{ data: Pick<Entry, 'id' | 'extracted_actions'> | null; error: Error | null }> => {
+    // Basic validation of the actions structure
+    if (!Array.isArray(actions) || !actions.every(a => typeof a === 'object' && 'task' in a && 'completed' in a)) {
+        console.error('Invalid actions structure provided to updateEntryActionsService');
+        return { data: null, error: new Error('Invalid actions format.') };
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('entries')
+            .update({ extracted_actions: actions })
+            .eq('id', id)
+            .select('id, extracted_actions') // Select only needed fields
+            .single();
+
+        if (error) {
+            console.error(`Supabase error updating actions for entry ${id}:`, error);
+            throw error;
+        }
+
+        console.log(`Successfully updated actions for entry ${id}`);
+        return { data: data as Pick<Entry, 'id' | 'extracted_actions'>, error: null };
+
+    } catch (error: any) {
+        console.error('Error in updateEntryActionsService:', error);
+        return { data: null, error: new Error(`Failed to update entry actions: ${error.message}`) };
     }
 };
 

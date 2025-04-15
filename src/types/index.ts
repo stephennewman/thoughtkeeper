@@ -1,3 +1,5 @@
+import type { ActionItem } from '@/lib/entryService';
+
 export interface SupabaseEntry {
   id: string;
   created_at: string;
@@ -13,6 +15,8 @@ export interface Entry extends SupabaseEntry {
   user_id: string;
   updated_at: string;
   entry_type?: 'voice' | 'text';
+  extracted_actions?: ActionItem[] | null;
+  extracted_summary?: string[] | null;
 }
 
 export interface MacroSummary {

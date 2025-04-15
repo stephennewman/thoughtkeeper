@@ -343,6 +343,7 @@ export default function Home() {
       const data = await response.json();
       const transcript = data.transcript;
       console.log("Transcription received:", transcript);
+      console.log("Full API response data from /api/transcribe:", data);
 
       if (transcript) {
         // --- REVERTED LOGIC: Call store action to add directly --- 
@@ -586,7 +587,7 @@ export default function Home() {
 
             {/* Right Side: Controls */}
             <div className="flex items-center flex-wrap gap-2 flex-shrink-0 justify-end">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mr-[-1rem] lg:mr-[-1.5rem]">
                 {/* Search Bar (hidden during recording) */}
                 {!isRecording && !isProcessingAudio && (
                   <Input

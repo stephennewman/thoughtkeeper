@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
       </Sheet>
 
       {/* App Title - Ensure sufficient weight */}
-      <div className="flex-none hidden lg:block">
+      <div className="flex-none hidden lg:block ml-[-1rem] lg:ml-[-1.5rem]">
         <h1 className="font-semibold text-xl">ThoughtKeeper</h1>
       </div>
 
