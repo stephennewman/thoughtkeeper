@@ -1,7 +1,7 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.5.5 (Vercel Deployment, Post-Onboarding Revert)
-**Date:** 2024-07-26
+**Document Version:** 2.6.0 (Summary Backend & UI Toasts)
+**Date:** 2024-07-27
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
 **Development Environment Note:** User is developing within the Cursor editor.
@@ -27,7 +27,7 @@
 *   Language: TypeScript
 *   State Management: Zustand
 *   Styling: Tailwind CSS
-*   UI Components: shadcn/ui, react-intersection-observer, @supabase/auth-ui-react
+*   UI Components: shadcn/ui, react-intersection-observer, @supabase/auth-ui-react, **sonner**
 *   Icons: lucide-react
 *   Database: Supabase (PostgreSQL)
 *   Authentication: Supabase Auth (Email/Password, Google SSO)
@@ -63,13 +63,23 @@
 *   **Server-Side Filtering/Search:** Implemented for entries.
 *   **State Management:** Zustand central store.
 *   **UI:** Shadcn components, dark/light mode support.
+*   **Inline Editing/Adding (JournalEntry Component):**
+    *   Summary points (bullet list) are editable inline using `contentEditable`.
+    *   Action items (checkbox list) are editable inline using `contentEditable`.
+    *   Hovering over a summary or action item reveals Edit/Delete buttons next to the text.
+    *   Hovering also reveals a "+" button to add a new item *below* the hovered one.
+    *   The add form appears inline below the relevant item.
+    *   If a list is empty, an "+ Add" button appears to add the first item.
+    *   Font weights and alignments are handled for a smooth editing experience.
+    *   **Backend persistence implemented** for summary add/edit/delete via `updateEntrySummaryService`.
+*   **User Feedback:** **Toast notifications (using `sonner`)** added for success/error on action/summary item CRUD operations.
+*   **UI Alignment:** Add Voice/Text Note buttons in the header aligned using `items-baseline`.
 
 ## 6. Known Issues / Next Steps (Prioritized > 70/100)
 
 **Current Problems:**
 1.  **Filtering/Search Scalability (85):** Current client-side filtering is not truly scalable.
 2.  **Double "Processing..." Indicator (75):** Voice note submission UI glitch.
-3.  **Error Handling Robustness (70):** Needs more user-facing feedback for errors.
 
 **Potential Opportunities / Incomplete Features:**
 1.  **Implement Static Analysis Column (90):** UI exists, needs backend logic.

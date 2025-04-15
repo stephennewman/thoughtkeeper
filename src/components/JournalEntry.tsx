@@ -12,8 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 import { Label } from "@/components/ui/label"; // Import Label
 import { Input } from "@/components/ui/input"; // Import Input
 import type { Entry, TagType } from '@/types'; // Import from centralized types
-import { ActionItem, updateEntryActionsService } from '@/lib/entryService'; // Import ActionItem and service
+import { ActionItem, updateEntryActionsService, updateEntrySummaryService } from '@/lib/entryService'; // Import ActionItem and service
 import { useJournalStore } from '@/stores/journalStore'; // IMPORT THE STORE
+import { toast } from 'sonner'; // Import toast
 import clsx from 'clsx';
 
 // Define props for the component
@@ -179,24 +180,21 @@ export function JournalEntry({
       const { data: updatedData, error } = await updateEntryActionsService(entry.id, updatedActions);
       if (error) {
         console.error("Failed to update action status in DB:", error);
-        // Optionally revert UI state on failure
         setLocalActions(localActions); // Revert
+        toast.error("Failed to update action status.");
       } else if (updatedData) {
         // Update the entry in the global Zustand store to reflect the saved state
-        // We only get {id, extracted_actions} back, merge it with the existing entry
         const updatedEntryForStore = { ...entry, extracted_actions: updatedData.extracted_actions };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); 
       } else {
         console.warn("updateEntryActionsService returned no data or error");
-        // Maybe still update the store optimistically? Or revert?
-        // Let's update store optimistically for now even if data is missing
         const updatedEntryForStore = { ...entry, extracted_actions: updatedActions };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); 
       }
     } catch (error) {
       console.error("Error calling updateEntryActionsService:", error);
-      // Optionally revert UI state on failure
       setLocalActions(localActions); // Revert
+      toast.error("An error occurred while updating action status.");
     }
   };
   // === End Handler ===
@@ -214,24 +212,24 @@ export function JournalEntry({
       const { data: updatedData, error } = await updateEntryActionsService(entry.id, updatedActions);
       if (error) {
         console.error("Failed to delete action item in DB:", error);
-        // Revert UI state on failure
         setLocalActions(originalActions); 
-        // TODO: Add user feedback (e.g., toast notification) on failure
+        toast.error("Failed to delete action item.");
       } else if (updatedData) {
         // Update the entry in the global Zustand store
         const updatedEntryForStore = { ...entry, extracted_actions: updatedData.extracted_actions };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); 
+        toast.success("Action item deleted.");
       } else {
          // If no error but no data, still update store optimistically based on local state
          console.warn("updateEntryActionsService (delete) returned no data or error");
          const updatedEntryForStore = { ...entry, extracted_actions: updatedActions };
          updateEntryTagsInStore(entry.id, updatedEntryForStore);
+         toast.success("Action item deleted (no confirmation).");
       }
     } catch (error) {
       console.error("Error calling updateEntryActionsService for delete:", error);
-      // Revert UI state on failure
       setLocalActions(originalActions); 
-       // TODO: Add user feedback (e.g., toast notification) on failure
+      toast.error("An error occurred while deleting action item.");
     }
   };
   // === End Handler ===
@@ -274,20 +272,22 @@ export function JournalEntry({
       if (error) {
         console.error("Failed to update action item text in DB:", error);
         setLocalActions(originalActions); // Revert UI
-        // TODO: Add user feedback
+        toast.error("Failed to save action item.");
       } else if (updatedData) {
         // Update the entry in the global Zustand store
         const updatedEntryForStore = { ...entry, extracted_actions: updatedData.extracted_actions };
         updateEntryTagsInStore(entry.id, updatedEntryForStore);
+        toast.success("Action item saved.");
       } else {
         console.warn("updateEntryActionsService (edit) returned no data or error");
         const updatedEntryForStore = { ...entry, extracted_actions: updatedActions };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); // Update store optimistically
+        toast.success("Action item saved (no confirmation).");
       }
     } catch (error) {
       console.error("Error calling updateEntryActionsService for edit:", error);
       setLocalActions(originalActions); // Revert UI
-      // TODO: Add user feedback
+      toast.error("An error occurred while saving action item.");
     }
   };
 
@@ -319,30 +319,30 @@ export function JournalEntry({
       const { data: updatedData, error } = await updateEntryActionsService(entry.id, updatedActions);
       if (error) {
         console.error("Failed to add action item in DB:", error);
-        // Revert UI state on failure
         setLocalActions(originalActions); 
-        setIsAddingAction(true); // Re-show input
-        setAddActionAfterIndex(addActionAfterIndex); // Keep the intended index
-        setNewActionText(trimmedText); // Keep the text user tried to save
-        // TODO: Add user feedback (e.g., toast notification) on failure
+        setIsAddingAction(true); 
+        setAddActionAfterIndex(addActionAfterIndex);
+        setNewActionText(trimmedText);
+        toast.error("Failed to add action item.");
       } else if (updatedData) {
         // Update the entry in the global Zustand store
         const updatedEntryForStore = { ...entry, extracted_actions: updatedData.extracted_actions };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); 
+        toast.success("Action item added.");
       } else {
          // If no error but no data, still update store optimistically based on local state
          console.warn("updateEntryActionsService (add) returned no data or error");
          const updatedEntryForStore = { ...entry, extracted_actions: updatedActions };
          updateEntryTagsInStore(entry.id, updatedEntryForStore);
+         toast.success("Action item added (no confirmation).");
       }
     } catch (error) {
       console.error("Error calling updateEntryActionsService for add:", error);
-      // Revert UI state on failure
       setLocalActions(originalActions); 
-      setIsAddingAction(true); // Re-show input
+      setIsAddingAction(true); 
       setAddActionAfterIndex(addActionAfterIndex);
       setNewActionText(trimmedText);
-       // TODO: Add user feedback (e.g., toast notification) on failure
+      toast.error("An error occurred while adding action item.");
     }
   };
   // === End Handler ===
@@ -379,30 +379,28 @@ export function JournalEntry({
     handleCancelEditSummary(); // Clear editing state
 
     try {
-      // --- Placeholder for backend update ---
-      console.log(`TODO: Call updateEntrySummaryService(${entry.id}, ${JSON.stringify(updatedSummary)})`);
-      // const { data: updatedData, error } = await updateEntrySummaryService(entry.id, updatedSummary);
-      const error = null; // Assume success for now
-      const updatedData = { id: entry.id, extracted_summary: updatedSummary }; // Mock response
-      // --- End Placeholder ---
+      // Persist changes to the database
+      const { data: updatedData, error } = await updateEntrySummaryService(entry.id, updatedSummary);
 
       if (error) {
         console.error("Failed to update summary item in DB:", error);
         setLocalSummary(originalSummary); // Revert UI
-        // TODO: Add user feedback
+        toast.error("Failed to save summary point.");
       } else if (updatedData) {
         // Update the entry in the global Zustand store
         const updatedEntryForStore = { ...entry, extracted_summary: updatedData.extracted_summary };
         updateEntryTagsInStore(entry.id, updatedEntryForStore);
+        toast.success("Summary point saved.");
       } else {
         console.warn("updateEntrySummaryService returned no data or error");
         const updatedEntryForStore = { ...entry, extracted_summary: updatedSummary };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); // Update store optimistically
+        toast.success("Summary point saved (no confirmation).");
       }
     } catch (error) {
       console.error("Error calling updateEntrySummaryService:", error);
       setLocalSummary(originalSummary); // Revert UI
-      // TODO: Add user feedback
+      toast.error("An error occurred while saving summary point.");
     }
   };
 
@@ -413,30 +411,28 @@ export function JournalEntry({
     setLocalSummary(updatedSummary); // Optimistic UI update
 
     try {
-      // --- Placeholder for backend update ---
-      console.log(`TODO: Call updateEntrySummaryService(${entry.id}, ${JSON.stringify(updatedSummary)})`);
-      // const { data: updatedData, error } = await updateEntrySummaryService(entry.id, updatedSummary);
-      const error = null; // Assume success for now
-      const updatedData = { id: entry.id, extracted_summary: updatedSummary }; // Mock response
-      // --- End Placeholder ---
+      // Persist changes to the database
+      const { data: updatedData, error } = await updateEntrySummaryService(entry.id, updatedSummary);
 
       if (error) {
         console.error("Failed to delete summary item in DB:", error);
         setLocalSummary(originalSummary); // Revert UI
-        // TODO: Add user feedback
+        toast.error("Failed to delete summary point.");
       } else if (updatedData) {
         // Update the entry in the global Zustand store
         const updatedEntryForStore = { ...entry, extracted_summary: updatedData.extracted_summary };
         updateEntryTagsInStore(entry.id, updatedEntryForStore);
+        toast.success("Summary point deleted.");
       } else {
         console.warn("updateEntrySummaryService (delete) returned no data or error");
         const updatedEntryForStore = { ...entry, extracted_summary: updatedSummary };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); // Update store optimistically
+        toast.success("Summary point deleted (no confirmation).");
       }
     } catch (error) {
       console.error("Error calling updateEntrySummaryService for delete:", error);
       setLocalSummary(originalSummary); // Revert UI
-      // TODO: Add user feedback
+      toast.error("An error occurred while deleting summary point.");
     }
   };
   // === End Summary Handlers ===
@@ -467,29 +463,28 @@ export function JournalEntry({
     handleCancelAddSummary(); // Reset add state
 
     try {
-      // --- Placeholder for backend update (reuse existing logic structure) ---
-      console.log(`TODO: Call updateEntrySummaryService(${entry.id}, ${JSON.stringify(updatedSummary)})`);
-      const error = null; // Assume success for now
-      const updatedData = { id: entry.id, extracted_summary: updatedSummary }; // Mock response
-      // --- End Placeholder ---
+      // Persist changes to the database
+      const { data: updatedData, error } = await updateEntrySummaryService(entry.id, updatedSummary);
 
       if (error) {
         console.error("Failed to add summary item in DB:", error);
         setLocalSummary(originalSummary); // Revert UI
-        // TODO: Add user feedback
+        toast.error("Failed to add summary point.");
       } else if (updatedData) {
         // Update the entry in the global Zustand store
         const updatedEntryForStore = { ...entry, extracted_summary: updatedData.extracted_summary };
         updateEntryTagsInStore(entry.id, updatedEntryForStore);
+        toast.success("Summary point added.");
       } else {
         console.warn("updateEntrySummaryService (add) returned no data or error");
         const updatedEntryForStore = { ...entry, extracted_summary: updatedSummary };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); // Update store optimistically
+        toast.success("Summary point added (no confirmation).");
       }
     } catch (error) {
       console.error("Error calling updateEntrySummaryService for add:", error);
       setLocalSummary(originalSummary); // Revert UI
-      // TODO: Add user feedback
+      toast.error("An error occurred while adding summary point.");
     }
   };
   // === End Add Summary Handlers ===

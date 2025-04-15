@@ -587,7 +587,8 @@ export default function Home() {
 
             {/* Right Side: Controls */}
             <div className="flex items-center flex-wrap gap-2 flex-shrink-0 justify-end">
-              <div className="flex items-center gap-2 mr-[-1rem] lg:mr-[-1.5rem]">
+              {/* This container groups search and add buttons - remove negative margin */}
+              <div className="flex items-baseline gap-2">
                 {/* Search Bar (hidden during recording) */}
                 {!isRecording && !isProcessingAudio && (
                   <Input
@@ -796,7 +797,7 @@ export default function Home() {
               {/* End of List Message (handled outside this block now) */}
             </>
           )}
-          {/* --- END Main Content Rendering --- */}
+          {/* --- END Main Content Rendering --- */} 
           
           {/* End of list message (moved slightly lower) */}
           {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (

@@ -315,35 +315,59 @@ const extractAndSaveSummary = async (entryId: string, entryContent: string): Pro
 };
 
 /**
- * Updates only the extracted_actions for a specific entry.
- * Used for checklist toggling.
+ * Updates the `extracted_actions` field for a specific entry.
+ * Returns only the ID and updated actions, or error.
  */
 export const updateEntryActionsService = async (id: string, actions: ActionItem[]): Promise<{ data: Pick<Entry, 'id' | 'extracted_actions'> | null; error: Error | null }> => {
-    // Basic validation of the actions structure
-    if (!Array.isArray(actions) || !actions.every(a => typeof a === 'object' && 'task' in a && 'completed' in a)) {
-        console.error('Invalid actions structure provided to updateEntryActionsService');
-        return { data: null, error: new Error('Invalid actions format.') };
-    }
-
     try {
+        // Basic validation
+        if (!id || !Array.isArray(actions)) {
+            return { data: null, error: new Error("Invalid ID or actions array provided.") };
+        }
+
         const { data, error } = await supabase
             .from('entries')
             .update({ extracted_actions: actions })
             .eq('id', id)
-            .select('id, extracted_actions') // Select only needed fields
+            .select('id, extracted_actions') // Select only necessary fields
             .single();
 
         if (error) {
-            console.error(`Supabase error updating actions for entry ${id}:`, error);
             throw error;
         }
-
-        console.log(`Successfully updated actions for entry ${id}`);
-        return { data: data as Pick<Entry, 'id' | 'extracted_actions'>, error: null };
-
+        return { data, error: null };
     } catch (error: any) {
         console.error('Error in updateEntryActionsService:', error);
         return { data: null, error: new Error(`Failed to update entry actions: ${error.message}`) };
+    }
+};
+
+/**
+ * Updates the `extracted_summary` field for a specific entry.
+ * Returns only the ID and updated summary, or error.
+ */
+export const updateEntrySummaryService = async (id: string, summary: string[]): Promise<{ data: Pick<Entry, 'id' | 'extracted_summary'> | null; error: Error | null }> => {
+    try {
+        // Basic validation
+        if (!id || !Array.isArray(summary)) {
+            return { data: null, error: new Error("Invalid ID or summary array provided.") };
+        }
+
+        const { data, error } = await supabase
+            .from('entries')
+            .update({ extracted_summary: summary })
+            .eq('id', id)
+            .select('id, extracted_summary') // Select only necessary fields
+            .single();
+
+        if (error) {
+            throw error;
+        }
+        // Cast the data to the expected partial type
+        return { data: data as Pick<Entry, 'id' | 'extracted_summary'> | null, error: null };
+    } catch (error: any) {
+        console.error('Error in updateEntrySummaryService:', error);
+        return { data: null, error: new Error(`Failed to update entry summary: ${error.message}`) };
     }
 };
 
