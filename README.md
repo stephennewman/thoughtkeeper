@@ -1,4 +1,4 @@
-# ThoughtKeeper
+# VibeKeep
 
 A modern journaling application built with Next.js that helps you preserve and organize your thoughts and reflections.
 
@@ -73,12 +73,12 @@ This list prioritizes items based on estimated impact/urgency/value (score > 70/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/stephennewman/thoughtkeeper.git
+git clone https://github.com/stephennewman/VibeKeep.git
 ```
 
 2. Install dependencies:
 ```bash
-cd thoughtkeeper
+cd VibeKeep
 npm install
 ```
 

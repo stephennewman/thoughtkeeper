@@ -17,7 +17,7 @@ const HomePage: React.FC = () => {
               <Link href="/home">
                 <Image 
                   src={logoUrl}
-                  alt="ThoughtKeeper Logo"
+                  alt="VibeKeep Logo"
                   width={140} // Placeholder width
                   height={32} // Placeholder height
                   priority // Optional: Prioritize loading the logo
@@ -54,10 +54,10 @@ const HomePage: React.FC = () => {
       <section id="hero" className="bg-gradient-to-br from-purple-100 via-blue-50 to-indigo-100 py-24 text-center">
         <div className="max-w-4xl mx-auto px-6">
           <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-purple-600 to-indigo-800 mb-6">
-            Augment Your Cognitive Workflow ✨
+            Harmorize your work / life balance with intelligence ✨
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-10">
-            ThoughtKeeper: The intelligent processing layer for elite operators. Capture, synthesize, and execute at the speed of thought, eliminating cognitive friction.
+            Capture your thoughts, ideas, and actions with ease, and make it useful.
           </p>
           <Link
             href="/signup"
@@ -65,7 +65,7 @@ const HomePage: React.FC = () => {
             rel="noopener noreferrer"
             className="inline-block bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-150 hover:from-blue-700 hover:to-indigo-800 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md"
           >
-            Unlock Peak Performance
+            Get started
           </Link>
         </div>
       </section>
@@ -74,13 +74,13 @@ const HomePage: React.FC = () => {
       <section id="friction" className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-4xl font-semibold text-center text-gray-900 mb-16">
-             The Invisible Friction Holding You Back 😩
+             Disorganized and disconnected trackers hold you back 😩
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
              {/* Expanded Problem 1 */}
             <div className="text-center">
               <div className="text-5xl mb-4">🗣️⌨️</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">Capture Bottlenecks</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">Too many inputs</h3>
               <p className="text-gray-600 mb-4">Switching between text, voice, and other inputs breaks flow. Transient thoughts evaporate before being logged. Critical details from calls or quick insights get lost in the shuffle.</p>
                <ul className="text-left text-sm text-red-700 space-y-1 list-disc list-inside">
                  <li>Missed Opportunities: Brilliant ideas vanish before capture.</li>
@@ -91,7 +91,7 @@ const HomePage: React.FC = () => {
              {/* Expanded Problem 2 */}
             <div className="text-center">
               <div className="text-5xl mb-4">🤯⏳</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">Manual Synthesis Tax</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">Manual analysis</h3>
               <p className="text-gray-600 mb-4">Your valuable cognitive energy is spent on low-level tasks: manually connecting concepts, summarizing notes after the fact, and trying to extract action items from dense text.</p>
                <ul className="text-left text-sm text-red-700 space-y-1 list-disc list-inside">
                  <li>Drained Energy: Mental resources wasted on repetitive organizing.</li>
@@ -102,7 +102,7 @@ const HomePage: React.FC = () => {
              {/* Expanded Problem 3 */}
             <div className="text-center">
                <div className="text-5xl mb-4">💾❓</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">Retrieval Latency</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">Fragmented access</h3>
               <p className="text-gray-600 mb-4">Searching across fragmented notes, project docs, and email relies on faulty memory or basic keyword matching, delaying access to critical context when you need it instantly.</p>
               <ul className="text-left text-sm text-red-700 space-y-1 list-disc list-inside">
                  <li>Broken Flow: Time wasted hunting for information disrupts focus.</li>
@@ -121,19 +121,19 @@ const HomePage: React.FC = () => {
       <section id="solution" className="py-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl font-semibold mb-6">
-            ThoughtKeeper: Intelligent Workflow Acceleration ⚡
+            Unlock augmented intelligence with VibeKeep ⚡
           </h2>
           <p className="text-xl max-w-3xl mx-auto">
-            Eliminate these friction points. ThoughtKeeper integrates intelligent automation directly into your capture-to-execution loop, augmenting your capabilities and preserving cognitive resources for strategic work.
+            Eliminate these friction points. VibeKeep integrates intelligent automation directly into your capture-to-execution loop, augmenting your capabilities and preserving cognitive resources for strategic work.
           </p>
         </div>
       </section>
       
-      {/* 4. The Workflow, Transformed: From Capture to Execution */}
+      {/* 4. The workflow, transformed: From capture to completion */}
       <section id="workflow" className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-4xl font-semibold text-center text-gray-900 mb-16">
-            Your Workflow, Transformed
+            Your workflow, transformed
           </h2>
           <div className="space-y-16">
             {/* Step 1: Seamless Capture */}
@@ -144,7 +144,7 @@ const HomePage: React.FC = () => {
               </div>
               <div className="md:w-2/3">
                  <p className="text-lg text-gray-600 leading-relaxed">
-                   Stop context switching. Whether it's a fleeting voice memo during a commute or detailed typed notes from a meeting, ingest everything into a single, unified stream. ThoughtKeeper's <strong className="font-medium">real-time voice transcription</strong> ensures verbal input is immediately processed and searchable alongside your text, eliminating capture friction.
+                   Stop context switching. Whether it's a fleeting voice memo during a commute or detailed typed notes from a meeting, ingest everything into a single, unified stream. VibeKeep's <strong className="font-medium">real-time voice transcription</strong> ensures verbal input is immediately processed and searchable alongside your text, eliminating capture friction.
                  </p>
               </div>
             </div>
@@ -156,7 +156,7 @@ const HomePage: React.FC = () => {
               </div>
               <div className="md:w-2/3">
                  <p className="text-lg text-gray-600 leading-relaxed">
-                    Focus on higher-level thinking while AI handles the initial processing. Leveraging advanced models, ThoughtKeeper automatically performs <strong className="font-medium">multi-dimensional tagging</strong> (Meta, Intent, Content), generates concise <strong className="font-medium">AI summaries</strong>, and extracts potential <strong className="font-medium">action items</strong>. This automated synthesis reduces manual structuring time and surfaces key information proactively.
+                    Focus on higher-level thinking while AI handles the initial processing. Leveraging advanced models, VibeKeep automatically performs <strong className="font-medium">multi-dimensional tagging</strong> (Meta, Intent, Content), generates concise <strong className="font-medium">AI summaries</strong>, and extracts potential <strong className="font-medium">action items</strong>. This automated synthesis reduces manual structuring time and surfaces key information proactively.
                  </p>
               </div>
             </div>
@@ -192,7 +192,7 @@ const HomePage: React.FC = () => {
       <section id="transparency" className="py-20 bg-gray-50">
         <div className="max-w-5xl mx-auto px-6">
            <h2 className="text-4xl font-semibold text-center text-gray-900 mb-16">
-            Built for Operators: Secure, Performant, Reliable
+            Built for operators: Secure, reliable, useable
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
             {/* Tech Stack */}
@@ -251,19 +251,19 @@ const HomePage: React.FC = () => {
        <section id="testimonials" className="py-20 bg-white">
          <div className="max-w-5xl mx-auto px-6">
            <h2 className="text-4xl font-semibold text-center text-gray-900 mb-12">
-             Trusted by High Performers
+             Trusted by high performers
            </h2>
            {/* Placeholder - Replace with actual testimonials */}
            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
              <blockquote className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
-               <p className="text-gray-700 italic mb-4">"ThoughtKeeper drastically reduced the time I spend processing meeting notes. The AI action items integrate directly into my workflow."
+               <p className="text-gray-700 italic mb-4">"VibeKeep drastically reduced the time I spend processing meeting notes. The AI action items integrate directly into my workflow."
                </p>
-               <footer className="text-gray-600">— Placeholder: VP Engineering</footer>
+               <footer className="text-gray-600">— Ex-Google, Ex-Spotify, Ex-AirBnB founder</footer>
              </blockquote>
              <blockquote className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
-               <p className="text-gray-700 italic mb-4">"The seamless voice capture and immediate synthesis allow me to capture and connect ideas without breaking stride. Indispensable."
+               <p className="text-gray-700 italic mb-4">"The seamless voice capture and immediate synthesis allow me to capture and connect ideas without breaking vibes. Indispensable."
                </p>
-               <footer className="text-gray-600">— Placeholder: Founder & Strategist</footer>
+               <footer className="text-gray-600">— Ex-Blackberry, Ex-Blockbuster, Ex-Toys-R-Us strategist</footer>
              </blockquote>
            </div>
          </div>
@@ -273,7 +273,7 @@ const HomePage: React.FC = () => {
       <section id="access-evolution" className="py-20 bg-gray-50">
         <div className="max-w-5xl mx-auto px-6">
            <h2 className="text-4xl font-semibold text-center text-gray-900 mb-12">
-            Access & Evolution
+            Access & evolution
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start justify-items-center">
             {/* Free Tier Card */}
@@ -309,7 +309,7 @@ const HomePage: React.FC = () => {
                  <li className="flex items-start"><Check className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" /> Robust Data Export 📤</li>
                  <li className="flex items-start"><Check className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" /> Potential Workflow Integrations 🔌</li>
                </ul>
-               <a href="mailto:[Your Contact Email Address]?subject=ThoughtKeeper Premium/Custom Inquiry" 
+               <a href="mailto:[Your Contact Email Address]?subject=VibeKeep Premium/Custom Inquiry" 
                   className="w-full block border border-gray-400 text-gray-700 text-center py-3 px-8 rounded-lg text-lg font-semibold transition-colors duration-150 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                >
                  Inquire About Premium/Custom
@@ -323,10 +323,10 @@ const HomePage: React.FC = () => {
       <section id="signup" className="py-20 bg-gradient-to-br from-purple-100 via-blue-50 to-indigo-100 border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl font-semibold text-gray-900 mb-6">
-            Ready to Operate at Your Peak?
+            Ready to operate at your peak?
           </h2>
           <p className="text-xl text-gray-700 mb-8">
-            Integrate intelligent augmentation into your cognitive workflow. Access ThoughtKeeper free today.
+            Integrate intelligent augmentation into your cognitive workflow. Access VibeKeep free today.
           </p>
           <Link
             href="/signup" 
@@ -334,7 +334,7 @@ const HomePage: React.FC = () => {
             rel="noopener noreferrer"
             className="inline-block bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-150 hover:from-blue-700 hover:to-indigo-800 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md" 
           >
-            Access ThoughtKeeper - Free
+            Access VibeKeep - Free
           </Link>
         </div>
       </section>
@@ -345,7 +345,7 @@ const HomePage: React.FC = () => {
       <footer className="py-10 border-t border-gray-200">
         <div className="max-w-6xl mx-auto px-6 text-center text-sm">
           <p className="text-gray-500 mb-2"> 
-            &copy; {new Date().getFullYear()} ThoughtKeeper. All rights reserved.
+            &copy; {new Date().getFullYear()} VibeKeep. All rights reserved.
           </p>
           <div className="space-x-4">
             <Link href="/terms-of-service" 

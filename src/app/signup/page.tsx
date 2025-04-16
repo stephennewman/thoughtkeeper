@@ -34,7 +34,7 @@ export default function SignUpPage() {
         <div className="flex justify-center mb-6">
           <Image
             src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367" 
-            alt="Thoughtkeeper Logo" 
+            alt="VibeKeep Logo" 
             width={320}
             height={320}
           />

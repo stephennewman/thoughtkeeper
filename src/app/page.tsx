@@ -107,7 +107,7 @@ const loadingPhrases = [
 ];
 
 /**
- * Main page component for the Thoughtkeeper application.
+ * Main page component for the VibeKeep application.
  * 
  * --- Core Features ---
  * - Displays journal entries grouped by date with infinite scrolling.
