@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Figtree } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const figtree = Figtree({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
@@ -21,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head />
-      <body className={`${inter.className} bg-gray-50`}>
+      <body className={`${figtree.className} bg-gray-50`}>
         {children}
         <Toaster />
       </body>

@@ -87,6 +87,8 @@ export default function Home() {
     openEditorDialog,
     addEntry,
     addEntryWithTranscription,
+    isChatOpen,
+    toggleChat,
   } = useJournalStore();
 
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);

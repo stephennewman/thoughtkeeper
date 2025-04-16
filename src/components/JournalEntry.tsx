@@ -585,174 +585,172 @@ export function JournalEntry({
           "w-full"
         )}>
           <TabsList className="mb-4 inline-flex h-9 items-center justify-start rounded-lg bg-muted p-1 text-muted-foreground w-auto">
-            {(entry.extracted_summary && entry.extracted_summary.length > 0) && (
-              <TabsTrigger value="summary" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex gap-1.5">
-                <List className="h-4 w-4 flex-shrink-0"/>
-                Summary
-              </TabsTrigger>
-            )}
-            {/* Actions Tab Trigger - Always shown */}
+            {/* Original Tab Trigger - Now First */}
+            <TabsTrigger value="original" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex gap-1.5">
+              <FileText className="h-4 w-4 flex-shrink-0"/>
+              Original
+            </TabsTrigger>
+            {/* Summary Tab Trigger - Now Second */}
+            <TabsTrigger value="summary" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex gap-1.5">
+              <List className="h-4 w-4 flex-shrink-0"/>
+              Summary
+            </TabsTrigger>
+            {/* Actions Tab Trigger - Now Third */}
             <TabsTrigger value="actions" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex gap-1.5">
               <CheckSquare className="h-4 w-4 flex-shrink-0"/>
               {/* Display count, handles 0 correctly */}
               Actions ({localActions?.length || 0}) 
             </TabsTrigger>
-            <TabsTrigger value="original" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex gap-1.5">
-              <FileText className="h-4 w-4 flex-shrink-0"/>
-              Original
-            </TabsTrigger>
           </TabsList>
 
           {/* Apply calculated minHeight to each content panel */}
-          {(entry.extracted_summary && entry.extracted_summary.length > 0) && (
-            <TabsContent 
-              value="summary" 
-              style={{ minHeight: contentMinHeight }}
-              className="focus-visible:ring-0 focus-visible:ring-offset-0 mt-0 pb-4">
-              {/* Attach ref to the actual content container */}
-              <ul ref={summaryContentRef} className="list-disc space-y-1 pl-5 text-sm">
-                {localSummary.map((point, index) => (
-                  <div key={`summary-item-${entry.id}-${index}`}> {/* Outer div for key */} 
-                    <li className="group">
-                      {editingSummaryIndex === index ? (
-                        // === Edit Mode ===
-                        <div className="flex items-center space-x-2 w-full"> {/* Wrapper for layout */}
-                          <span 
-                            ref={editableSummarySpanRef}
-                            contentEditable="true"
-                            suppressContentEditableWarning={true}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveSummaryEdit();
-                              if (e.key === 'Escape') handleCancelEditSummary();
+          <TabsContent 
+            value="summary" 
+            style={{ minHeight: contentMinHeight }}
+            className="focus-visible:ring-0 focus-visible:ring-offset-0 mt-0 pb-4">
+            {/* Attach ref to the actual content container */}
+            <ul ref={summaryContentRef} className="list-disc space-y-1 pl-5 text-sm">
+              {localSummary.map((point, index) => (
+                <div key={`summary-item-${entry.id}-${index}`}> {/* Outer div for key */} 
+                  <li className="group">
+                    {editingSummaryIndex === index ? (
+                      // === Edit Mode ===
+                      <div className="flex items-center space-x-2 w-full"> {/* Wrapper for layout */}
+                        <span 
+                          ref={editableSummarySpanRef}
+                          contentEditable="true"
+                          suppressContentEditableWarning={true}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveSummaryEdit();
+                            if (e.key === 'Escape') handleCancelEditSummary();
+                          }}
+                          onBlur={() => setTimeout(handleSaveSummaryEdit, 100)}
+                          className="min-w-0 break-words outline-none focus:outline focus:outline-1 focus:outline-offset-1 focus:outline-blue-500 focus:bg-muted/50 rounded px-1"
+                        ></span>
+                        <div className="flex items-center flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-green-600 hover:text-green-700"
+                            onClick={handleSaveSummaryEdit}
+                            aria-label="Save summary point"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={handleCancelEditSummary}
+                            aria-label="Cancel edit summary point"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // === Display Mode ===
+                      <div 
+                        className="flex items-center space-x-2 w-full cursor-pointer" 
+                        onClick={() => handleStartEditSummary(index)}
+                      >
+                        <span className="min-w-0 break-words">{point}</span>
+                        <div className="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              console.log(`[+] Sum Click: Set addSumAfterIdx=${index}`); // Log click
+                              setIsAddingSummary(true);
+                              setAddSummaryAfterIndex(index);
                             }}
-                            onBlur={() => setTimeout(handleSaveSummaryEdit, 100)}
-                            className="min-w-0 break-words outline-none focus:outline focus:outline-1 focus:outline-offset-1 focus:outline-blue-500 focus:bg-muted/50 rounded px-1"
-                          ></span>
-                          <div className="flex items-center flex-shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-green-600 hover:text-green-700"
-                              onClick={handleSaveSummaryEdit}
-                              aria-label="Save summary point"
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                              onClick={handleCancelEditSummary}
-                              aria-label="Cancel edit summary point"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
+                            aria-label="Add summary point below"
+                            title="Add summary point below"
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => { e.stopPropagation(); handleStartEditSummary(index); }}
+                            aria-label="Edit summary point"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteSummary(index); }}
+                            aria-label="Delete summary point"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                      ) : (
-                        // === Display Mode ===
-                        <div 
-                          className="flex items-center space-x-2 w-full cursor-pointer" 
-                          onClick={() => handleStartEditSummary(index)}
-                        >
-                          <span className="min-w-0 break-words">{point}</span>
-                          <div className="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                console.log(`[+] Sum Click: Set addSumAfterIdx=${index}`); // Log click
-                                setIsAddingSummary(true);
-                                setAddSummaryAfterIndex(index);
-                              }}
-                              aria-label="Add summary point below"
-                              title="Add summary point below"
-                            >
-                              <PlusCircle className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                              onClick={(e) => { e.stopPropagation(); handleStartEditSummary(index); }}
-                              aria-label="Edit summary point"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                              onClick={(e) => { e.stopPropagation(); handleDeleteSummary(index); }}
-                              aria-label="Delete summary point"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                    {/* Conditionally Render Add Form Below This Item */} 
-                    {isAddingSummary && addSummaryAfterIndex === index && (
-                      <div className="flex items-center space-x-2 pt-2 pl-0 ml-[-0.75rem]"> {/* Adjusted negative margin */}
-                        <Input 
-                          type="text" 
-                          placeholder="New summary point..."
-                          value={newSummaryText} 
-                          onChange={(e) => setNewSummaryText(e.target.value)}
-                          onKeyDown={(e) => { 
-                            if (e.key === 'Enter') handleAddNewSummary(); 
-                            if (e.key === 'Escape') handleCancelAddSummary();
-                          }} 
-                          className="h-8 flex-grow border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
-                          autoFocus
-                        />
-                        <Button size="sm" onClick={handleAddNewSummary} className="h-8">Save</Button>
-                        <Button variant="ghost" size="sm" onClick={handleCancelAddSummary} className="h-8">Cancel</Button>
                       </div>
                     )}
-                  </div>
-                ))}
-                {/* Render Add Button or Form when list is empty */} 
-                {(!localSummary || localSummary.length === 0) && (
-                  <div className="pl-5 pt-2"> {/* Match list indentation */} 
-                    {!isAddingSummary ? (
-                        <Button
-                        variant="ghost"
-                        className="text-muted-foreground hover:text-foreground justify-start pl-1 h-8"
-                        onClick={() => { setIsAddingSummary(true); setAddSummaryAfterIndex(-1); }}
-                        >
-                        <PlusCircle className="h-4 w-4 mr-2"/>
-                        Add Summary Point
-                        </Button>
-                    ) : (
-                        /* Conditionally Render Add Form when list is empty */
-                        isAddingSummary && addSummaryAfterIndex === -1 && (
-                            <div className="flex items-center space-x-2"> 
-                            <Input 
-                                type="text" 
-                                placeholder="New summary point..."
-                                value={newSummaryText} 
-                                onChange={(e) => setNewSummaryText(e.target.value)}
-                                onKeyDown={(e) => { 
-                                if (e.key === 'Enter') handleAddNewSummary(); 
-                                if (e.key === 'Escape') handleCancelAddSummary();
-                                }} 
-                                className="h-8 flex-grow border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
-                                autoFocus
-                            />
-                            <Button size="sm" onClick={handleAddNewSummary} className="h-8">Save</Button>
-                            <Button variant="ghost" size="sm" onClick={handleCancelAddSummary} className="h-8">Cancel</Button>
-                            </div>
-                        )
-                    )}
-                  </div>
-                )}
-              </ul>
-            </TabsContent>
-          )}
+                  </li>
+                  {/* Conditionally Render Add Form Below This Item */} 
+                  {isAddingSummary && addSummaryAfterIndex === index && (
+                    <div className="flex items-center space-x-2 pt-2 pl-0 ml-[-0.75rem]"> {/* Adjusted negative margin */}
+                      <Input 
+                        type="text" 
+                        placeholder="New summary point..."
+                        value={newSummaryText} 
+                        onChange={(e) => setNewSummaryText(e.target.value)}
+                        onKeyDown={(e) => { 
+                          if (e.key === 'Enter') handleAddNewSummary(); 
+                          if (e.key === 'Escape') handleCancelAddSummary();
+                        }} 
+                        className="h-8 flex-grow border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={handleAddNewSummary} className="h-8">Save</Button>
+                      <Button variant="ghost" size="sm" onClick={handleCancelAddSummary} className="h-8">Cancel</Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {/* Render Add Button or Form when list is empty */} 
+              {(!localSummary || localSummary.length === 0) && (
+                <div className="pl-5 pt-2"> {/* Match list indentation */} 
+                  {!isAddingSummary ? (
+                      <Button
+                      variant="ghost"
+                      className="text-muted-foreground hover:text-foreground justify-start pl-1 h-8"
+                      onClick={() => { setIsAddingSummary(true); setAddSummaryAfterIndex(-1); }}
+                      >
+                      <PlusCircle className="h-4 w-4 mr-2"/>
+                      Add Summary Point
+                      </Button>
+                  ) : (
+                      /* Conditionally Render Add Form when list is empty */
+                      isAddingSummary && addSummaryAfterIndex === -1 && (
+                          <div className="flex items-center space-x-2"> 
+                          <Input 
+                              type="text" 
+                              placeholder="New summary point..."
+                              value={newSummaryText} 
+                              onChange={(e) => setNewSummaryText(e.target.value)}
+                              onKeyDown={(e) => { 
+                              if (e.key === 'Enter') handleAddNewSummary(); 
+                              if (e.key === 'Escape') handleCancelAddSummary();
+                              }} 
+                              className="h-8 flex-grow border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
+                              autoFocus
+                          />
+                          <Button size="sm" onClick={handleAddNewSummary} className="h-8">Save</Button>
+                          <Button variant="ghost" size="sm" onClick={handleCancelAddSummary} className="h-8">Cancel</Button>
+                          </div>
+                      )
+                  )}
+                </div>
+              )}
+            </ul>
+          </TabsContent>
 
           <TabsContent 
             value="original" 

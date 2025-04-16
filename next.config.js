@@ -46,6 +46,16 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 's3.ca-central-1.amazonaws.com',
+        port: '',
+        pathname: '/logojoy/logos/217739981/noBgColor.png',
+      },
+    ],
+  },
   async headers() {
     return [
       {

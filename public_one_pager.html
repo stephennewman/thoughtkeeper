@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThoughtKeeper - Your AI-Powered Journal</title>
+    <style>
+        /* Reset and Base Styles */
+        :root {
+            --background-color: #ffffff;
+            --text-color: #111827; /* Tailwind gray-900 */
+            --secondary-text-color: #6b7280; /* Tailwind gray-500 */
+            --accent-color: #0070f3; /* Vercel Blue */
+            --border-color: #eaeaea; /* Tailwind gray-200 */
+            --card-bg: #ffffff;
+            --header-bg: #ffffff;
+        }
+
+        /* Optional Dark Theme (Could be toggled with JS) */
+        /*
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background-color: #000000;
+                --text-color: #ffffff;
+                --secondary-text-color: #888888;
+                --accent-color: #0070f3;
+                --border-color: #333333;
+                --card-bg: #111111;
+                --header-bg: #000000;
+            }
+        }
+        */
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 1024px; /* Wider container */
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--header-bg);
+            padding: 60px 0; /* More padding */
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        header h1 {
+            margin: 0 0 16px 0; /* Added bottom margin */
+            color: var(--text-color);
+            font-size: 3rem; /* Larger font size */
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        header p {
+            color: var(--secondary-text-color);
+            font-size: 1.25rem; /* Slightly larger */
+            max-width: 600px; /* Constrain width */
+            margin: 0 auto 24px auto; /* Center and add bottom margin */
+        }
+
+        /* Call to Action Button */
+        .cta-button {
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: white;
+            padding: 14px 32px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-top: 15px;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .cta-button:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+            transform: scale(1.03); /* Slight scale effect */
+        }
+
+        /* Sections */
+        section {
+            padding: 80px 0; /* Increased padding */
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        section:last-child {
+            border-bottom: none;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--text-color);
+            font-size: 2.5rem; /* Larger section titles */
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            margin-bottom: 48px; /* Increased margin */
+        }
+
+        section#problem-solution p {
+            font-size: 1.1rem;
+            color: var(--secondary-text-color);
+            max-width: 700px;
+            margin: 0 auto 20px auto;
+            text-align: center;
+        }
+         section#problem-solution strong {
+            color: var(--text-color);
+         }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Adjusted minmax */
+            gap: 32px; /* Increased gap */
+        }
+
+        .feature {
+            background-color: var(--card-bg);
+            padding: 28px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .feature:hover {
+             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+             transform: translateY(-4px);
+        }
+
+        .feature h3 {
+            color: var(--text-color);
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+         .feature p {
+             color: var(--secondary-text-color);
+             font-size: 1rem;
+             line-height: 1.7;
+         }
+
+        /* Value Proposition List */
+        section#value-proposition ul {
+            list-style: none; /* Remove default bullets */
+            padding-left: 0;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        section#value-proposition li {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            padding-left: 28px; /* Space for custom bullet */
+            position: relative;
+            color: var(--secondary-text-color);
+        }
+
+        section#value-proposition li::before {
+            content: '✓'; /* Checkmark */
+            position: absolute;
+            left: 0;
+            top: 1px;
+            color: var(--accent-color);
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+         section#value-proposition li strong {
+             color: var(--text-color);
+         }
+
+        /* Signup Section */
+        section#signup {
+            background-color: #fafafa; /* Slight background difference */
+        }
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            margin-top: 0; /* Removed top margin as last section has padding */
+            color: var(--secondary-text-color);
+            font-size: 0.95em;
+            border-top: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container">
+            <h1>Unlock Your Thoughts with ThoughtKeeper</h1>
+            <p>The modern journaling app that helps you capture, organize, and understand your reflections with the power of AI.</p>
+            <a href="#signup" class="cta-button">Get Started for Free</a>
+            </div>
+            </header>
+
+            <section id="problem-solution">
+            <div class="container">
+            <h2>Tired of Scattered Notes and Lost Insights?</h2>
+            <p>Traditional journaling can be time-consuming and disorganized. Brilliant ideas get lost, important reflections fade, and valuable insights remain hidden within pages of text. ThoughtKeeper brings structure and intelligence to your journaling process.</p>
+            <p><strong>ThoughtKeeper is your personal knowledge base, enhanced.</strong> Capture thoughts effortlessly via text or voice, let AI automatically organize and tag them, and rediscover key insights when you need them most.</p>
+        </div>
+    </section>
+
+    <section id="features">
+        <div class="container">
+            <h2>Key Features</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <h3>🎙️ Effortless Voice Notes</h3>
+                    <p>Speak your mind freely. Record voice notes directly in the app and let our AI transcribe them accurately into text entries.</p>
+                </div>
+                <div class="feature">
+                    <h3>🏷️ AI-Powered Auto-Tagging</h3>
+                    <p>Stop manual categorization. ThoughtKeeper automatically analyzes your entries, generating relevant tags (Meta, Intent, Content) to help you instantly find related thoughts.</p>
+                </div>
+                <div class="feature">
+                    <h3>📝 Inline Editing & Organization</h3>
+                    <p>Refine your thoughts easily. Edit summaries and action items directly within your entries. Add new points seamlessly as inspiration strikes.</p>
+                </div>
+                <div class="feature">
+                    <h3>🔒 Secure & Private</h3>
+                    <p>Your thoughts are yours alone. Built on Supabase with robust security features, including Row Level Security, ensuring your data remains private and protected.</p>
+                </div>
+                <div class="feature">
+                    <h3>✨ Modern Interface</h3>
+                    <p>Enjoy a clean, intuitive journaling experience. Features include a distraction-free layout, dark/light mode support, and seamless infinite scrolling through your entries.</p>
+                </div>
+                <div class="feature">
+                    <h3>🔍 Powerful Search & Filtering</h3>
+                    <p>Find what you need, fast. Quickly search and filter your entries based on content or AI-generated tags to uncover connections and patterns.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="value-proposition">
+        <div class="container">
+            <h2>Why Choose ThoughtKeeper?</h2>
+            <ul>
+                <li><strong>Capture Fleeting Ideas:</strong> Never lose a thought again, whether typed or spoken.</li>
+                <li><strong>Gain Deeper Insights:</strong> Let AI help you understand the underlying themes and intentions in your reflections.</li>
+                <li><strong>Stay Organized Effortlessly:</strong> Automatic tagging and structured summaries keep your journal tidy.</li>
+                <li><strong>Access Anywhere:</strong> Your secure journal, available whenever inspiration strikes.</li>
+                <li><strong>Focus on Reflection:</strong> Spend less time organizing and more time thinking.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section id="signup">
+        <div class="container" style="text-align: center;">
+            <h2>Ready to Transform Your Journaling?</h2>
+            <p>Sign up today and start capturing your thoughts with the power of AI.</p>
+            <a href="/signup" class="cta-button">Sign Up Now</a>
+            </div>
+            </section>
+
+            <footer>
+            <div class="container">
+            <p>&copy; 2024 ThoughtKeeper. Built with modern technology for modern thinkers.</p>
+        </div>
+    </footer>
+
+</body>
+</html> 
