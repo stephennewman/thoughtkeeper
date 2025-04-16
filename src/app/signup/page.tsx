@@ -35,8 +35,8 @@ export default function SignUpPage() {
           <Image
             src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367" 
             alt="Thoughtkeeper Logo" 
-            width={64}
-            height={64}
+            width={320}
+            height={320}
           />
         </div>
         

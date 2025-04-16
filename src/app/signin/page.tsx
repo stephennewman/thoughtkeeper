@@ -33,7 +33,8 @@ export default function SignInPage() {
             // eslint-disable-next-line @next/next/no-img-element
             src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367" 
             alt="Thought Keeper Logo" 
-            width={64}
+            width={320}
+            height={320}
           />
         </div>
         
