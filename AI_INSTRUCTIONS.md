@@ -1,56 +1,19 @@
-## Handoff Summary (End of Session - 2025-04-16)
-
-*   **Goal Achieved:** Implemented the "Actions" tab feature, displaying pending actions grouped by META tag and sorted by count. Added functionality to mark actions complete. Implemented loading improvements (PAGE_SIZE=100, total count display).
-*   **Key Changes:**
-    *   Modified `page.tsx` extensively to introduce main tabs ("The Stream", "The List") and nested secondary tabs ("Work", "Finances", "Untagged", etc.) within "The List".
-    *   Created `AllActionsList.tsx` component to display actions passed via props.
-    *   Updated `journalStore.ts` with `PAGE_SIZE=100`, total entry count logic (`loadTotalCount`, state), and `markActionCompleted` action.
-    *   Updated `StaticAnalysisColumn.tsx` to show "Loaded X of Y total".
-    *   Added Supabase RPC function `get_total_entry_count`.
-    *   Updated `entryService.ts` with `fetchTotalEntryCountService`.
-    *   Fixed `journalStore.test.ts` to align with `PAGE_SIZE` change and mock total count fetch.
-    *   Applied UI styling updates to both primary and secondary tabs.
-    *   Updated `ai_instructions.md`.
-*   **Last Action:** Pushed all changes to GitHub (`main` branch, commit `064a195`). Vercel build triggered.
-*   **Next Steps (Likely):** Monitor Vercel deployment, verify functionality of the new "Actions" tab and loading changes. Potential follow-up on further UI polish or bug fixes related to the new features.
-
----
-
-# AI Development Instructions for VibeKeep
+# AI Development Instructions for ThoughtKeeper
 
 **Document Purpose & AI Usage Guide:**
 
-*   **Goal:** This document provides essential context for AI collaboration on the VibeKeep project.
+*   **Goal:** This document provides essential context for AI collaboration on the ThoughtKeeper project.
 *   **Structure:** It begins with the **"Latest State of the Product"** section, reflecting the most recent understanding based on codebase analysis. Below this, historical versions or notes may exist.
 *   **AI Instruction:** Prioritize the information in the **"Latest State of the Product"** section for current development tasks. Use the subsequent historical sections for background context or if specific historical information is requested, but be aware that details may be outdated compared to the latest state description. Continuously analyze the codebase and propose updates to the "Latest State" section as the project evolves.
 
-**Document Version:** 2.10.0 (Action List Tabs & Loading Improvements - 2025-04-16)
+**Document Version:** 2.8.1 (Testing Strategy - 2025-04-16)
 **Analysis Date:** 2025-04-16
-
----
-
-## Recent Activities (Since v2.9.0)
-
-*   **Entry Loading:**
-    *   Increased entry fetch page size from 20 to 100.
-    *   Implemented fetching of the total entry count via a Supabase RPC function.
-    *   Updated the Analysis sidebar to display "Loaded X of Y total" entries.
-*   **Action List Feature:**
-    *   Added primary tabs ("The Stream", "The List") to the main view.
-    *   Implemented a secondary, nested tab view within "The List".
-    *   Grouped pending actions by their associated META tag within the secondary tabs.
-    *   Ordered secondary tabs based on the count of pending actions per tag (most first).
-    *   Added functionality to mark actions as complete directly from "The List" tab.
-    *   Fixed a bug where completing an action would incorrectly reset the active secondary tab.
-*   **UI Enhancements:**
-    *   Renamed primary tabs and added icons (`Activity`, `ListTodo`).
-    *   Applied distinct visual styles to primary and secondary tab sets for clarity.
 
 ---
 
 ## Latest State of the Product (as of 2025-04-16)
 
-**Summary:** This section reflects the current understanding of the VibeKeep application based on codebase inspection.
+**Summary:** This section reflects the current understanding of the ThoughtKeeper application based on codebase inspection.
 
 **1. System Overview & Tech Stack:**
 
@@ -64,63 +27,65 @@
 *   **Authentication:** Email/Password and Google SSO via Supabase Auth. RLS enabled on `entries`.
 *   **Layout:** Two-column (Sidebar/Feed + Analysis). `Header.tsx`, `JournalSidebar.tsx`, `StaticAnalysisColumn.tsx`. Main layout in `src/app/page.tsx`.
 *   **Journal Entry CRUD:** Full CRUD operations managed via `entryService.ts` and `journalStore.ts`.
-    *   **Creation:** `addEntryService` handles text/voice entries. `addEntry` action in store triggers *asynchronous* background calls to `/api/classify-meta`, `/api/classify-intent`, `/api/tags`.
-    *   **Editing (Content):** `updateEntryContentService` updates content.
-    *   **Deletion:** `deleteEntryService`. Store handles optimistic updates and reverts.
+    *   **Creation:** `addEntryService` handles text/voice entries, triggers *asynchronous* background calls to `/api/extract-actions` and `/api/extract-summary`. Store uses optimistic updates for UI.
+    *   **Editing (Content):** `updateEntryContentService` updates content, also triggers background action/summary extraction. Store updates UI *after* server confirmation.
+    *   **Deletion:** `deleteEntryService`. Store updates UI *after* server confirmation.
 *   **Filtering & Search:**
     *   **Hybrid Approach:**
-        *   *Server-side:* `fetchEntriesPaginatedService` handles initial load and pagination, applying search OR tag filters directly in the Supabase query.
-        *   *Client-side:* `journalStore` holds `loadedEntries` and `displayEntries`. Applying filters via the UI triggers client-side filtering (`filterLoadedEntries` function) on `loadedEntries` to update `displayEntries`.
+        *   *Server-side:* `fetchEntriesPaginatedService` handles initial load and pagination, applying search (`textSearch` on `search_vector`) OR tag filters (Meta, Intent, Content) directly in the Supabase query. Search overrides tag filters.
+        *   *Client-side:* `journalStore` holds `loadedEntries` and `displayEntries`. Applying filters via the UI (`StaticAnalysisColumn` or search input) triggers client-side filtering (`filterLoadedEntries` function) on `loadedEntries` to update `displayEntries` *without* immediate refetching.
 *   **Infinite Scroll:** Implemented in `src/app/page.tsx` using `useInView` from `react-intersection-observer`. Loads more entries via `journalStore`'s `loadMoreEntries` action.
 *   **Voice Notes:**
-    *   `/api/transcribe` route exists.
-    *   UI implemented in `src/app/page.tsx` for recording, timer, waveform.
-    *   Transcription calls `addEntryWithTranscription` action in store.
-*   **AI Tagging & Classification:** Background generation of Meta, Intent, Content tags via API routes (`/api/classify-meta`, `/api/classify-intent`, `/api/tags`).
-    *   **API routes now correctly update the database** using the `SUPABASE_SERVICE_ROLE_KEY`.
-    *   **Client-side Realtime listener added** (`src/app/page.tsx`) to subscribe to `entries` table updates.
-    *   **Updates now populate automatically** via the Realtime listener calling `journalStore.updateEntryTags`.
+    *   `/api/transcribe` route exists (`maxDuration: 60`). Handles transcription via OpenAI.
+    *   **UI Location unclear:** Voice note creation UI (record button, etc.) is **NOT** currently in `Header.tsx`. Needs verification in the current UI.
+*   **AI Tagging:** Background generation of Meta, Intent, Content tags via API routes (`/api/classify-meta`, `/api/classify-intent`, `/api/tags`). Updates pushed to client via Supabase Realtime and handled by `journalStore` (`updateEntryTags`).
 *   **Inline Editing (JournalEntry Component - `JournalEntry.tsx`):**
-    *   **Tabs:** Ordered: **Original, Summary, Actions**.
-    *   **Summary/Actions:** Inline add/edit/delete/toggle fully implemented via local state and service calls.
+    *   **Tabs:** Ordered: **Original, Summary, Actions**. Summary tab always visible.
+    *   **Summary Points:** Inline add/edit/delete fully implemented. Uses local component state, calls `updateEntrySummaryService`, shows `sonner` toasts, updates `journalStore` on success via `updateEntryTagsInStore`.
+    *   **Action Items:** Inline add/edit/delete/toggle fully implemented. Uses local component state, calls `updateEntryActionsService`, shows `sonner` toasts, updates `journalStore` on success via `updateEntryTagsInStore`.
 *   **Static Analysis Column (`StaticAnalysisColumn.tsx`):**
-    *   Implemented: Displays top tags based on visible `displayEntries`.
-    *   Allows clicking tags to apply client-side filters.
-*   **User Feedback:** `sonner` toasts used.
-*   **Tag Highlighting:** Consistent tag colors applied.
+    *   **Implemented:** Displays top Meta, Intent, and Content tags based on *currently visible* `displayEntries` from `journalStore`.
+    *   Shows count of visible entries.
+    *   Allows clicking tags to apply client-side filters via `journalStore.setFilters` (clears search query).
+*   **User Feedback:** `sonner` toasts used for inline editing success/errors and potentially other actions. `Toaster` set up in `src/app/layout.tsx`.
+*   **Tag Highlighting:** Consistent tag colors applied in `JournalEntry` and `StaticAnalysisColumn` using `highlightedTagColors` state calculated in `journalStore`.
 
 **3. Key Decisions & Rationale:**
 
-*   **State Management (Zustand):** Centralized state (`journalStore.ts`) for core data/status.
-*   **Filtering (Hybrid):** Server-side for loading/pagination; Client-side for UI responsiveness.
-*   **CRUD Refresh:** Add/Edit/Delete handled via store actions, with appropriate optimistic/server-confirmed updates.
-*   **Asynchronous AI Processing:** Entry creation/update triggers background API tasks. **Updates now arrive via Realtime.**
-*   **Security:** RLS policy added for `authenticated` role `SELECT` on `entries` to enable Realtime subscription. CSP updated to allow `wss://` connections.
+*   **State Management (Zustand):** Centralized state (`journalStore.ts`) for entries, filters, loading status, but inline editing state managed locally in `JournalEntry.tsx`.
+*   **Filtering (Hybrid):** Server-side for efficient loading/pagination/deep search; Client-side for responsive UI updates when changing filters on already loaded data.
+*   **CRUD Refresh:** Add is optimistic. Edit/Delete update after server confirmation. Inline edits are optimistic locally, persist via services, then update global store.
+*   **Static Analysis:** Provides insights based on visible data; filtering via tags uses client-side mechanism for responsiveness.
+*   **Asynchronous AI Processing:** Entry creation/update triggers background AI tasks (tags, actions, summary) without blocking the UI. Updates arrive via Realtime.
 
 **4. Testing Strategy & Workflow:**
 
-*   **Goal:** Ensure code quality, prevent regressions, enable confident refactoring.
-*   **Framework:** Vitest + React Testing Library.
+*   **Goal:** To ensure code quality, prevent regressions, and enable confident refactoring through automated testing.
+*   **Framework:** Vitest (configured via `vitest.config.mts`, `vitest.setup.ts`) and React Testing Library (`@testing-library/react`).
 *   **Current Status:**
-    *   Store tests (`src/stores/journalStore.test.ts`) **fixed and passing**. Cover core store logic.
+    *   Store tests (`src/stores/journalStore.test.ts`) exist but are outdated and need fixing (*current priority*).
     *   No component tests exist currently.
-*   **Workflow Integration:**
-    *   **CI/CD (Vercel):** The `build` script in `package.json` updated to `npm run test && next build`. This ensures tests run automatically on Vercel deployments and **block deployment on failure**.
-    *   **Pre-commit (Recommended):** Implement pre-commit hooks (e.g., `husky`) to run tests locally before committing.
+*   **Workflow Integration (Goal):**
+    *   **During Development:** Use watch mode (e.g., `npm test -- --watch`) for instant feedback while coding.
+    *   **Pre-commit:** Implement pre-commit hooks (e.g., using `husky`) to run tests automatically before committing, preventing broken code entry.
+    *   **Continuous Integration (CI):** Configure CI (e.g., GitHub Actions or Vercel CI) to run linters and the full test suite on every Pull Request. Block merges if checks fail.
 *   **Priorities:**
-    1.  Add component tests, starting with `StaticAnalysisColumn.tsx` and `JournalEntry.tsx`.
-    2.  Implement pre-commit hooks.
+    1.  Fix existing store tests (`journalStore.test.ts`).
+    2.  Add component tests, starting with `StaticAnalysisColumn.tsx` and then `JournalEntry.tsx`.
+    3.  Implement CI checks.
+    4.  Implement pre-commit hooks.
 
 **5. Potential Issues / Areas for Review:**
 
-*   **(85) Lack of Component Testing:** High priority now that store tests are stable.
-*   **(80) Complex `JournalEntry.tsx` Component:** Prime candidate for component testing/refactoring.
-*   **(70) Hybrid Filtering Complexity & Potential Scalability Issue:** Client-side filtering logic needs specific tests.
-*   **(65) Voice Note UI/UX Glitches:** Potential double processing indicator, visualizer stopping briefly (needs separate investigation).
+*   **(95) Outdated/Failing Zustand Store Tests:** See Section 4. *Actively being addressed.*
+*   **(90) Lack of Component Testing:** See Section 4. High priority after store tests are fixed.
+*   **(85) Complex `JournalEntry.tsx` Component:** High complexity makes it a prime candidate for component testing and potential refactoring.
+*   **(75) Hybrid Filtering Complexity & Potential Scalability Issue:** The client-side filtering logic (`filterLoadedEntries`) needs specific tests once store tests are updated.
+*   **(70) Voice Note UI/UX Uncertainty:** Location/behavior needs verification.
 *   **(60) Complex `journalStore.ts`:** Could benefit from ongoing refactoring, guided by tests.
 
 
-**6. Naming Conventions & Other Details:** Seem generally consistent. Voice transcription limit (`maxDuration: 60`) confirmed.
+**6. Naming Conventions & Other Details:** Seem generally consistent with historical instructions. Voice transcription limit (`maxDuration: 60`) confirmed.
 
 
 ---
@@ -133,7 +98,7 @@
 
 ## 1. Project Overview
 
-**Goal:** VibeKeep is a modern journaling application designed to help users preserve and organize their thoughts and reflections, enhanced with AI-powered insights.
+**Goal:** ThoughtKeeper is a modern journaling application designed to help users preserve and organize their thoughts and reflections, enhanced with AI-powered insights.
 
 ## 2. System Overview
 
@@ -165,17 +130,15 @@
 1.  **Clone Repository:** `git clone ...`
 2.  **Install Dependencies:** `npm install`
 3.  **Supabase Project:** Set up a Supabase project. Enable Email and Google Auth providers.
-4.  **Environment Variables:** Create a `.env.local` file with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `OPENAI_API_KEY`, and **`SUPABASE_SERVICE_ROLE_KEY`**.
+4.  **Environment Variables:** Create a `.env.local` file with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `OPENAI_API_KEY`.
 5.  **Google Cloud Project:** Set up OAuth credentials for Google Sign-In, obtaining a Client ID and Secret.
 6.  **Supabase Config:**
     *   Enter Google Client ID/Secret in Supabase Auth Provider settings.
     *   Configure Site URL and Redirect URIs in Supabase Auth settings.
     *   Apply database migrations (`supabase/migrations`) using `supabase db push` (if using Supabase CLI locally) or via the Supabase dashboard SQL editor.
-    *   Enable **Realtime** for the `entries` table (Database > Replication).
-    *   Ensure **RLS policy** exists allowing `SELECT` for `authenticated` role on `entries` table.
 7.  **Vercel Project:** Create a Vercel project linked to the GitHub repository. Configure the same environment variables as in `.env.local` in the Vercel project settings.
 8.  **Run Locally:** `npm run dev`
-9.  **Deploy:** Push to `main` branch triggers automatic Vercel deployment (tests run first).
+9.  **Deploy:** Push to `main` branch triggers automatic Vercel deployment.
 
 ## 5. Core Features Implemented
 

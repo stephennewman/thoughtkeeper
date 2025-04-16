@@ -28,7 +28,7 @@ if (process.env.OPENAI_API_KEY) {
 export const maxDuration = 60;
 
 // Define a temporary directory for uploads
-const uploadDir = path.join(os.tmpdir(), 'VibeKeep-uploads');
+const uploadDir = path.join(os.tmpdir(), 'thoughtkeeper-uploads');
 
 async function ensureUploadDirExists() {
   try {

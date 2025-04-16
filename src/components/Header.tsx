@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* App Title - Ensure sufficient weight */}
       <div className="flex-none hidden lg:block ml-[-1rem] lg:ml-[-1.5rem]">
-        <h1 className="font-semibold text-xl">VibeKeep</h1>
+        <h1 className="font-semibold text-xl">ThoughtKeeper</h1>
       </div>
 
       {/* Add flex-1 spacer to push remaining items right if needed */}
