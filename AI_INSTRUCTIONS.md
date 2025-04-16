@@ -1,7 +1,96 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.7.0 (Entry Tab Order & Visibility)
-**Date:** 2024-07-28
+**Document Purpose & AI Usage Guide:**
+
+*   **Goal:** This document provides essential context for AI collaboration on the ThoughtKeeper project.
+*   **Structure:** It begins with the **"Latest State of the Product"** section, reflecting the most recent understanding based on codebase analysis. Below this, historical versions or notes may exist.
+*   **AI Instruction:** Prioritize the information in the **"Latest State of the Product"** section for current development tasks. Use the subsequent historical sections for background context or if specific historical information is requested, but be aware that details may be outdated compared to the latest state description. Continuously analyze the codebase and propose updates to the "Latest State" section as the project evolves.
+
+**Document Version:** 2.8.1 (Testing Strategy - 2025-04-16)
+**Analysis Date:** 2025-04-16
+
+---
+
+## Latest State of the Product (as of 2025-04-16)
+
+**Summary:** This section reflects the current understanding of the ThoughtKeeper application based on codebase inspection.
+
+**1. System Overview & Tech Stack:**
+
+*   **Core:** Next.js 14 (App Router), React, TypeScript, Zustand, Supabase (Postgres + Auth), OpenAI API, Vercel deployment.
+*   **UI:** Tailwind CSS, shadcn/ui, lucide-react, sonner (toasts).
+*   **Functionality:** Uses Supabase client (`src/lib/supabaseClient.ts`) and a service layer (`src/lib/entryService.ts`) for DB interactions. State managed by Zustand (`src/stores/journalStore.ts`). Authentication via Supabase Auth UI (`@supabase/auth-ui-react`) on dedicated `/signin` and `/signup` pages.
+*   **Key Libraries Confirmed:** `react-intersection-observer` (via `useInView` hook), `lodash.debounce`, `clsx`.
+
+**2. Core Features Implemented:**
+
+*   **Authentication:** Email/Password and Google SSO via Supabase Auth. RLS enabled on `entries`.
+*   **Layout:** Two-column (Sidebar/Feed + Analysis). `Header.tsx`, `JournalSidebar.tsx`, `StaticAnalysisColumn.tsx`. Main layout in `src/app/page.tsx`.
+*   **Journal Entry CRUD:** Full CRUD operations managed via `entryService.ts` and `journalStore.ts`.
+    *   **Creation:** `addEntryService` handles text/voice entries, triggers *asynchronous* background calls to `/api/extract-actions` and `/api/extract-summary`. Store uses optimistic updates for UI.
+    *   **Editing (Content):** `updateEntryContentService` updates content, also triggers background action/summary extraction. Store updates UI *after* server confirmation.
+    *   **Deletion:** `deleteEntryService`. Store updates UI *after* server confirmation.
+*   **Filtering & Search:**
+    *   **Hybrid Approach:**
+        *   *Server-side:* `fetchEntriesPaginatedService` handles initial load and pagination, applying search (`textSearch` on `search_vector`) OR tag filters (Meta, Intent, Content) directly in the Supabase query. Search overrides tag filters.
+        *   *Client-side:* `journalStore` holds `loadedEntries` and `displayEntries`. Applying filters via the UI (`StaticAnalysisColumn` or search input) triggers client-side filtering (`filterLoadedEntries` function) on `loadedEntries` to update `displayEntries` *without* immediate refetching.
+*   **Infinite Scroll:** Implemented in `src/app/page.tsx` using `useInView` from `react-intersection-observer`. Loads more entries via `journalStore`'s `loadMoreEntries` action.
+*   **Voice Notes:**
+    *   `/api/transcribe` route exists (`maxDuration: 60`). Handles transcription via OpenAI.
+    *   **UI Location unclear:** Voice note creation UI (record button, etc.) is **NOT** currently in `Header.tsx`. Needs verification in the current UI.
+*   **AI Tagging:** Background generation of Meta, Intent, Content tags via API routes (`/api/classify-meta`, `/api/classify-intent`, `/api/tags`). Updates pushed to client via Supabase Realtime and handled by `journalStore` (`updateEntryTags`).
+*   **Inline Editing (JournalEntry Component - `JournalEntry.tsx`):**
+    *   **Tabs:** Ordered: **Original, Summary, Actions**. Summary tab always visible.
+    *   **Summary Points:** Inline add/edit/delete fully implemented. Uses local component state, calls `updateEntrySummaryService`, shows `sonner` toasts, updates `journalStore` on success via `updateEntryTagsInStore`.
+    *   **Action Items:** Inline add/edit/delete/toggle fully implemented. Uses local component state, calls `updateEntryActionsService`, shows `sonner` toasts, updates `journalStore` on success via `updateEntryTagsInStore`.
+*   **Static Analysis Column (`StaticAnalysisColumn.tsx`):**
+    *   **Implemented:** Displays top Meta, Intent, and Content tags based on *currently visible* `displayEntries` from `journalStore`.
+    *   Shows count of visible entries.
+    *   Allows clicking tags to apply client-side filters via `journalStore.setFilters` (clears search query).
+*   **User Feedback:** `sonner` toasts used for inline editing success/errors and potentially other actions. `Toaster` set up in `src/app/layout.tsx`.
+*   **Tag Highlighting:** Consistent tag colors applied in `JournalEntry` and `StaticAnalysisColumn` using `highlightedTagColors` state calculated in `journalStore`.
+
+**3. Key Decisions & Rationale:**
+
+*   **State Management (Zustand):** Centralized state (`journalStore.ts`) for entries, filters, loading status, but inline editing state managed locally in `JournalEntry.tsx`.
+*   **Filtering (Hybrid):** Server-side for efficient loading/pagination/deep search; Client-side for responsive UI updates when changing filters on already loaded data.
+*   **CRUD Refresh:** Add is optimistic. Edit/Delete update after server confirmation. Inline edits are optimistic locally, persist via services, then update global store.
+*   **Static Analysis:** Provides insights based on visible data; filtering via tags uses client-side mechanism for responsiveness.
+*   **Asynchronous AI Processing:** Entry creation/update triggers background AI tasks (tags, actions, summary) without blocking the UI. Updates arrive via Realtime.
+
+**4. Testing Strategy & Workflow:**
+
+*   **Goal:** To ensure code quality, prevent regressions, and enable confident refactoring through automated testing.
+*   **Framework:** Vitest (configured via `vitest.config.mts`, `vitest.setup.ts`) and React Testing Library (`@testing-library/react`).
+*   **Current Status:**
+    *   Store tests (`src/stores/journalStore.test.ts`) exist but are outdated and need fixing (*current priority*).
+    *   No component tests exist currently.
+*   **Workflow Integration (Goal):**
+    *   **During Development:** Use watch mode (e.g., `npm test -- --watch`) for instant feedback while coding.
+    *   **Pre-commit:** Implement pre-commit hooks (e.g., using `husky`) to run tests automatically before committing, preventing broken code entry.
+    *   **Continuous Integration (CI):** Configure CI (e.g., GitHub Actions or Vercel CI) to run linters and the full test suite on every Pull Request. Block merges if checks fail.
+*   **Priorities:**
+    1.  Fix existing store tests (`journalStore.test.ts`).
+    2.  Add component tests, starting with `StaticAnalysisColumn.tsx` and then `JournalEntry.tsx`.
+    3.  Implement CI checks.
+    4.  Implement pre-commit hooks.
+
+**5. Potential Issues / Areas for Review:**
+
+*   **(95) Outdated/Failing Zustand Store Tests:** See Section 4. *Actively being addressed.*
+*   **(90) Lack of Component Testing:** See Section 4. High priority after store tests are fixed.
+*   **(85) Complex `JournalEntry.tsx` Component:** High complexity makes it a prime candidate for component testing and potential refactoring.
+*   **(75) Hybrid Filtering Complexity & Potential Scalability Issue:** The client-side filtering logic (`filterLoadedEntries`) needs specific tests once store tests are updated.
+*   **(70) Voice Note UI/UX Uncertainty:** Location/behavior needs verification.
+*   **(60) Complex `journalStore.ts`:** Could benefit from ongoing refactoring, guided by tests.
+
+
+**6. Naming Conventions & Other Details:** Seem generally consistent with historical instructions. Voice transcription limit (`maxDuration: 60`) confirmed.
+
+
+---
+
+## Historical Instructions & Notes (May Contain Outdated Information)
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
 **Development Environment Note:** User is developing within the Cursor editor.

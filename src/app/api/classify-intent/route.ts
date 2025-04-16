@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+// Import the standard Supabase client
+import { createClient } from '@supabase/supabase-js';
+// Assuming Database types are not strictly needed for now
+// import type { Database } from '@/types_db';
 
 // Ensure OpenAI API key is configured
 const openai = new OpenAI({
@@ -21,12 +25,17 @@ const PREFERRED_INTENT_TAGS = [
 
 export async function POST(request: Request) {
   try {
-    const { content } = await request.json();
+    // Extract entryId along with content
+    const { content, entryId } = await request.json();
+    console.log('Intent API: Content received:', content, 'for entryId:', entryId);
 
-    if (!content) {
-      return NextResponse.json({ error: 'Content is required' }, { status: 400 });
+    // Check for both content and entryId
+    if (!content || !entryId) {
+        console.log('Intent API: Content or entryId missing');
+        return NextResponse.json({ error: 'Content and entryId are required' }, { status: 400 });
     }
 
+    console.log('Intent API: Calling OpenAI API');
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo", // Or potentially a faster/cheaper model if sufficient
       messages: [
@@ -44,20 +53,54 @@ export async function POST(request: Request) {
     });
 
     const intentTag = completion.choices[0]?.message?.content?.trim() || null;
+    console.log('Intent API: Generated intentTag:', intentTag);
 
     // Basic validation (optional)
     if (!intentTag) {
-      console.warn('Intent tag generation failed or returned empty.');
-      return NextResponse.json({ intentTag: null });
+      console.warn('Intent API: Intent tag generation failed or returned empty. Skipping DB update.');
+      // Return null but indicate success (generation itself didn't fail)
+      return NextResponse.json({ success: true, intentTag: null });
     }
 
-    // Potentially add more validation
+    // *** ADDED: Database Update Logic ***
+    let supabase;
+    try {
+        console.log('Intent API: Attempting to create Supabase client...');
+        supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        console.log('Intent API: Supabase client created successfully.');
+    } catch (clientError) {
+        console.error('Intent API: Error creating Supabase client:', clientError);
+        return NextResponse.json({ error: 'Failed to create Supabase client' }, { status: 500 });
+    }
 
-    return NextResponse.json({ intentTag });
+    try {
+        console.log(`Intent API: Attempting to update DB for entryId: ${entryId} with intentTag: ${intentTag}`);
+        const { error: updateError } = await supabase
+            .from('entries')
+            .update({ intent_tag: intentTag }) // Update the intent_tag column
+            .eq('id', entryId);
+
+        if (updateError) {
+            console.error('Intent API: Database Update Error:', updateError);
+            return NextResponse.json({ error: 'Failed to update entry intent tag in database' }, { status: 500 });
+        } else {
+             console.log(`Intent API: Successfully updated intent tag for entry ${entryId}`);
+        }
+    } catch (dbError) {
+         console.error('Intent API: Unexpected error during database update:', dbError);
+         return NextResponse.json({ error: 'Unexpected error during database update' }, { status: 500 });
+    }
+    // *** END: Database Update Logic ***
+
+    // Return success and the generated tag (client doesn't use it, but good practice)
+    return NextResponse.json({ success: true, intentTag });
 
   } catch (error: any) {
-    console.error('Intent Tag API Error:', error);
-    // Return null tag on error to avoid breaking the save flow
-    return NextResponse.json({ intentTag: null }, { status: 500 });
+    console.error('Intent Tag API Error (Outer Catch):', error);
+    // Return null tag on error to avoid breaking the save flow, but indicate error
+    return NextResponse.json({ error: 'Failed to generate intent tag' }, { status: 500 });
   }
 } 

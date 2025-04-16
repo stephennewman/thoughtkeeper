@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { Entry } from '@/types';
+import type { Entry, ActionItem } from '@/types';
 import {
   fetchEntriesPaginatedService,
   addEntryService,
@@ -56,7 +56,7 @@ interface JournalActions {
     activeIntentTag: string | null;
     activeContentTags: Set<string>;
   }>) => void;
-  addEntry: (content: string, date: string) => Promise<void>; // Content arg might change to EditorState
+  addEntry: (content: string, date: string, entryType?: 'text' | 'voice') => Promise<void>;
   updateEntryTags: (entryId: string, entryUpdate: Partial<Entry> | Entry) => void;
   updateEntry: (entryId: string, content: string) => Promise<void>; // Content arg might change to EditorState
   deleteEntry: (entryId: string) => Promise<void>;
@@ -154,7 +154,6 @@ const calculateHighlightedTagColors = (entries: Entry[]): { [lowerCaseTag: strin
 // --- End helper function ---
 
 // --- Client-side Filtering Logic ---
-// (Adapted from previous applyFilters)
 const filterLoadedEntries = (
   entriesToFilter: Entry[],
   filters: Pick<JournalState, 'searchQuery' | 'activeMetaTag' | 'activeIntentTag' | 'activeContentTags'>
@@ -312,7 +311,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           });
         } catch (error: any) {
           console.error("Failed to load more entries:", error);
-          set({ errorState: `Failed to load more entries: ${error.message}`, hasMoreEntries: false }); 
+          set({ errorState: `Failed to load more entries: ${error.message}` }); 
         } finally {
           console.log("loadMoreEntries finished");
           set({ isLoadingMore: false });
@@ -320,58 +319,52 @@ export const useJournalStore = create<JournalState & JournalActions>()(
       },
 
       setFilters: (filters) => {
-        const currentState = get();
-        // Determine if any filter values actually changed
-        const queryChanged = filters.searchQuery !== undefined && filters.searchQuery !== currentState.searchQuery;
-        const metaChanged = filters.activeMetaTag !== undefined && filters.activeMetaTag !== currentState.activeMetaTag;
-        const intentChanged = filters.activeIntentTag !== undefined && filters.activeIntentTag !== currentState.activeIntentTag;
-        const contentChanged = filters.activeContentTags !== undefined && 
-          (filters.activeContentTags.size !== currentState.activeContentTags.size || 
-           !Array.from(filters.activeContentTags).every(tag => currentState.activeContentTags.has(tag)));
+        const currentFilters = {
+          searchQuery: get().searchQuery,
+          activeMetaTag: get().activeMetaTag,
+          activeIntentTag: get().activeIntentTag,
+          activeContentTags: get().activeContentTags,
+        };
+        
+        const newFilters = { ...currentFilters, ...filters };
+        // Use a reliable way to check for deep equality change, especially for Sets
+        const hasChanged = 
+            newFilters.searchQuery !== currentFilters.searchQuery ||
+            newFilters.activeMetaTag !== currentFilters.activeMetaTag ||
+            newFilters.activeIntentTag !== currentFilters.activeIntentTag ||
+            (newFilters.activeContentTags.size !== currentFilters.activeContentTags.size || 
+             !Array.from(newFilters.activeContentTags).every(tag => currentFilters.activeContentTags.has(tag)));
 
-        const filtersDidChange = queryChanged || metaChanged || intentChanged || contentChanged;
-
-        if (!filtersDidChange) {
-          console.log("setFilters called but no change detected.");
-          return; // No need to do anything if filters haven't changed
+        if (hasChanged) {
+             console.log('setFilters triggered with changes:', filters);
+             // Apply the filtering *after* setting the new filter state
+             set((state) => {
+                const updatedFilters = { ...state, ...newFilters }; // Apply filter state updates
+                const newDisplayEntries = filterLoadedEntries(state.loadedEntries, updatedFilters); // Filter using updated state
+                return { ...updatedFilters, displayEntries: newDisplayEntries }; // Return combined state update
+             });
+        } else {
+             console.log('setFilters called but no change detected.');
         }
-
-        console.log("setFilters triggered with changes:", filters);
-
-        // Update the filter state fields
-        set(state => ({
-          searchQuery: filters.searchQuery !== undefined ? filters.searchQuery : state.searchQuery,
-          activeMetaTag: filters.activeMetaTag !== undefined ? filters.activeMetaTag : state.activeMetaTag,
-          activeIntentTag: filters.activeIntentTag !== undefined ? filters.activeIntentTag : state.activeIntentTag,
-          activeContentTags: filters.activeContentTags !== undefined ? filters.activeContentTags : state.activeContentTags,
-          // --- RESET Pagination state when filters change --- 
-          // currentPage: 0,       // Reset happens within loadInitialEntries
-          // loadedEntries: [],    // Reset happens within loadInitialEntries
-          // displayEntries: [], // Reset happens within loadInitialEntries
-          // hasMoreEntries: true, // Reset happens within loadInitialEntries
-          errorState: null,     // Clear previous errors
-        }));
-
-        // --- REMOVE Client-side filtering --- 
-        // const newDisplayEntries = filterLoadedEntries(currentState.loadedEntries, updatedFilters);
-        // set({ ...updatedFilters, displayEntries: newDisplayEntries });
-
-        // --- TRIGGER Server-side refresh --- 
-        // Call loadInitialEntries to fetch data based on the *newly set* filters
-        get().loadInitialEntries(); 
       },
 
-      addEntry: async (contentHtml: string, date: string) => {
+      addEntry: async (content: string, date: string, entryType: 'text' | 'voice' = 'text') => {
         set({ isProcessingEntry: true, errorState: null });
         try {
-          // Pass 'text' as the entryType
-          const { data: newEntry, error: serviceError } = await addEntryService(date, contentHtml, 'text');
+          // Pass the explicitly typed entryType to the service
+          const { data: newEntry, error: serviceError } = await addEntryService(date, content, entryType);
           if (serviceError) throw serviceError;
           if (!newEntry) throw new Error("Service returned no data on add.");
 
           const updatedLoadedEntries = [newEntry, ...get().loadedEntries];
+          const currentFilters = {
+            searchQuery: get().searchQuery,
+            activeMetaTag: get().activeMetaTag,
+            activeIntentTag: get().activeIntentTag,
+            activeContentTags: get().activeContentTags,
+          };
+          const newDisplayEntries = filterLoadedEntries(updatedLoadedEntries, currentFilters);
           const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoadedEntries);
-          const newDisplayEntries = filterLoadedEntries(updatedLoadedEntries, get());
 
           set({
             loadedEntries: updatedLoadedEntries,
@@ -381,65 +374,20 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           });
 
           // Trigger background tagging
-          (async () => {
-            try {
-              const contentToTag = newEntry.content; // Use content from the newly created entry
-              if (!contentToTag) return;
-
-              const fetchOptions = {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ content: contentToTag })
-              };
-              const [metaResponse, intentResponse, tagsResponse] = await Promise.all([
-                 fetch('/api/classify-meta', fetchOptions),
-                 fetch('/api/classify-intent', fetchOptions),
-                 fetch('/api/tags', fetchOptions)
-              ]);
-
-              // Consider more robust error checking here
-              if (!metaResponse.ok) console.warn('Meta tag API failed');
-              if (!intentResponse.ok) console.warn('Intent tag API failed');
-              if (!tagsResponse.ok) console.warn('Content tag API failed');
-
-              const metaResult = metaResponse.ok ? await metaResponse.json() : {};
-              const intentResult = intentResponse.ok ? await intentResponse.json() : {};
-              const tagsResult = tagsResponse.ok ? await tagsResponse.json() : {};
-
-              const updatePayload: Partial<Entry> = {};
-                if (metaResult.metaTag) { updatePayload.meta_tag = metaResult.metaTag; }
-                if (intentResult.intentTag) { updatePayload.intent_tag = intentResult.intentTag; }
-                if (tagsResult.tags) { updatePayload.tags = tagsResult.tags; }
-
-              if (Object.keys(updatePayload).length > 0) {
-                 const { error: updateError } = await supabase
-                  .from('entries')
-                  .update(updatePayload)
-                  .eq('id', newEntry.id);
-
-                 if (updateError) {
-                    console.error('Error updating entry with tags in DB:', updateError);
-                 } else {
-                    // Fetch the full updated entry to update the store state
-                    const { data: updatedEntryData, error: fetchError } = await supabase
-                      .from('entries')
-                      .select('*')
-                      .eq('id', newEntry.id)
-                      .single();
-
-                    if (fetchError) {
-                      console.error('Error fetching updated entry after tagging:', fetchError);
-                    } else if (updatedEntryData) {
-                      // Call updateEntryTags with the full, updated entry
-                      get().updateEntryTags(newEntry.id, updatedEntryData as Entry);
-                      console.log("Background tagging update applied to store for entry:", newEntry.id);
-                    }
-                 }
-              }
-            } catch (taggingError) {
-              console.error("Error during background tagging process for manual entry:", taggingError);
-            }
-          })();
+          if (newEntry.id && newEntry.content) {
+            // Use Promise.allSettled to avoid crashing on single fetch failure
+             Promise.allSettled([
+                fetch('/api/classify-meta', { method: 'POST', body: JSON.stringify({ entryId: newEntry.id, content: newEntry.content }) }).then(res => res.ok ? res.json() : Promise.reject('Meta API failed')),
+                fetch('/api/classify-intent', { method: 'POST', body: JSON.stringify({ entryId: newEntry.id, content: newEntry.content }) }).then(res => res.ok ? res.json() : Promise.reject('Intent API failed')),
+                fetch('/api/tags', { method: 'POST', body: JSON.stringify({ entryId: newEntry.id, content: newEntry.content }) }).then(res => res.ok ? res.json() : Promise.reject('Tags API failed'))
+             ]).then(results => {
+                console.log('Background tagging settled:', results.map(r => r.status));
+                // Note: Updates from tagging arrive via Supabase Realtime / updateEntryTags
+             }).catch(err => {
+                // Catch potential errors in Promise.allSettled itself (unlikely)
+                 console.error('Error initiating background tagging:', err);
+             });
+          }
 
         } catch (error: any) {
           console.error("Failed to add entry:", error);
@@ -449,18 +397,42 @@ export const useJournalStore = create<JournalState & JournalActions>()(
       },
 
       updateEntryTags: (entryId, entryUpdate) => {
-        const updateFn = (entry: Entry): Entry => (entry.id === entryId ? { ...entry, ...entryUpdate } : entry);
-        const updatedLoaded = get().loadedEntries.map(updateFn);
-        const updatedDisplay = get().displayEntries.map(updateFn);
-        const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoaded);
-        set({ loadedEntries: updatedLoaded, displayEntries: updatedDisplay, highlightedTagColors: newHighlightedTagColors });
+        const currentEntries = get().loadedEntries;
+        let entryFound = false;
+        const updatedEntries = currentEntries.map(entry => {
+          if (entry.id === entryId) {
+            entryFound = true;
+            return { ...entry, ...entryUpdate };
+          }
+          return entry;
+        });
+
+        if (entryFound) {
+            const currentFilters = {
+              searchQuery: get().searchQuery,
+              activeMetaTag: get().activeMetaTag,
+              activeIntentTag: get().activeIntentTag,
+              activeContentTags: get().activeContentTags,
+            };
+            const newDisplayEntries = filterLoadedEntries(updatedEntries, currentFilters);
+            const newHighlightedTagColors = calculateHighlightedTagColors(updatedEntries);
+            set({ 
+                loadedEntries: updatedEntries, 
+                displayEntries: newDisplayEntries, // Use refiltered display entries
+                highlightedTagColors: newHighlightedTagColors // Recalculate colors
+            });
+        } else {
+            console.warn(`updateEntryTags called for unknown entryId: ${entryId}`);
+            // *** ADDED: Skip color recalculation if entry not found ***
+            // No state update needed if entry wasn't found
+        }
       },
 
-      updateEntry: async (entryId: string, contentHtml: string) => {
+      updateEntry: async (entryId: string, content: string) => {
         set({ isProcessingEntry: true, errorState: null });
         try {
            // Destructure the response from the service
-          const { data: updatedEntry, error: serviceError } = await updateEntryContentService(entryId, contentHtml);
+          const { data: updatedEntry, error: serviceError } = await updateEntryContentService(entryId, content);
           
           // Check for service error first
           if (serviceError) throw serviceError;
@@ -488,31 +460,38 @@ export const useJournalStore = create<JournalState & JournalActions>()(
 
       deleteEntry: async (entryId: string) => {
         set({ isProcessingEntry: true, errorState: null });
-        const originalEntries = get().loadedEntries;
+        const originalLoadedEntries = get().loadedEntries;
+        const originalDisplayEntries = get().displayEntries; // Store original display entries
+        const originalHighlightedTagColors = get().highlightedTagColors; // Store original colors
+
         // Optimistically remove from UI
-        const updatedLoaded = originalEntries.filter(e => e.id !== entryId);
-        const updatedDisplay = filterLoadedEntries(updatedLoaded, get());
+        const updatedLoaded = originalLoadedEntries.filter(e => e.id !== entryId);
+        const currentFilters = {
+          searchQuery: get().searchQuery,
+          activeMetaTag: get().activeMetaTag,
+          activeIntentTag: get().activeIntentTag,
+          activeContentTags: get().activeContentTags,
+        };
+        const newDisplayEntries = filterLoadedEntries(updatedLoaded, currentFilters);
         const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoaded);
         set({ 
             loadedEntries: updatedLoaded, 
-            displayEntries: updatedDisplay, 
+            displayEntries: newDisplayEntries, 
             highlightedTagColors: newHighlightedTagColors 
         });
 
         try {
           await deleteEntryService(entryId);
-          set({ isProcessingEntry: false });
+          set({ isProcessingEntry: false }); // Only processing state changes on success
         } catch (error: any) {
           console.error("Failed to delete entry:", error);
-          // Revert UI on error
-          const revertedDisplay = filterLoadedEntries(originalEntries, get());
-          const revertedColors = calculateHighlightedTagColors(originalEntries);
-          set({
-            loadedEntries: originalEntries,
-            displayEntries: revertedDisplay,
-            highlightedTagColors: revertedColors,
-            errorState: `Failed to delete entry: ${error.message}`, 
-            isProcessingEntry: false 
+          // Revert optimistic removal on failure
+          set({ 
+              isProcessingEntry: false, 
+              errorState: `Failed to delete entry: ${error.message}`,
+              loadedEntries: originalLoadedEntries, // Revert loaded entries
+              displayEntries: originalDisplayEntries, // Revert display entries
+              highlightedTagColors: originalHighlightedTagColors // Revert colors
           });
         }
       },
@@ -533,87 +512,24 @@ export const useJournalStore = create<JournalState & JournalActions>()(
       },
 
       addEntryWithTranscription: async (transcription: string) => {
-         set({ isProcessingEntry: true, errorState: null });
-         const entryDate = format(new Date(), 'yyyy-MM-dd'); // Use today's date
+          // Keep isProcessingEntry/errorState handling here as it's specific to the transcription flow initiation.
+          set({ isProcessingEntry: true, errorState: null });
+          const entryDate = format(new Date(), 'yyyy-MM-dd');
 
-         try {
-            // 1. Pass 'voice' as the entryType
-            const { data: newEntry, error: serviceError } = await addEntryService(entryDate, transcription, 'voice');
-            if (serviceError) throw serviceError;
-            if (!newEntry) throw new Error("Service returned no data on transcription add.");
+          try {
+             // *** FIX: Call the store's addEntry action ***
+             await get().addEntry(transcription, entryDate, 'voice');
+             // The called addEntry action will handle setting isProcessingEntry back to false on success.
+             
+             // Note: The original background tagging logic is now handled within the called addEntry action.
+             // Remove duplicate state updates and background tagging calls from here.
 
-            // 2. Optimistically add to state & set processing false
-            const updatedLoadedEntries = [newEntry, ...get().loadedEntries];
-            const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoadedEntries);
-            const newDisplayEntries = filterLoadedEntries(updatedLoadedEntries, get());
-
-            set({
-               loadedEntries: updatedLoadedEntries,
-               displayEntries: newDisplayEntries,
-               highlightedTagColors: newHighlightedTagColors,
-               isProcessingEntry: false // Set processing false here
-            });
-
-            // 3. Trigger background tagging (similar to manual addEntry)
-            (async () => {
-              try {
-                const contentToTag = newEntry.content; // Use content from the newly created entry
-                if (!contentToTag) return;
-
-                const fetchOptions = {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ content: contentToTag })
-                 };
-                const [metaResponse, intentResponse, tagsResponse] = await Promise.all([
-                   fetch('/api/classify-meta', fetchOptions),
-                   fetch('/api/classify-intent', fetchOptions),
-                   fetch('/api/tags', fetchOptions)
-                ]);
-
-                // Consider more robust error checking here
-                if (!metaResponse.ok) console.warn('Meta tag API failed');
-                if (!intentResponse.ok) console.warn('Intent tag API failed');
-                if (!tagsResponse.ok) console.warn('Content tag API failed');
-
-                const metaResult = metaResponse.ok ? await metaResponse.json() : {};
-                const intentResult = intentResponse.ok ? await intentResponse.json() : {};
-                const tagsResult = tagsResponse.ok ? await tagsResponse.json() : {};
-
-                const updatePayload: Partial<Entry> = {};
-                if (metaResult.metaTag) { updatePayload.meta_tag = metaResult.metaTag; }
-                if (intentResult.intentTag) { updatePayload.intent_tag = intentResult.intentTag; }
-                if (tagsResult.tags) { updatePayload.tags = tagsResult.tags; }
-
-
-                if (Object.keys(updatePayload).length > 0) {
-                   const { error: updateError } = await supabase.from('entries').update(updatePayload).eq('id', newEntry.id);
-
-                   if (updateError) {
-                      console.error('Error updating voice entry with tags in DB:', updateError);
-                   } else {
-                      // Fetch the full updated entry to update the store state
-                      const { data: updatedEntryData, error: fetchError } = await supabase.from('entries').select('*').eq('id', newEntry.id).single();
-
-                      if (fetchError) {
-                        console.error('Error fetching updated voice entry after tagging:', fetchError);
-                      } else if (updatedEntryData) {
-                        get().updateEntryTags(newEntry.id, updatedEntryData as Entry);
-                        console.log("Background tagging update applied to store for voice entry:", newEntry.id);
-                      }
-                   }
-                }
-              } catch (taggingError) {
-                console.error("Error during background tagging process for voice entry:", taggingError);
-              }
-            })(); // End background tagging async IIFE
-
-
-         } catch (error: any) {
-            console.error("Failed to add transcription entry:", error);
-            set({ errorState: `Failed to add entry: ${error.message}`, isProcessingEntry: false });
-            // Do not re-throw here, as the UI handles errors via audioError state in page.tsx
-         }
+          } catch (error: any) {
+             // Keep specific error handling for transcription failure
+             console.error("Failed to add transcription entry:", error);
+             set({ errorState: `Failed to add transcription: ${error.message}`, isProcessingEntry: false }); 
+             // Do not re-throw here, as the UI handles errors via audioError state in page.tsx
+          }
       },
 
     }),

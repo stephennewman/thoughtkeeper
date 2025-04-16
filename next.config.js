@@ -10,7 +10,7 @@ const ContentSecurityPolicy = `
   base-uri 'self';
   form-action 'self';
   frame-ancestors 'none';
-  connect-src 'self' https://api.openai.com https://ngtimuzzpgvzhzrbhghb.supabase.co;
+  connect-src 'self' https://api.openai.com https://ngtimuzzpgvzhzrbhghb.supabase.co wss://ngtimuzzpgvzhzrbhghb.supabase.co;
 `;
 
 const securityHeaders = [

@@ -33,5 +33,4 @@ export type TagType = 'meta' | 'intent' | 'content';
 export interface ActionItem {
   task: string;
   completed: boolean;
-  priorityScore: number | null;
 }

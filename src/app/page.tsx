@@ -15,6 +15,7 @@ import debounce from 'lodash.debounce';
 import { supabase } from '@/lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // Helper function to format seconds into M:SS
 const formatTime = (totalSeconds: number): string => {
@@ -87,6 +88,7 @@ export default function Home() {
     openEditorDialog,
     addEntry,
     addEntryWithTranscription,
+    updateEntryTags,
   } = useJournalStore();
 
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
@@ -299,6 +301,55 @@ export default function Home() {
       }
     };
   }, [isRecording]); // Rerun effect when isRecording changes
+
+  // --- *** ADDED: Supabase Realtime Listener for Entries *** ---
+  useEffect(() => {
+    // Ensure session exists before subscribing
+    if (!session) return;
+
+    console.log('Setting up Supabase Realtime subscription for entries...');
+    const channel = supabase
+      .channel('journal-entries-channel') // Unique channel name
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE', // Listen only for UPDATES
+          schema: 'public',
+          table: 'entries',
+          // Optionally filter by user_id if needed, though RLS should handle security
+          // filter: `user_id=eq.${session.user.id}`
+        },
+        (payload) => {
+          console.log('Realtime UPDATE received:', payload);
+          // Extract the updated entry data
+          const updatedEntry = payload.new as Entry;
+          if (updatedEntry && updatedEntry.id) {
+            console.log(`Realtime: Calling updateEntryTags for id: ${updatedEntry.id}`);
+            // Update the store with the changed entry
+            useJournalStore.getState().updateEntryTags(updatedEntry.id, updatedEntry);
+          } else {
+            console.warn('Realtime: Received UPDATE payload without new data or id', payload);
+          }
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to entries updates!');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error(`Realtime subscription error: ${status}`, err);
+          // Optionally add logic to attempt resubscription
+        }
+      });
+
+    // Cleanup function to remove the channel subscription when the component unmounts
+    return () => {
+      console.log('Cleaning up Supabase Realtime subscription...');
+      if (channel) {
+        supabase.removeChannel(channel).catch(console.error);
+      }
+    };
+  }, [session]); // Re-run the effect if the session changes
+  // --- END Realtime Listener ---
 
   const handleDeleteEntry = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this entry?')) {
