@@ -7,8 +7,8 @@ const figtree = Figtree({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | ThoughtKeeper',
-    default: 'ThoughtKeeper',
+    template: '%s | VibeKeep',
+    default: 'VibeKeep | Augmented intelligence for busy people',
   },
   description: "Your personal space for thoughts and reflections.",
 };
