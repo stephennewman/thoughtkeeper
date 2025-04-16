@@ -1,5 +1,3 @@
-import type { ActionItem } from '@/lib/entryService';
-
 export interface SupabaseEntry {
   id: string;
   created_at: string;
@@ -36,4 +34,4 @@ export interface ActionItem {
   task: string;
   completed: boolean;
   priorityScore: number | null;
-} 
+}

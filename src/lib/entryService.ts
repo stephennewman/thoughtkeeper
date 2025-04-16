@@ -1,11 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
-import type { Entry } from '@/types';
-
-// Define a type for the action items for clarity
-export type ActionItem = {
-    task: string;
-    completed: boolean;
-};
+import type { Entry, ActionItem } from '@/types';
 
 /**
  * Fetches entries from Supabase, applying pagination and optional filters.
@@ -319,6 +313,7 @@ const extractAndSaveSummary = async (entryId: string, entryContent: string): Pro
  * Returns only the ID and updated actions, or error.
  */
 export const updateEntryActionsService = async (id: string, actions: ActionItem[]): Promise<{ data: Pick<Entry, 'id' | 'extracted_actions'> | null; error: Error | null }> => {
+    console.log(`Updating actions for entry ${id} with:`, actions);
     try {
         // Basic validation
         if (!id || !Array.isArray(actions)) {

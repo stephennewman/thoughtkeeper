@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 import { Label } from "@/components/ui/label"; // Import Label
 import { Input } from "@/components/ui/input"; // Import Input
-import type { Entry, TagType } from '@/types'; // Import from centralized types
-import { ActionItem, updateEntryActionsService, updateEntrySummaryService } from '@/lib/entryService'; // Import ActionItem and service
+import type { Entry, TagType, ActionItem } from '@/types'; // Modified: Moved ActionItem import here
+import { updateEntryActionsService, updateEntrySummaryService } from '@/lib/entryService'; // Modified: Removed ActionItem import
 import { useJournalStore } from '@/stores/journalStore'; // IMPORT THE STORE
 import { toast } from 'sonner'; // Import toast
 import clsx from 'clsx';
@@ -291,7 +291,7 @@ export function JournalEntry({
     const trimmedText = newActionText.trim();
     if (!trimmedText) return; // Don't add empty actions
 
-    const newAction: ActionItem = { task: trimmedText, completed: false }; // Reverted: removed priorityScore init
+    const newAction: ActionItem = { task: trimmedText, completed: false, priorityScore: null }; // Added priorityScore: null
     // Insert the new action at the correct position
     const insertAtIndex = addActionAfterIndex === null || addActionAfterIndex === -1 
                           ? 0 
