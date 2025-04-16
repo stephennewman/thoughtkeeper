@@ -1,8 +1,14 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Metadata } from 'next'; // Import Metadata type
 
 // IMPORTANT: This is a TEMPLATE. Review and customize with legal counsel.
+
+// Add Metadata for the page title
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+};
 
 const logoUrl = "https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367";
 
@@ -15,7 +21,7 @@ const TermsOfServicePage = () => {
           <Link href="/home">
              <Image 
                 src={logoUrl}
-                alt="ThoughtKeeper Logo"
+                alt="VibeKeep Logo"
                 width={120}
                 height={28}
                 priority
@@ -32,13 +38,13 @@ const TermsOfServicePage = () => {
 
         <div className="prose prose-blue max-w-none">
           <p>
-            Welcome to ThoughtKeeper! These Terms of Service ("Terms") govern your access to and use of the ThoughtKeeper application and services (collectively, the "Service") provided by [Your Company Name/Your Name] ("we," "us," or "our").
+            Welcome to VibeKeep! These Terms of Service ("Terms") govern your access to and use of the VibeKeep application and services (collectively, the "Service") provided by [Your Company Name/Your Name] ("we," "us," or "our").
             Please read these Terms carefully before using the Service. By accessing or using the Service, you agree to be bound by these Terms. If you disagree with any part of the terms, then you may not access the Service.
           </p>
 
           <h2>1. Description of Service</h2>
           <p>
-            ThoughtKeeper is an intelligent workspace designed to help users capture, organize, analyze, and act on their thoughts, notes, and voice memos using features including AI-powered transcription, tagging, summarization, and action item extraction (the "Features").
+            VibeKeep is an intelligent workspace designed to help users capture, organize, analyze, and act on their thoughts, notes, and voice memos using features including AI-powered transcription, tagging, summarization, and action item extraction (the "Features").
           </p>
 
           <h2>2. User Accounts</h2>
@@ -105,7 +111,7 @@ const TermsOfServicePage = () => {
        {/* Simple Footer with Links */}
       <footer className="py-6 border-t border-gray-200 mt-12 bg-gray-50">
         <div className="max-w-4xl mx-auto px-6 text-center text-gray-500 text-sm">
-          <p className="mb-2">&copy; {new Date().getFullYear()} <Link href="/home" className="hover:text-blue-600 transition">ThoughtKeeper</Link>. All rights reserved.</p>
+          <p className="mb-2">&copy; {new Date().getFullYear()} <Link href="/home" className="hover:text-blue-600 transition">VibeKeep</Link>. All rights reserved.</p>
           <div className="space-x-3">
              <Link href="/home" className="hover:text-blue-600 transition">
               Home
