@@ -1,8 +1,14 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Metadata } from 'next'; // Import Metadata type
 
 // IMPORTANT: This is a TEMPLATE. Review and customize with legal counsel.
+
+// Add Metadata for the page title
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+};
 
 const logoUrl = "https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367";
 
@@ -15,7 +21,7 @@ const PrivacyPolicyPage = () => {
           <Link href="/home">
              <Image 
                 src={logoUrl}
-                alt="ThoughtKeeper Logo"
+                alt="VibeKeep Logo"
                 width={120}
                 height={28}
                 priority
@@ -32,7 +38,7 @@ const PrivacyPolicyPage = () => {
 
         <div className="prose prose-blue max-w-none">
           <p>
-            Welcome to ThoughtKeeper ("we," "us," or "our"). We are committed to protecting your privacy.
+            Welcome to VibeKeep ("we," "us," or "our"). We are committed to protecting your privacy.
             This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application (the "Service").
             Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the service.
           </p>
@@ -108,7 +114,7 @@ const PrivacyPolicyPage = () => {
        {/* Simple Footer with Links */}
       <footer className="py-6 border-t border-gray-200 mt-12 bg-gray-50">
         <div className="max-w-4xl mx-auto px-6 text-center text-gray-500 text-sm">
-          <p className="mb-2">&copy; {new Date().getFullYear()} <Link href="/home" className="hover:text-blue-600 transition">ThoughtKeeper</Link>. All rights reserved.</p>
+          <p className="mb-2">&copy; {new Date().getFullYear()} <Link href="/home" className="hover:text-blue-600 transition">VibeKeep</Link>. All rights reserved.</p>
           <div className="space-x-3">
              <Link href="/home" className="hover:text-blue-600 transition">
               Home
