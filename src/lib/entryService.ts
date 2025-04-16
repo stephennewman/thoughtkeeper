@@ -387,6 +387,64 @@ export const deleteEntryService = async (id: string): Promise<{ error: Error | n
     }
 };
 
+/**
+ * Updates the `meta_tag` field for a specific entry.
+ * Returns the ID and updated meta_tag, or error.
+ */
+export const updateEntryMetaTagService = async (
+    id: string,
+    metaTag: string | null // Allow setting tag to null
+): Promise<{ data: Pick<Entry, 'id' | 'meta_tag'> | null; error: Error | null }> => {
+    try {
+        if (!id) {
+            return { data: null, error: new Error("Invalid ID provided.") };
+        }
+
+        const { data, error } = await supabase
+            .from('entries')
+            .update({ meta_tag: metaTag })
+            .eq('id', id)
+            .select('id, meta_tag') // Select only necessary fields
+            .single();
+
+        if (error) {
+            throw error;
+        }
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('Error in updateEntryMetaTagService:', error);
+        return { data: null, error: new Error(`Failed to update entry meta tag: ${error.message}`) };
+    }
+};
+
+/**
+ * Globally removes a meta tag by setting it to null on all entries that use it.
+ */
+export const deleteMetaTagGloballyService = async (metaTag: string): Promise<{ error: Error | null }> => {
+    try {
+        if (!metaTag || typeof metaTag !== 'string') {
+             return { error: new Error("Invalid meta tag provided for deletion.") };
+        }
+        console.log(`Globally deleting meta tag: ${metaTag}`);
+
+        // Update all entries that have this meta_tag, setting it to null
+        const { error } = await supabase
+            .from('entries')
+            .update({ meta_tag: null })
+            .eq('meta_tag', metaTag);
+        
+        if (error) {
+            throw error;
+        }
+        console.log(`Successfully untagged entries using meta tag: ${metaTag}`);
+        return { error: null };
+
+    } catch (error: any) {
+        console.error(`Error in deleteMetaTagGloballyService for tag "${metaTag}":`, error);
+        return { error: new Error(`Failed to globally delete meta tag "${metaTag}": ${error.message}`) };
+    }
+};
+
 // TODO: Consider adding service for AI tag generation calls?
 
 // TODO: Add functions for initial fetch, add, update, delete 

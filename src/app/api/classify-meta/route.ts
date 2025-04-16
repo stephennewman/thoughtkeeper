@@ -12,6 +12,7 @@ const openai = new OpenAI({
 
 const PREFERRED_META_TAGS = [
   'Work',
+  'SideHustle',
   'Family',
   'Social',
   'Finances',
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `You are an assistant that classifies journal entries into a single meta category. Analyze the content and determine the primary life domain it relates to. Choose ONLY ONE category. Prefer one of the following categories if applicable: ${PREFERRED_META_TAGS.join(', ')}. If none of those fit well, choose another concise, relevant category (e.g., "Travel", "Project", "Hobby"). Respond with ONLY the single chosen category name as plain text, without any explanation, preamble, or quotation marks.`
+          content: `You are an assistant that classifies journal entries into a single meta category. Analyze the content and determine the primary life domain it relates to. Choose ONLY ONE category. Prefer one of the following categories if applicable: ${PREFERRED_META_TAGS.join(', ')}. Differentiate between 'Work' (main job/career) and 'SideHustle' (secondary income/business venture). If none of the preferred categories fit well, choose another concise, relevant category (e.g., "Travel", "Project", "Hobby"). Respond with ONLY the single chosen category name as plain text, without any explanation, preamble, or quotation marks.`
         },
         {
           role: "user",

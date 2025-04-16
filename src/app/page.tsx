@@ -800,16 +800,17 @@ export default function Home() {
             {/* Left Side: Logo & Status - Removed isProcessingAudio from here */}
             <div className="flex items-center flex-shrink-0">
               <img 
-                src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523"
-                alt="ThoughtKeeper Logo" 
+                src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367"
+                alt="Thought Keeper Logo"
                 className="h-8 w-auto mr-4"
               />
               <div className="flex items-center gap-2">
-                {errorState && (
+                {/* Removed direct errorState display from header */}
+                {/* {errorState && (
                   <p className="text-red-600 text-sm">Error: {errorState}</p>
-                )}
+                )} */}
                 {/* Only show initial loading here */}
-                {isLoadingInitial && !errorState && (
+                {isLoadingInitial && ( // Removed !errorState check here too for consistency
                   <div className="flex items-center justify-start text-sm text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin mr-2" />
                     <span>Loading...</span>
@@ -1033,7 +1034,7 @@ export default function Home() {
               )}
 
               {/* Entry Rendering Logic */}
-              {!isLoadingInitial && !errorState && (
+              {!isLoadingInitial && (
                 <>
                   {/* No Entries Matching Filter Message */}
                   {displayEntries.length === 0 && loadedEntries.length > 0 && isAnyFilterActive && (
@@ -1059,7 +1060,8 @@ export default function Home() {
                         
                         {/* Entries for the Day */}
                         <div className="space-y-2"> 
-                          {dayEntries.map((entry) => (
+                          {/* Add safety check: Ensure dayEntries is an array before mapping */}
+                          {Array.isArray(dayEntries) && dayEntries.map((entry) => (
                             <JournalEntry
                                 key={entry.id}
                                 entry={entry}

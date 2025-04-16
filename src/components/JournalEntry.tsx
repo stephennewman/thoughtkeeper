@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'; // Import useState, useEffect, useRef
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Loader2, Mic, FileText, CheckSquare, Square, List, X, PlusCircle, Pencil, Check } from 'lucide-react';
+import { MoreHorizontal, Loader2, Mic, FileText, CheckSquare, Square, List, X, PlusCircle, Pencil, Check, ChevronsUpDown, Tag } from 'lucide-react'; // Added ChevronsUpDown, Tag
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -11,11 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 import { Label } from "@/components/ui/label"; // Import Label
 import { Input } from "@/components/ui/input"; // Import Input
+// ** Removed Combobox imports from here - they are in MetaTagEditor **
 import type { Entry, TagType, ActionItem } from '@/types'; // Modified: Moved ActionItem import here
 import { updateEntryActionsService, updateEntrySummaryService } from '@/lib/entryService'; // Modified: Removed ActionItem import
 import { useJournalStore } from '@/stores/journalStore'; // IMPORT THE STORE
 import { toast } from 'sonner'; // Import toast
 import clsx from 'clsx';
+import { MetaTagEditor } from './MetaTagEditor'; // Import the new component
 
 // Define props for the component
 interface JournalEntryProps {
@@ -41,11 +43,13 @@ export function JournalEntry({
   onEditClick,
   setFilters // Destructure setFilters
 }: JournalEntryProps) {
-  // Get current filter state from store - Select individually
+  // Get relevant state and actions from the store individually
   const activeMetaTag = useJournalStore((state) => state.activeMetaTag);
   const activeIntentTag = useJournalStore((state) => state.activeIntentTag);
   const activeContentTags = useJournalStore((state) => state.activeContentTags);
-  const updateEntryTagsInStore = useJournalStore((state) => state.updateEntryTags); // Get update action for tags/metadata
+  const updateEntryTagsInStore = useJournalStore((state) => state.updateEntryTags);
+  const uniqueMetaTags = useJournalStore((state) => state.uniqueMetaTags);
+  const updateEntryMetaTag = useJournalStore((state) => state.updateEntryMetaTag);
 
   // === State for Actions Checklist ===
   const [localActions, setLocalActions] = useState<ActionItem[]>(entry.extracted_actions || []);
@@ -80,6 +84,13 @@ export function JournalEntry({
   // === Refs for inline editing ===
   const editableActionLabelRef = useRef<HTMLLabelElement | null>(null);
   const editableSummarySpanRef = useRef<HTMLSpanElement | null>(null);
+
+  // ** Removed Meta Tag Combobox State - moved to MetaTagEditor **
+  // const [isMetaPopoverOpen, setIsMetaPopoverOpen] = useState(false);
+  // const [metaSearchValue, setMetaSearchValue] = useState(''); 
+
+  // ** Removed handleMetaTagSelect callback - moved to MetaTagEditor **
+  // const handleMetaTagSelect = React.useCallback((selectedValue: string | null) => { ... }, [...]);
 
   // Update local actions if the prop changes (e.g., after initial fetch or AI update)
   useEffect(() => {
@@ -912,19 +923,17 @@ export function JournalEntry({
           {hasTags && <FooterSeparator />}
 
           {/* Tag Spinner */}
-          {isGenerating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {isGenerating && !entry.meta_tag && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
 
-          {/* Meta Tag */}
-          {entry.meta_tag && (
-            <Badge
-              key={`meta-${entry.meta_tag}`}
-              variant="outline"
-              className={getTagClasses(entry.meta_tag, 'meta')}
-              onClick={(e) => { e.stopPropagation(); handleTagClick(entry.meta_tag!, 'meta'); }}
-            >
-              {entry.meta_tag.toUpperCase()}
-            </Badge>
-          )}
+          {/* Meta Tag - Use the new component */}
+          <MetaTagEditor 
+            entryId={entry.id}
+            currentTag={entry.meta_tag ?? null}
+            uniqueTags={uniqueMetaTags}
+            onUpdateTag={updateEntryMetaTag}
+            getTagClasses={getTagClasses} // Pass down the existing styling helper
+          />
+
           {/* Intent Tag */}
           {entry.intent_tag && (
             <Badge

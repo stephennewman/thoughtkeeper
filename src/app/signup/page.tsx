@@ -7,6 +7,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function SignUpPage() {
   const { resolvedTheme } = useTheme();
@@ -31,14 +32,15 @@ export default function SignUpPage() {
     >
       <div className="p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-700 bg-white">
         <div className="flex justify-center mb-6">
-          <img 
-            src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523" 
+          <Image
+            src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367" 
             alt="Thoughtkeeper Logo" 
-            className="h-16 w-auto"
+            width={64}
+            height={64}
           />
         </div>
         
-        <h2 className="text-2xl font-semibold text-center mb-6">Create Account</h2>
+        <h2 className="text-2xl font-semibold text-center text-gray-700 dark:text-gray-200 mb-6">Create your Account</h2>
         
         <Auth
           supabaseClient={supabase}

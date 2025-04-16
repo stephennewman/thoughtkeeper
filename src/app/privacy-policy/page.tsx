@@ -4,9 +4,9 @@ import Image from 'next/image';
 
 // IMPORTANT: This is a TEMPLATE. Review and customize with legal counsel.
 
-const PrivacyPolicyPage = () => {
-  const logoUrl = "https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523";
+const logoUrl = "https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367";
 
+const PrivacyPolicyPage = () => {
   return (
     <div className="min-h-screen bg-white text-gray-800 antialiased">
       {/* Simple Header with Logo */}

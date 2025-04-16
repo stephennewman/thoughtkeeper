@@ -7,6 +7,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function SignInPage() {
   const { resolvedTheme } = useTheme();
@@ -28,10 +29,11 @@ export default function SignInPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="p-8 rounded-lg shadow-md w-full max-w-md border">
         <div className="flex justify-center mb-6">
-          <img 
-            src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523" 
-            alt="Thoughtkeeper Logo" 
-            className="h-16 w-auto"
+          <Image 
+            // eslint-disable-next-line @next/next/no-img-element
+            src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367" 
+            alt="Thought Keeper Logo" 
+            width={64}
           />
         </div>
         

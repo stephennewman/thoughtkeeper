@@ -8,6 +8,8 @@ import {
   deleteEntryService,
   fetchTotalEntryCountService,
   updateEntryActionsService,
+  updateEntryMetaTagService,
+  deleteMetaTagGloballyService,
 } from '@/lib/entryService';
 import { format } from 'date-fns';
 import debounce from 'lodash.debounce';
@@ -17,6 +19,8 @@ import { toast } from 'sonner';
 
 // Define PAGE_SIZE constant
 const PAGE_SIZE = 100;
+// Add limit constant
+// const MAX_META_TAGS = 10; // Removing this limit for now
 
 // Define EditorState structure (used for editor content)
 interface EditorState {
@@ -49,6 +53,8 @@ interface JournalState {
   isEditorOpen: boolean;
   editingEntry: Entry | null; // Stores the *original* entry being edited (or null for new)
   highlightedTagColors: { [lowerCaseTag: string]: { base: string; hover: string } };
+  // Add state for unique meta tags
+  uniqueMetaTags: Set<string>; 
 }
 
 // Define UniqueActionOrigin type locally or import if defined elsewhere
@@ -77,6 +83,8 @@ interface JournalActions {
   closeEditorDialog: () => void;
   addEntryWithTranscription: (transcription: string) => Promise<void>;
   markActionCompleted: (origins: UniqueActionOrigin[]) => Promise<void>;
+  updateEntryMetaTag: (entryId: string, newMetaTag: string | null) => Promise<void>;
+  deleteMetaTagGlobally: (metaTagToDelete: string) => Promise<void>;
 }
 
 // Define the initial state separately for resetting
@@ -101,6 +109,7 @@ const initialState: JournalState = {
   isEditorOpen: false,
   editingEntry: null,
   highlightedTagColors: {},
+  uniqueMetaTags: new Set(), // Initialize unique meta tags
 };
 
 // --- Define Stronger Color Palettes with Dark Mode --- 
@@ -165,6 +174,18 @@ const calculateHighlightedTagColors = (entries: Entry[]): { [lowerCaseTag: strin
       });
     });
     return colors;
+};
+// --- End helper function ---
+
+// --- Helper function to get unique meta tags ---
+const getUniqueMetaTags = (entries: Entry[]): Set<string> => {
+    const uniqueTags = new Set<string>();
+    entries.forEach(entry => {
+        if (entry.meta_tag) {
+            uniqueTags.add(entry.meta_tag);
+        }
+    });
+    return uniqueTags;
 };
 // --- End helper function ---
 
@@ -268,7 +289,9 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           console.log(`Initial fetch successful, received ${fetchedEntries.length} entries.`);
           const newHighlightedTagColors = calculateHighlightedTagColors(fetchedEntries);
           // Apply client-side filtering based on the state *after* fetch
-          const newDisplayEntries = filterEntriesClientSide(fetchedEntries, get()); 
+          const newDisplayEntries = filterEntriesClientSide(fetchedEntries, get());
+          // Calculate unique meta tags
+          const newUniqueMetaTags = getUniqueMetaTags(fetchedEntries);
 
           set({
             loadedEntries: fetchedEntries,
@@ -276,6 +299,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             highlightedTagColors: newHighlightedTagColors,
             currentPage: 1, // First page loaded
             hasMoreEntries: fetchedEntries.length === PAGE_SIZE,
+            uniqueMetaTags: newUniqueMetaTags, // Update unique meta tags state
           });
         } catch (error: any) {
           console.error("Failed to load initial entries:", error);
@@ -333,6 +357,8 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           const newHighlightedTagColors = calculateHighlightedTagColors(combinedEntries);
           // Apply client-side filtering based on the state *after* fetch
           const newDisplayEntries = filterEntriesClientSide(combinedEntries, get());
+          // Recalculate unique meta tags
+          const newUniqueMetaTags = getUniqueMetaTags(combinedEntries);
 
           set({
             loadedEntries: combinedEntries,
@@ -340,6 +366,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             highlightedTagColors: newHighlightedTagColors,
             currentPage: currentPage + 1,
             hasMoreEntries: fetchedEntries.length === PAGE_SIZE, // Check original fetched length
+            uniqueMetaTags: newUniqueMetaTags, // Update unique meta tags state
           });
         } catch (error: any) {
           console.error("Failed to load more entries:", error);
@@ -399,13 +426,16 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           // Use the correctly named local function here
           const newDisplayEntries = filterEntriesClientSide(updatedLoadedEntries, currentFilters);
           const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoadedEntries);
+          // Recalculate unique meta tags
+          const newUniqueMetaTags = getUniqueMetaTags(updatedLoadedEntries);
 
           set({
             loadedEntries: updatedLoadedEntries,
             displayEntries: newDisplayEntries,
             highlightedTagColors: newHighlightedTagColors,
             isProcessingEntry: false, 
-            totalEntryCount: (get().totalEntryCount ?? 0) + 1 // Increment total count
+            totalEntryCount: (get().totalEntryCount ?? 0) + 1, // Increment total count
+            uniqueMetaTags: newUniqueMetaTags, // Update unique meta tags state
           });
 
           toast.success('Entry added successfully!'); // SUCCESS TOAST
@@ -456,10 +486,13 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             // Use the correctly named local function here
             const newDisplayEntries = filterEntriesClientSide(updatedEntries, currentFilters);
             const newHighlightedTagColors = calculateHighlightedTagColors(updatedEntries);
+            // Recalculate unique meta tags
+            const newUniqueMetaTags = getUniqueMetaTags(updatedEntries);
             set({ 
                 loadedEntries: updatedEntries, 
                 displayEntries: newDisplayEntries, // Use refiltered display entries
-                highlightedTagColors: newHighlightedTagColors // Recalculate colors
+                highlightedTagColors: newHighlightedTagColors, // Recalculate colors
+                uniqueMetaTags: newUniqueMetaTags, // Update unique meta tags state
             });
         } else {
             console.warn(`updateEntryTags called for unknown entryId: ${entryId}`);
@@ -507,6 +540,7 @@ export const useJournalStore = create<JournalState & JournalActions>()(
         const originalLoadedEntries = get().loadedEntries;
         const originalDisplayEntries = get().displayEntries; // Store original display entries
         const originalHighlightedTagColors = get().highlightedTagColors; // Store original colors
+        const originalUniqueMetaTags = get().uniqueMetaTags; // Store original unique tags
 
         // Optimistically remove from UI
         const updatedLoaded = originalLoadedEntries.filter(e => e.id !== entryId);
@@ -519,11 +553,14 @@ export const useJournalStore = create<JournalState & JournalActions>()(
         // Use the correctly named local function here
         const newDisplayEntries = filterEntriesClientSide(updatedLoaded, currentFilters);
         const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoaded);
+        // Recalculate unique meta tags
+        const newUniqueMetaTags = getUniqueMetaTags(updatedLoaded);
         set({ 
             loadedEntries: updatedLoaded, 
             displayEntries: newDisplayEntries, 
             highlightedTagColors: newHighlightedTagColors, 
-            totalEntryCount: (get().totalEntryCount ?? 1) - 1 // Decrement total count
+            totalEntryCount: (get().totalEntryCount ?? 1) - 1, // Decrement total count
+            uniqueMetaTags: newUniqueMetaTags, // Update unique meta tags state
         });
 
         try {
@@ -540,7 +577,8 @@ export const useJournalStore = create<JournalState & JournalActions>()(
               loadedEntries: originalLoadedEntries, // Revert loaded entries
               displayEntries: originalDisplayEntries, // Revert display entries
               highlightedTagColors: originalHighlightedTagColors, // Revert colors
-              totalEntryCount: (get().totalEntryCount ?? 0) + 1 // Revert decrement
+              totalEntryCount: (get().totalEntryCount ?? 0) + 1, // Revert decrement
+              uniqueMetaTags: originalUniqueMetaTags, // Revert unique tags
           });
           toast.error(errorMessage); // ERROR TOAST
         }
@@ -696,6 +734,157 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             // Keep optimistic state, but show error
         } finally {
             set({ isProcessingEntry: false }); // Finish processing regardless of DB outcome
+        }
+      },
+
+      updateEntryMetaTag: async (entryId: string, newMetaTag: string | null) => {
+        // Trim and handle empty string case
+        const trimmedMetaTag = newMetaTag?.trim() || null;
+
+        // --- Remove Check Limit --- 
+        /* 
+        const currentUniqueMetaTags = get().uniqueMetaTags;
+        const isNewTag = trimmedMetaTag && !currentUniqueMetaTags.has(trimmedMetaTag);
+
+        if (isNewTag && currentUniqueMetaTags.size >= MAX_META_TAGS) {
+            const limitMessage = `Meta tag limit (${MAX_META_TAGS}) reached. Cannot add "${trimmedMetaTag}". Please use an existing tag.`;
+            console.warn(limitMessage);
+            set({ isProcessingEntry: false, errorState: limitMessage }); // Ensure processing stops
+            toast.error(limitMessage);
+            return; // Stop execution
+        }
+        */
+        // --- End Remove Check Limit ---
+
+        set({ isProcessingEntry: true, errorState: null });
+        const originalLoadedEntries = get().loadedEntries;
+        const originalDisplayEntries = get().displayEntries;
+        const originalHighlightedTagColors = get().highlightedTagColors;
+        const originalUniqueMetaTags = get().uniqueMetaTags; // Store original unique tags
+
+        // --- Optimistic Update ---
+        let optimisticLoadedEntries = originalLoadedEntries.map(entry => 
+            entry.id === entryId ? { ...entry, meta_tag: trimmedMetaTag } : entry // Use trimmed tag
+        );
+        const currentFilters = {
+            searchQuery: get().searchQuery,
+            activeMetaTag: get().activeMetaTag,
+            activeIntentTag: get().activeIntentTag,
+            activeContentTags: get().activeContentTags,
+        };
+        const newDisplayEntries = filterEntriesClientSide(optimisticLoadedEntries, currentFilters);
+        const newHighlightedTagColors = calculateHighlightedTagColors(optimisticLoadedEntries);
+        // Recalculate unique meta tags optimistically
+        const newUniqueMetaTags = getUniqueMetaTags(optimisticLoadedEntries);
+
+        set({
+            loadedEntries: optimisticLoadedEntries,
+            displayEntries: newDisplayEntries,
+            highlightedTagColors: newHighlightedTagColors,
+            uniqueMetaTags: newUniqueMetaTags, // Update unique tags optimistically
+            // Keep isProcessingEntry true until DB call finishes
+        });
+        // --- End Optimistic Update ---
+
+        try {
+          const { data: updatedEntryData, error: serviceError } = await updateEntryMetaTagService(entryId, trimmedMetaTag); // Use trimmed tag
+
+          if (serviceError) throw serviceError;
+          if (!updatedEntryData) throw new Error("Service returned no data on meta tag update.");
+
+          // Confirm optimistic update (already done, just stop processing and maybe show success)
+          set({ isProcessingEntry: false });
+          toast.success('Meta tag updated successfully!');
+
+        } catch (error: any) {
+          console.error("Failed to update meta tag:", error);
+          const errorMessage = `Failed to update meta tag: ${error.message}`;
+          // Revert optimistic update on failure
+          set({ 
+              isProcessingEntry: false, 
+              errorState: errorMessage,
+              loadedEntries: originalLoadedEntries, // Revert
+              displayEntries: originalDisplayEntries, // Revert
+              highlightedTagColors: originalHighlightedTagColors, // Revert
+              uniqueMetaTags: originalUniqueMetaTags, // Revert unique tags
+          });
+          toast.error(errorMessage);
+          // Optionally re-throw if the UI needs to handle it specifically
+          // throw error;
+        }
+      },
+
+      deleteMetaTagGlobally: async (metaTagToDelete: string) => {
+        console.log(`Store action: deleteMetaTagGlobally - ${metaTagToDelete}`);
+        set({ isProcessingEntry: true, errorState: null });
+        const originalLoadedEntries = get().loadedEntries;
+        const originalDisplayEntries = get().displayEntries;
+        const originalUniqueMetaTags = get().uniqueMetaTags;
+        const originalHighlightedTagColors = get().highlightedTagColors;
+
+        // --- Check if tag is in use ---
+        const isTagInUse = originalLoadedEntries.some(entry => entry.meta_tag === metaTagToDelete);
+        if (isTagInUse) {
+            const inUseMessage = `Cannot delete tag "${metaTagToDelete}" because it is currently assigned to one or more entries.`;
+            console.warn(inUseMessage);
+            set({ isProcessingEntry: false, errorState: inUseMessage });
+            toast.error(inUseMessage);
+            return; // Stop execution if tag is in use
+        }
+        // --- End Check ---
+
+
+        // --- Optimistic Update (Only proceed if tag is not in use) ---
+        // No need to modify loadedEntries as the tag isn't present there anyway
+        // Just remove from uniqueTags and recalculate colors/display
+        const optimisticLoadedEntries = originalLoadedEntries; // No change needed here
+        const currentFilters = {
+            searchQuery: get().searchQuery,
+            activeMetaTag: get().activeMetaTag === metaTagToDelete ? null : get().activeMetaTag, // Unset filter if deleting active tag
+            activeIntentTag: get().activeIntentTag,
+            activeContentTags: get().activeContentTags,
+        };
+        // Filter entries (no actual entry content changes, but active filter might)
+        const newDisplayEntries = filterEntriesClientSide(optimisticLoadedEntries, currentFilters); 
+        const newUniqueMetaTags = new Set(originalUniqueMetaTags);
+        newUniqueMetaTags.delete(metaTagToDelete); // Remove from the set
+        const newHighlightedTagColors = calculateHighlightedTagColors(optimisticLoadedEntries); // Recalculate colors based on remaining tags
+
+        set({
+            // loadedEntries: optimisticLoadedEntries, // No change needed here
+            displayEntries: newDisplayEntries, // Update display based on potential filter change
+            uniqueMetaTags: newUniqueMetaTags, // Update the set of unique tags
+            highlightedTagColors: newHighlightedTagColors, // Update colors
+            activeMetaTag: currentFilters.activeMetaTag, // Update active filter state if needed
+            // Keep isProcessingEntry true until DB call finishes
+        });
+        // --- End Optimistic Update ---
+
+        try {
+          // Call the service (Supabase function likely handles the DB-side logic)
+          // We've already confirmed it's unused in the client state.
+          // If the service *also* needs this check, it should be implemented there too for robustness.
+          const { error: serviceError } = await deleteMetaTagGloballyService(metaTagToDelete);
+          if (serviceError) throw serviceError;
+
+          // Confirm optimistic update
+          set({ isProcessingEntry: false });
+          toast.success(`Meta tag "${metaTagToDelete}" deleted.`); // Simplified message
+
+        } catch (error: any) {
+          console.error(`Failed to delete unused meta tag "${metaTagToDelete}":`, error);
+          const errorMessage = `Failed to delete tag "${metaTagToDelete}": ${error.message}`;
+          // Revert optimistic update
+          set({
+            isProcessingEntry: false,
+            errorState: errorMessage,
+            // loadedEntries: originalLoadedEntries, // No change needed here originally
+            displayEntries: originalDisplayEntries, // Revert display entries
+            uniqueMetaTags: originalUniqueMetaTags, // Revert unique tags
+            highlightedTagColors: originalHighlightedTagColors, // Revert colors
+            activeMetaTag: get().activeMetaTag, // Ensure active filter reverts if it was changed
+          });
+          toast.error(errorMessage);
         }
       },
 

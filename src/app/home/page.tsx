@@ -4,7 +4,7 @@ import Image from 'next/image'; // Import Image for logo
 import { Check } from 'lucide-react'; // Import Check icon
 
 const HomePage: React.FC = () => {
-  const logoUrl = "https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523";
+  const logoUrl = "https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367";
 
   return (
     <div className="min-h-screen bg-white text-gray-900 antialiased">

@@ -23,12 +23,14 @@ export function JournalSidebar() {
 
   return (
     <div className="w-64 border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-700 p-4 overflow-y-auto h-full flex flex-col">
-      {/* Removed Logo Image */}
-      {/* <img 
-        src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523"
-        alt="ThoughtKeeper Logo" 
-        className="w-56 mx-auto flex-shrink-0"
-      /> */}
+      {/* Logo and App Name */}
+      <div className="flex items-center mb-6 px-4">
+        <img 
+          src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367" 
+          alt="Thought Keeper Logo" 
+          className="h-10 mr-2" // Adjust size as needed
+        />
+      </div>
       {/* Placeholder for sidebar content */}
       <div className="flex-grow"></div>
       {/* Removed style tag */}
