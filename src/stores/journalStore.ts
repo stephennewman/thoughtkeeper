@@ -6,13 +6,15 @@ import {
   addEntryService,
   updateEntryContentService,
   deleteEntryService,
+  fetchTotalEntryCountService,
+  updateEntryActionsService,
 } from '@/lib/entryService';
 import { format } from 'date-fns';
 import debounce from 'lodash.debounce';
 import { supabase } from '@/lib/supabaseClient';
 
 // Define PAGE_SIZE constant
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 100;
 
 // Define EditorState structure (used for editor content)
 interface EditorState {
@@ -33,6 +35,7 @@ interface JournalState {
   displayEntries: Entry[]; // Entries filtered client-side from loadedEntries
   currentPage: number;
   hasMoreEntries: boolean;
+  totalEntryCount: number | null;
 
   // Loading & Error States
   isLoadingInitial: boolean;
@@ -46,9 +49,17 @@ interface JournalState {
   highlightedTagColors: { [lowerCaseTag: string]: { base: string; hover: string } };
 }
 
+// Define UniqueActionOrigin type locally or import if defined elsewhere
+// (This is needed for the new action's parameter type)
+interface UniqueActionOrigin {
+  entryId: string;
+  actionIndex: number;
+}
+
 // Define the actions
 interface JournalActions {
   loadInitialEntries: () => Promise<void>;
+  loadTotalCount: () => Promise<void>;
   loadMoreEntries: () => Promise<void>;
   setFilters: (filters: Partial<{
     searchQuery: string;
@@ -63,6 +74,7 @@ interface JournalActions {
   openEditorDialog: (entryToEdit?: Entry | null) => void;
   closeEditorDialog: () => void;
   addEntryWithTranscription: (transcription: string) => Promise<void>;
+  markActionCompleted: (origins: UniqueActionOrigin[]) => Promise<void>;
 }
 
 // Define the initial state separately for resetting
@@ -77,6 +89,7 @@ const initialState: JournalState = {
   displayEntries: [],
   currentPage: 0,
   hasMoreEntries: true,
+  totalEntryCount: null,
   // Loading & Error States
   isLoadingInitial: false,
   isLoadingMore: false,
@@ -154,7 +167,7 @@ const calculateHighlightedTagColors = (entries: Entry[]): { [lowerCaseTag: strin
 // --- End helper function ---
 
 // --- Client-side Filtering Logic ---
-const filterLoadedEntries = (
+const filterEntriesClientSide = (
   entriesToFilter: Entry[],
   filters: Pick<JournalState, 'searchQuery' | 'activeMetaTag' | 'activeIntentTag' | 'activeContentTags'>
 ): Entry[] => {
@@ -205,6 +218,18 @@ export const useJournalStore = create<JournalState & JournalActions>()(
     (set, get) => ({
       ...initialState,
 
+      loadTotalCount: async () => {
+        try {
+          const { data: count, error } = await fetchTotalEntryCountService();
+          if (error) throw error;
+          set({ totalEntryCount: count });
+        } catch (error: any) {
+          console.error("Failed to load total entry count:", error);
+          // Optionally set an error state or leave count as null
+          set({ totalEntryCount: null }); 
+        }
+      },
+
       loadInitialEntries: async () => {
         if (get().isLoadingInitial) return; // Prevent concurrent initial loads
         console.log("loadInitialEntries triggered");
@@ -219,9 +244,14 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           loadedEntries: [], // Clear existing entries
           displayEntries: [], // Clear display entries
           hasMoreEntries: true, 
+          totalEntryCount: null, // Reset total count during initial load
         });
+        
+        // Fetch total count concurrently with the first page
+        get().loadTotalCount(); // Fire and forget, handles its own state update
+
         try {
-          // Pass current filters to the service
+          // Pass current filters to the service (Restored original arguments)
           const { data, error } = await fetchEntriesPaginatedService(
             0, // offset for first page
             PAGE_SIZE,
@@ -235,12 +265,12 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           const fetchedEntries = data || [];
           console.log(`Initial fetch successful, received ${fetchedEntries.length} entries.`);
           const newHighlightedTagColors = calculateHighlightedTagColors(fetchedEntries);
-          // NO MORE CLIENT-SIDE FILTERING HERE - displayEntries == loadedEntries initially
-          // const newDisplayEntries = filterLoadedEntries(fetchedEntries, get());
+          // Apply client-side filtering based on the state *after* fetch
+          const newDisplayEntries = filterEntriesClientSide(fetchedEntries, get()); 
 
           set({
             loadedEntries: fetchedEntries,
-            displayEntries: fetchedEntries, // Display exactly what was fetched
+            displayEntries: newDisplayEntries, // Use filtered results
             highlightedTagColors: newHighlightedTagColors,
             currentPage: 1, // First page loaded
             hasMoreEntries: fetchedEntries.length === PAGE_SIZE,
@@ -299,12 +329,12 @@ export const useJournalStore = create<JournalState & JournalActions>()(
 
           const combinedEntries = [...loadedEntries, ...uniqueFetchedEntries]; 
           const newHighlightedTagColors = calculateHighlightedTagColors(combinedEntries);
-          // NO MORE CLIENT-SIDE FILTERING HERE - displayEntries == loadedEntries
-          // const newDisplayEntries = filterLoadedEntries(combinedEntries, get());
+          // Apply client-side filtering based on the state *after* fetch
+          const newDisplayEntries = filterEntriesClientSide(combinedEntries, get());
 
           set({
             loadedEntries: combinedEntries,
-            displayEntries: combinedEntries, // Display exactly what was fetched/combined
+            displayEntries: newDisplayEntries, // Use filtered results
             highlightedTagColors: newHighlightedTagColors,
             currentPage: currentPage + 1,
             hasMoreEntries: fetchedEntries.length === PAGE_SIZE, // Check original fetched length
@@ -340,7 +370,8 @@ export const useJournalStore = create<JournalState & JournalActions>()(
              // Apply the filtering *after* setting the new filter state
              set((state) => {
                 const updatedFilters = { ...state, ...newFilters }; // Apply filter state updates
-                const newDisplayEntries = filterLoadedEntries(state.loadedEntries, updatedFilters); // Filter using updated state
+                // Use the correctly named local function here
+                const newDisplayEntries = filterEntriesClientSide(state.loadedEntries, updatedFilters); 
                 return { ...updatedFilters, displayEntries: newDisplayEntries }; // Return combined state update
              });
         } else {
@@ -363,14 +394,16 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             activeIntentTag: get().activeIntentTag,
             activeContentTags: get().activeContentTags,
           };
-          const newDisplayEntries = filterLoadedEntries(updatedLoadedEntries, currentFilters);
+          // Use the correctly named local function here
+          const newDisplayEntries = filterEntriesClientSide(updatedLoadedEntries, currentFilters);
           const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoadedEntries);
 
           set({
             loadedEntries: updatedLoadedEntries,
             displayEntries: newDisplayEntries,
             highlightedTagColors: newHighlightedTagColors,
-            isProcessingEntry: false 
+            isProcessingEntry: false, 
+            totalEntryCount: (get().totalEntryCount ?? 0) + 1 // Increment total count
           });
 
           // Trigger background tagging
@@ -414,7 +447,8 @@ export const useJournalStore = create<JournalState & JournalActions>()(
               activeIntentTag: get().activeIntentTag,
               activeContentTags: get().activeContentTags,
             };
-            const newDisplayEntries = filterLoadedEntries(updatedEntries, currentFilters);
+            // Use the correctly named local function here
+            const newDisplayEntries = filterEntriesClientSide(updatedEntries, currentFilters);
             const newHighlightedTagColors = calculateHighlightedTagColors(updatedEntries);
             set({ 
                 loadedEntries: updatedEntries, 
@@ -472,12 +506,14 @@ export const useJournalStore = create<JournalState & JournalActions>()(
           activeIntentTag: get().activeIntentTag,
           activeContentTags: get().activeContentTags,
         };
-        const newDisplayEntries = filterLoadedEntries(updatedLoaded, currentFilters);
+        // Use the correctly named local function here
+        const newDisplayEntries = filterEntriesClientSide(updatedLoaded, currentFilters);
         const newHighlightedTagColors = calculateHighlightedTagColors(updatedLoaded);
         set({ 
             loadedEntries: updatedLoaded, 
             displayEntries: newDisplayEntries, 
-            highlightedTagColors: newHighlightedTagColors 
+            highlightedTagColors: newHighlightedTagColors, 
+            totalEntryCount: (get().totalEntryCount ?? 1) - 1 // Decrement total count
         });
 
         try {
@@ -491,7 +527,8 @@ export const useJournalStore = create<JournalState & JournalActions>()(
               errorState: `Failed to delete entry: ${error.message}`,
               loadedEntries: originalLoadedEntries, // Revert loaded entries
               displayEntries: originalDisplayEntries, // Revert display entries
-              highlightedTagColors: originalHighlightedTagColors // Revert colors
+              highlightedTagColors: originalHighlightedTagColors, // Revert colors
+              totalEntryCount: (get().totalEntryCount ?? 0) + 1 // Revert decrement
           });
         }
       },
@@ -530,6 +567,118 @@ export const useJournalStore = create<JournalState & JournalActions>()(
              set({ errorState: `Failed to add transcription: ${error.message}`, isProcessingEntry: false }); 
              // Do not re-throw here, as the UI handles errors via audioError state in page.tsx
           }
+      },
+
+      markActionCompleted: async (origins: UniqueActionOrigin[]) => {
+        if (!origins || origins.length === 0) return;
+        console.log('markActionCompleted called with origins:', origins);
+
+        set({ isProcessingEntry: true, errorState: null });
+        const originalLoadedEntries = get().loadedEntries;
+        let optimisticLoadedEntries = [...originalLoadedEntries]; // Start with a copy
+        const affectedEntryIds = new Set<string>();
+
+        // --- Optimistic Update --- 
+        try {
+            origins.forEach(({ entryId, actionIndex }) => {
+                affectedEntryIds.add(entryId);
+                const entryIndex = optimisticLoadedEntries.findIndex(e => e.id === entryId);
+                if (entryIndex !== -1) {
+                    const originalEntry = optimisticLoadedEntries[entryIndex];
+                    // Ensure actions exist and are an array before modifying
+                    if (originalEntry.extracted_actions && Array.isArray(originalEntry.extracted_actions)) {
+                        // Create a new array for actions to ensure immutability
+                        const updatedActions = [...originalEntry.extracted_actions];
+                        if (actionIndex >= 0 && actionIndex < updatedActions.length) {
+                            // Create a new object for the specific action
+                            updatedActions[actionIndex] = { 
+                                ...updatedActions[actionIndex], 
+                                completed: true 
+                            };
+                            // Create a new object for the entry itself
+                            optimisticLoadedEntries[entryIndex] = {
+                                ...originalEntry,
+                                extracted_actions: updatedActions,
+                            };
+                        } else {
+                             console.warn(`Action index ${actionIndex} out of bounds for entry ${entryId}`);
+                        }
+                    } else {
+                        console.warn(`No valid extracted_actions array found for entry ${entryId} during optimistic update.`);
+                    }
+                } else {
+                    console.warn(`Entry ${entryId} not found in loadedEntries during optimistic update.`);
+                }
+            });
+
+            // Update state optimistically (loaded and display)
+            const currentFilters = {
+                searchQuery: get().searchQuery,
+                activeMetaTag: get().activeMetaTag,
+                activeIntentTag: get().activeIntentTag,
+                activeContentTags: get().activeContentTags,
+            };
+            const newDisplayEntries = filterEntriesClientSide(optimisticLoadedEntries, currentFilters);
+            // Note: Color recalculation might not be strictly necessary here unless actions affect tag colors
+            // const newHighlightedTagColors = calculateHighlightedTagColors(optimisticLoadedEntries);
+            set({ 
+                loadedEntries: optimisticLoadedEntries, 
+                displayEntries: newDisplayEntries, 
+                // highlightedTagColors: newHighlightedTagColors 
+            });
+
+        } catch (error) {
+            // Should not happen with the checks above, but catch just in case
+            console.error("Error during optimistic update:", error);
+            set({ 
+                isProcessingEntry: false, // Stop processing on optimistic error
+                errorState: "Error updating action state locally.",
+                loadedEntries: originalLoadedEntries, // Revert
+                // Re-filter original entries to revert display state too
+                displayEntries: filterEntriesClientSide(originalLoadedEntries, get())
+            }); 
+            return; // Don't proceed to DB update
+        }
+
+        // --- Database Update --- 
+        try {
+            // Update each affected entry in the database
+            const updatePromises = Array.from(affectedEntryIds).map(entryId => {
+                const updatedEntry = optimisticLoadedEntries.find(e => e.id === entryId);
+                if (updatedEntry && updatedEntry.extracted_actions) {
+                    console.log(`Calling updateEntryActionsService for ${entryId}`);
+                    return updateEntryActionsService(entryId, updatedEntry.extracted_actions);
+                } else {
+                    console.warn(`Skipping DB update for ${entryId} - entry or actions not found after optimistic update.`);
+                    return Promise.resolve({ error: new Error('Entry or actions missing') }); // Return resolved promise with error flag
+                }
+            });
+
+            const results = await Promise.allSettled(updatePromises);
+            
+            const failedUpdates = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value?.error));
+            if (failedUpdates.length > 0) {
+                console.error("Some database updates failed:", failedUpdates);
+                // We could attempt a revert here, but it's complex. For now, log error and leave optimistic state.
+                set({ 
+                    errorState: `Failed to save completion status for ${failedUpdates.length} entries.`,
+                    // Don't revert here, keep optimistic state but show error
+                });
+            } else {
+                 console.log("All database updates successful.");
+                 // Optionally clear error state if it was set by a previous partial failure
+                 if (get().errorState?.startsWith('Failed to save completion')) {
+                    set({ errorState: null });
+                 }
+            }
+
+        } catch (error: any) {
+            console.error("Error executing database updates:", error);
+            set({ errorState: `Error saving completion status: ${error.message}` });
+            // Keep optimistic state, but show error
+        } finally {
+            set({ isProcessingEntry: false }); // Finish processing regardless of DB outcome
+        }
       },
 
     }),

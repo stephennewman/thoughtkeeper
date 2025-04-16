@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Entry, TagType } from '@/types'; // Import from centralized types
 import { Badge } from '@/components/ui/badge'; // Import Badge
-import { X } from 'lucide-react'; // Import X icon
+import { X, Loader2 } from 'lucide-react'; // Import X and Loader2 icons
 import { useJournalStore } from '@/stores/journalStore'; // Import the store
 import clsx from 'clsx';
 
@@ -20,6 +20,8 @@ export const StaticAnalysisColumn: React.FC = () => {
   // Get state and actions from the store
   const {
     displayEntries,
+    loadedEntries, // Get loaded entries count
+    totalEntryCount, // Get total entry count
     activeMetaTag,
     activeIntentTag,
     activeContentTags,
@@ -109,12 +111,23 @@ export const StaticAnalysisColumn: React.FC = () => {
     <aside className="hidden lg:block w-64 xl:w-72 flex-shrink-0 border-l p-4 overflow-y-auto bg-muted/40 dark:bg-gray-800/30">
       <h2 className="text-lg font-semibold mb-4 sticky top-0 bg-muted/40 dark:bg-gray-800/30 pb-2 z-10">Analysis</h2>
       <div className="space-y-6">
-        {/* Filtered Entries count from store data */}
+        {/* --- UPDATED: Display Loaded / Total Entries --- */}
         <div>
-          <h3 className="text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Loaded & Filtered Entries</h3>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{displayEntries.length}</p>
-          <p className="text-xs text-muted-foreground">Analysis based on currently visible entries.</p>
+          <h3 className="text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Entries Summary</h3>
+          <div className="flex items-baseline gap-2">
+            <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{loadedEntries.length}</p>
+            {
+              totalEntryCount === null ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <p className="text-sm text-muted-foreground">of {totalEntryCount} total</p>
+              )
+            }
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Displaying {displayEntries.length} based on filters.</p>
+          <p className="text-xs text-muted-foreground">Analysis below based on visible entries.</p>
         </div>
+        {/* --- END UPDATED --- */}
 
         {/* Top Meta Tags */}
         <div>

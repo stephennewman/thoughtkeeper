@@ -55,7 +55,7 @@ describe('journalStore', () => {
   beforeEach(() => {
     resetStore();
     vi.clearAllMocks();
-    vi.useFakeTimers();
+    vi.useFakeTimers(); 
   });
 
   afterEach(() => {
@@ -158,7 +158,7 @@ describe('journalStore', () => {
         resolveFetch = resolve;
       });
       mockFetchEntriesPaginated.mockReturnValue(promise);
-
+      
       // Act: Start the action, but don't await completion yet
       const actionPromise = useJournalStore.getState().loadInitialEntries();
 
@@ -167,7 +167,7 @@ describe('journalStore', () => {
       expect(useJournalStore.getState().errorState).toBeNull(); // Error cleared
 
       // Arrange: Resolve the promise
-      resolveFetch!({ data: [], error: null });
+      resolveFetch!({ data: [], error: null }); 
       await actionPromise; // Wait for the action to complete
 
       // Assert: Check final loading state
@@ -211,7 +211,7 @@ describe('journalStore', () => {
         updated_at: new Date().toISOString(), 
         meta_tag: null, intent_tag: null, tags: null, extracted_actions: null, extracted_summary: null, entry_type: 'text' 
       };
-    
+
     beforeEach(() => {
         // Set initial state: page 1 loaded with one entry, more exist
         useJournalStore.setState({
@@ -264,7 +264,7 @@ describe('journalStore', () => {
     it('should not fetch if isLoadingInitial is true', async () => {
         // Arrange: Set loading state
         useJournalStore.setState({ isLoadingInitial: true });
-        
+
         // Act
         await useJournalStore.getState().loadMoreEntries();
 
@@ -323,24 +323,24 @@ describe('journalStore', () => {
     });
 
      it('should set isLoadingMore correctly during fetch', async () => {
-        // Arrange
-        let resolveFetch: (value: { data: Entry[] | null; error: Error | null }) => void;
-        const promise = new Promise<{ data: Entry[] | null; error: Error | null }>(resolve => {
-            resolveFetch = resolve;
-        });
+      // Arrange
+      let resolveFetch: (value: { data: Entry[] | null; error: Error | null }) => void;
+      const promise = new Promise<{ data: Entry[] | null; error: Error | null }>(resolve => {
+        resolveFetch = resolve;
+      });
         mockFetchEntriesPaginated.mockReturnValue(promise);
-
+      
         // Act: Start the action, but don't await completion yet
         const actionPromise = useJournalStore.getState().loadMoreEntries();
 
         // Assert: Check loading state immediately after call
         expect(useJournalStore.getState().isLoadingMore).toBe(true);
 
-        // Arrange: Resolve the promise
-        resolveFetch!({ data: [], error: null });
+      // Arrange: Resolve the promise
+      resolveFetch!({ data: [], error: null }); 
         await actionPromise; // Wait for the action to complete
 
-        // Assert: Check final loading state
+      // Assert: Check final loading state
         expect(useJournalStore.getState().isLoadingMore).toBe(false);
     });
 
@@ -779,7 +779,7 @@ describe('journalStore', () => {
     const entryToKeep: Entry = { 
       id: 'entry-keep', user_id: 'mock-user-id', date: MOCK_TODAY_DATE, content: 'Entry to keep', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), meta_tag: null, intent_tag: 'KeepIntent', tags: ['keep'], extracted_actions: null, extracted_summary: null, entry_type: 'text' 
     };
-    
+
     beforeEach(() => {
       // Set initial state with entries
       useJournalStore.setState({

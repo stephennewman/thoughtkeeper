@@ -390,3 +390,19 @@ export const deleteEntryService = async (id: string): Promise<{ error: Error | n
 // TODO: Consider adding service for AI tag generation calls?
 
 // TODO: Add functions for initial fetch, add, update, delete 
+
+// --- Fetch Total Entry Count --- 
+export const fetchTotalEntryCountService = async () => {
+  console.log("Calling RPC: get_total_entry_count");
+  const { data, error } = await supabase.rpc('get_total_entry_count');
+
+  if (error) {
+    console.error('Error fetching total entry count:', error);
+    // Return a structured error similar to other services
+    return { data: null, error }; 
+  } 
+  
+  console.log("RPC Response (total count):", data);
+  // Return the count (data) and null error
+  return { data: data as number, error: null }; 
+}; 

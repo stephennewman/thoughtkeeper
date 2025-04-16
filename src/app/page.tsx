@@ -3,19 +3,36 @@
 import { useEffect, useRef, useMemo, Fragment, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useInView } from 'react-intersection-observer';
-import { JournalSidebar, JournalEntry, EntryEditorDialog, StaticAnalysisColumn } from '@/components';
-import { X, Loader2, Plus, Info, Mic, Send, FileText, Check, Ban } from 'lucide-react';
+import { JournalSidebar, JournalEntry, EntryEditorDialog, StaticAnalysisColumn, AllActionsList } from '@/components';
+import { X, Loader2, Plus, Info, Mic, Send, FileText, Check, Ban, Activity, ListTodo } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useJournalStore } from '@/stores/journalStore';
 import clsx from 'clsx';
-import type { Entry } from '@/types';
+import type { Entry, ActionItem } from '@/types';
 import debounce from 'lodash.debounce';
 import { supabase } from '@/lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+
+// Re-define types needed for action grouping (or import if moved to types/index.ts)
+const UNTAGGED_KEY = "_untagged_";
+interface UniqueActionOrigin {
+  entryId: string;
+  actionIndex: number;
+  entryDate: string;
+  metaTag: string | null;
+}
+interface UniqueAction {
+  text: string;
+  origins: UniqueActionOrigin[];
+}
+interface GroupedActions {
+  [metaTagOrUntagged: string]: UniqueAction[];
+}
 
 // Helper function to format seconds into M:SS
 const formatTime = (totalSeconds: number): string => {
@@ -24,6 +41,70 @@ const formatTime = (totalSeconds: number): string => {
   // No longer pad minutes, use single digit if < 10
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
+
+// Define the loading phrases array (can be placed outside the component)
+const loadingPhrases = [
+  "Tuning into your voice note… 🔊",
+  "Listening closely to your voice like it's a podcast. 🎧",
+  "Rewinding your brain dump… ⏪",
+  "Pulling wisdom from your mumble matrix… 🧠",
+  "Catching every whisper, sigh, and dramatic pause. 👂",
+  "Removing 17 filler words — you sound great, don't worry. ✨",
+  "Translating you into… also you, but in text. 💬",
+  "Summoning transcription elves. They're unionized. 🧝",
+  "Typing your voice out fast. Like, super fast. ✍️",
+  "Making you look way more articulate. 🪄",
+  "Shaping chaos into clarity… one sentence at a time. 🔍",
+  "Formatting your brilliance into happy little words. 📄",
+  "Capturing your stream of consciousness… in style. 🛁",
+  "Almost done! Just wrapping up your inner monologue. 🎁",
+  "Holding space for your thoughts — and your tangents. 🧘",
+  "Compiling your brain into readable form. 📚",
+  "Almost done! Your voice is becoming words. ✨",
+  "Filtering background noise (and emotional baggage). 🎧",
+  "Typing what your soul was trying to say… ✍️",
+  "Translating voice to text, thought to form… ✍️",
+  "Turning sound waves into structure… 🌊➡️📄",
+  "Composing clarity from spoken flow… 🧠🪄",
+  "Rendering your recording with precision… 🛠️🗣️",
+  "Capturing nuance. Preserving intent. ✨",
+  "Mapping sound to meaning… 🗺️📣",
+  "Formatting your audio into readable space… 🧬📘",
+  "Applying structure without losing style… 🧵🧠",
+  "Carrying your words from voice to page… 📦📜",
+  "Letting the audio settle… then translating. ⏳📋",
+  "Indexing ideas by tone, not volume… 📡",
+  "Creating quiet from signal… then turning it into insight. 🔇➡️💬",
+  "Reading your rhythm, one word at a time… 🥁📖",
+  "Processing voice as intention, not noise. 🤖🧘",
+  "Giving your words the form they deserve… 🎁📝",
+  "Honoring speech. Delivering substance. 🙏🧾",
+  "Awaiting coherence… almost there. 🧠⌛",
+  "Your recording is in good hands. Finishing touches in progress. 👐",
+  "Your thoughts are being carefully transcribed… 💡",
+  "Steady hands. Clear ears. Focused transformation. 🎧🧠",
+  "This takes a moment — precision is the goal. 🎯",
+  "Aligning format with flow… 🧭🧾",
+  "Crafting signal into shape… 🛠️📊",
+  "Almost ready to reflect on what you said… ⏳🔍",
+  "Turning your brain dump into something slightly less unhinged 🧠🗑️",
+  "Removing 87 \"like\"s and one audible sigh of despair 🙃💨",
+  "Transcribing whatever the hell that was 🫠📜",
+  "Auto-correcting your emotional breakdown 😅🔧",
+  "Translating: [incoherent yelling] into sentences 🫃📣",
+  "Rewriting your rant so you sound emotionally stable ✍️😇",
+  "Converting your word vomit into spicy little sentences 🌶️🤮",
+  "We're not judging, but… what even was that? 🫢💬",
+  "Your voice note is now considered legally \"a cry for help\" 📞👮",
+  "Running your thoughts through the \"don't sound insane\" filter 🧠🚿",
+  "You took a break mid-recording to breathe heavily. Noted. 😮‍💨🫀",
+  "Extracting your one good idea from the chaos ⛏️🪨",
+  "You trauma dumped into a mic. We respect that 💔🎤",
+  "We heard the fart. It's in the logs. 💨📁",
+  "Cleaning up your \"stream of consciousness\" (more like stream of WTF) 🧽😵‍💫",
+  "Whispering \"wtf is this?\" into the transcription engine 🤖🫥",
+  "Finalizing your TED Talk on nothing and everything 🪩🎤"
+];
 
 /**
  * Main page component for the Thoughtkeeper application.
@@ -97,6 +178,7 @@ export default function Home() {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState<number>(0);
   const [highlightedEntryId, setHighlightedEntryId] = useState<string | null>(null);
+  const [currentLoadingPhraseIndex, setCurrentLoadingPhraseIndex] = useState<number>(-1);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -105,6 +187,7 @@ export default function Home() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const loadingPhraseIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const mainContentScrollRef = useRef<HTMLDivElement>(null);
   const { ref: intersectionObserverRef, inView } = useInView({
@@ -119,6 +202,8 @@ export default function Home() {
     }, 300),
     [setFilters]
   );
+
+  const [activeMainTab, setActiveMainTab] = useState<'stream' | 'actions'>('stream');
 
   useEffect(() => {
     setLocalSearchQuery(searchQuery);
@@ -351,6 +436,41 @@ export default function Home() {
   }, [session]); // Re-run the effect if the session changes
   // --- END Realtime Listener ---
 
+  // --- Effect for Cycling Loading Phrases ---
+  useEffect(() => {
+    if (isProcessingAudio) {
+      // Start the interval
+      const initialIndex = Math.floor(Math.random() * loadingPhrases.length);
+      setCurrentLoadingPhraseIndex(initialIndex); // Set initial phrase
+
+      loadingPhraseIntervalRef.current = setInterval(() => {
+        setCurrentLoadingPhraseIndex(prevIndex => {
+          let nextIndex;
+          do {
+            nextIndex = Math.floor(Math.random() * loadingPhrases.length);
+          } while (loadingPhrases.length > 1 && nextIndex === prevIndex); // Ensure different index if possible
+          return nextIndex;
+        });
+      }, 1750); // Cycle every 1.75 seconds (changed from 1500)
+
+    } else {
+      // Clear interval and reset index when not processing
+      if (loadingPhraseIntervalRef.current) {
+        clearInterval(loadingPhraseIntervalRef.current);
+        loadingPhraseIntervalRef.current = null;
+      }
+      setCurrentLoadingPhraseIndex(-1); // Reset index
+    }
+
+    // Cleanup function
+    return () => {
+      if (loadingPhraseIntervalRef.current) {
+        clearInterval(loadingPhraseIntervalRef.current);
+        loadingPhraseIntervalRef.current = null;
+      }
+    };
+  }, [isProcessingAudio]); // Dependency: run when processing state changes
+
   const handleDeleteEntry = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this entry?')) {
       await deleteEntry(id);
@@ -529,6 +649,82 @@ export default function Home() {
       searchQuery, activeMetaTag, activeIntentTag, activeContentTags
   ]);
 
+  // --- START: Action Grouping and Tab Logic (Moved from AllActionsList) --- 
+  const groupedAndSortedActions = useMemo(() => {
+    const actionMap = new Map<string, UniqueActionOrigin[]>();
+    loadedEntries.forEach((entry) => {
+      if (entry.extracted_actions) {
+        entry.extracted_actions.forEach((action, index) => {
+          if (!action.completed && action.task) {
+            const normalizedText = action.task.trim().toLowerCase();
+            const origin: UniqueActionOrigin = {
+              entryId: entry.id,
+              actionIndex: index,
+              entryDate: entry.date,
+              metaTag: entry.meta_tag || null,
+            };
+            const existingOrigins = actionMap.get(normalizedText);
+            if (existingOrigins) {
+              existingOrigins.push(origin);
+            } else {
+              actionMap.set(normalizedText, [origin]);
+            }
+          }
+        });
+      }
+    });
+
+    const grouped: GroupedActions = {};
+    actionMap.forEach((origins, normalizedText) => {
+      const displayText = loadedEntries
+        .find(e => e.id === origins[0].entryId)
+        ?.extracted_actions?.[origins[0].actionIndex]?.task ?? normalizedText;
+      const uniqueAction: UniqueAction = { text: displayText, origins: origins };
+      const groupKey = origins[0].metaTag || UNTAGGED_KEY;
+      if (!grouped[groupKey]) grouped[groupKey] = [];
+      grouped[groupKey].push(uniqueAction);
+    });
+
+    Object.keys(grouped).forEach(groupKey => {
+      grouped[groupKey].sort((a, b) => {
+        const mostRecentA = a.origins.reduce((latest, o) => (o.entryDate > latest ? o.entryDate : latest), '1970-01-01');
+        const mostRecentB = b.origins.reduce((latest, o) => (o.entryDate > latest ? o.entryDate : latest), '1970-01-01');
+        return parseISO(mostRecentB).getTime() - parseISO(mostRecentA).getTime();
+      });
+    });
+    return grouped;
+  }, [loadedEntries]);
+
+  // Calculate sorted tab keys based on action count
+  const sortedActionTabKeys = useMemo(() => {
+    return Object.entries(groupedAndSortedActions)
+      // Sort by number of actions descending
+      .sort(([, actionsA], [, actionsB]) => actionsB.length - actionsA.length)
+      // Return just the keys (meta tags / untagged)
+      .map(([key]) => key);
+  }, [groupedAndSortedActions]);
+
+  // State for the active *sub* tab within actions
+  const [activeActionSubTab, setActiveActionSubTab] = useState<string>(UNTAGGED_KEY); 
+  const [initialActionTabSet, setInitialActionTabSet] = useState<boolean>(false); // Flag for initial setting
+  
+  // Effect to set initial sub-tab to the one with most actions when available
+  useEffect(() => {
+      // Only set the initial tab ONCE when keys become available
+      if (!initialActionTabSet && sortedActionTabKeys.length > 0) {
+          console.log("Setting initial action sub-tab:", sortedActionTabKeys[0]);
+          setActiveActionSubTab(sortedActionTabKeys[0]);
+          setInitialActionTabSet(true); // Mark as set
+      }
+      // Do NOT reset the tab if the keys change later due to completing actions
+      
+      // If keys become empty later (e.g., all actions completed), 
+      // we might want to reset to UNTAGGED_KEY, but let's handle that if needed.
+      // For now, just keep the current tab even if its list becomes empty.
+
+  }, [sortedActionTabKeys, initialActionTabSet]); // Add flag to dependency array
+  // --- END: Action Grouping and Tab Logic --- 
+
   // --- Supabase Auth Listener --- 
   useEffect(() => {
     console.log("Setting up onAuthStateChange listener");
@@ -596,12 +792,12 @@ export default function Home() {
     // Outermost container: Row layout
     <div className="flex flex-row min-h-screen bg-background">
       
-      {/* --- START Left Column (Header + Scrollable Content) --- */}
+      {/* --- START Left Column (Header + Tabbed Content) --- */}
       <div className="flex flex-col flex-1 overflow-hidden border-r">
         {/* Header moved INSIDE the left column */}
         <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex h-14 items-center justify-between px-4 md:px-6 lg:px-8">
-            {/* Left Side: Logo & Status */}
+            {/* Left Side: Logo & Status - Removed isProcessingAudio from here */}
             <div className="flex items-center flex-shrink-0">
               <img 
                 src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/217739981/noBgColor.png?388025.2999999523"
@@ -612,14 +808,11 @@ export default function Home() {
                 {errorState && (
                   <p className="text-red-600 text-sm">Error: {errorState}</p>
                 )}
-                {(isLoadingInitial || isProcessingEntry || isProcessingAudio) && !errorState && (
+                {/* Only show initial loading here */}
+                {isLoadingInitial && !errorState && (
                   <div className="flex items-center justify-start text-sm text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    {
-                      isProcessingAudio ? <span>Processing audio...</span> :
-                      isProcessingEntry ? <span>Processing entry...</span> :
-                      isLoadingInitial ? <span>Loading...</span> : null
-                    }
+                    <span>Loading...</span>
                   </div>
                 )}
               </div>
@@ -638,8 +831,8 @@ export default function Home() {
 
             {/* Right Side: Controls */}
             <div className="flex items-center flex-wrap gap-2 flex-shrink-0 justify-end">
-              {/* This container groups search and add buttons - remove negative margin */}
-              <div className="flex items-baseline gap-2">
+              {/* Container for Search and Add buttons - Using items-center for vertical alignment */}
+              <div className="flex items-center gap-2"> {/* Changed items-baseline to items-center */} 
                 {/* Search Bar (hidden during recording) */}
                 {!isRecording && !isProcessingAudio && (
                   <Input
@@ -648,7 +841,7 @@ export default function Home() {
                     value={localSearchQuery} 
                     onChange={handleSearchChange} 
                     className={clsx(
-                        'w-full max-w-xs',
+                        'w-full max-w-xs h-9', // Explicit height added (h-9 matches Button sm size)
                         'hidden sm:block' 
                     )}
                   />
@@ -659,7 +852,7 @@ export default function Home() {
                     <Button
                       variant="outline"
                       onClick={startRecording}
-                      size="sm"
+                      size="sm" // h-9 by default
                       aria-label="Add voice note"
                       title="Add voice note"
                       className={clsx('inline-flex items-center')}
@@ -670,7 +863,7 @@ export default function Home() {
                     <Button
                       onClick={handleAddClick}
                       disabled={false} 
-                      size="sm"
+                      size="sm" // h-9 by default
                       className={clsx(
                         'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity',
                         'inline-flex items-center'
@@ -688,6 +881,7 @@ export default function Home() {
               {/* Recording Controls (shown during recording) */}
               {isRecording && !isProcessingAudio && (
                  <>
+                    {/* Timer */}
                     <span 
                       className={clsx(
                         "text-sm font-mono flex-shrink-0 whitespace-nowrap",
@@ -696,6 +890,7 @@ export default function Home() {
                     >
                       {formatTime(recordingTime)} / 1:00
                     </span>
+                    {/* Transcribe Button */}
                     <Button
                       variant="default" 
                       onClick={handleSendClick}
@@ -707,6 +902,7 @@ export default function Home() {
                       <Check className="h-4 w-4 sm:mr-2" /> 
                       <span className="hidden sm:inline">Transcribe</span>
                     </Button>
+                    {/* Stop Button */}
                     <Button
                       variant="outline" 
                       onClick={stopRecordingAndDiscard}
@@ -720,153 +916,241 @@ export default function Home() {
                     </Button>
                  </>
               )}
+
+              {/* *** UPDATED: Processing Audio Indicator (Right Side) *** */}
+              {isProcessingAudio && !errorState && (
+                <div className="flex items-center justify-end text-sm text-muted-foreground">
+                  {/* Display the current loading phrase FIRST */}
+                  <span>
+                    {currentLoadingPhraseIndex !== -1 
+                      ? loadingPhrases[currentLoadingPhraseIndex]
+                      : 'Processing audio...'} {/* Fallback text */}
+                  </span>
+                  {/* Spinner SECOND, add margin-left */}
+                  <Loader2 className="h-5 w-5 animate-spin ml-2" /> 
+                </div>
+              )}
             </div>
           </div>
         </header>
 
-        {/* Scrollable Content Area for Entries */}
-        <div ref={mainContentScrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-4">
-          {/* --- START Main Content Rendering (Restored) --- */}
-          {/* Filter Active Indicator */}
-          {isAnyFilterActive && (
-            <div className="flex flex-col gap-1 flex-shrink-0 p-2 rounded-md border border-yellow-200 bg-yellow-50 dark:border-yellow-800/60 dark:bg-yellow-900/20">
-               <div className="flex items-center gap-1 text-xs font-semibold text-yellow-800 dark:text-yellow-300">
-                    <Info className="h-3 w-3" />
-                    <span>Filtering applied only to {loadedEntries.length} loaded entries.</span>
-                </div>
-                <div className="flex flex-wrap gap-1 items-center">
-                    <span className="text-sm font-medium mr-1">Active:</span>
-                    {/* Meta Tag Filter */} 
-                    {activeMetaTag && (() => {
-                        const lowerTag = activeMetaTag.toLowerCase();
-                        const colorInfo = highlightedTagColors[lowerTag];
-                        const activeClasses = colorInfo ? colorInfo.base : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300';
-                        const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-purple-200 dark:hover:bg-purple-800/70';
-                        return (
-                        <Badge variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => setFilters({ activeMetaTag: null })}>
-                            {activeMetaTag.toUpperCase()}
-                            <X className="ml-1 h-3 w-3" />
-                        </Badge>
-                        );
-                    })()}
-                    {/* Intent Tag Filter */}
-                    {activeIntentTag && (() => {
-                        const lowerTag = activeIntentTag.toLowerCase();
-                        const colorInfo = highlightedTagColors[lowerTag];
-                        const activeClasses = colorInfo ? colorInfo.base : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
-                        const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-green-200 dark:hover:bg-green-800/70';
-                        return (
-                        <Badge variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => setFilters({ activeIntentTag: null })}>
-                            {activeIntentTag}
-                            <X className="ml-1 h-3 w-3" />
-                        </Badge>
-                        );
-                    })()}
-                    {/* Content Tags Filter */}
-                    {Array.from(activeContentTags).map(tag => {
-                        const lowerTag = tag.toLowerCase();
-                        const colorInfo = highlightedTagColors[lowerTag];
-                        const activeClasses = colorInfo ? colorInfo.base : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
-                        const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-blue-200 dark:hover:bg-blue-800/70';
-                        return (
-                        <Badge key={tag} variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => {
-                            const newTags = new Set(activeContentTags);
-                            newTags.delete(tag);
-                            setFilters({ activeContentTags: newTags });
-                        }}>
-                            {tag}
-                            <X className="ml-1 h-3 w-3" />
-                        </Badge>
-                        );
-                    })}
-                    {/* Clear All Filters Button */}
-                     {(!!activeMetaTag || !!activeIntentTag || activeContentTags.size > 0) && (
-                        <Button variant="ghost" size="sm" className="h-5 px-1 text-muted-foreground hover:text-foreground" onClick={() => setFilters({ activeMetaTag: null, activeIntentTag: null, activeContentTags: new Set(), searchQuery: '' })}>
-                            Clear All
-                        </Button>
-                    )}
-                </div>
-            </div>
-          )}
+        {/* --- TABS START HERE --- */}
+        <Tabs defaultValue="stream" value={activeMainTab} onValueChange={(value) => setActiveMainTab(value as 'stream' | 'actions')} className="flex flex-col flex-1 overflow-hidden">
+          {/* Main Tab List - Apply new styles */} 
+          <div className="px-4 md:px-6 lg:px-8 py-2 border-b">
+            {/* Left-align, give list a background, rounded corners */} 
+            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+              {/* Default state: transparent bg, muted text. Active state: primary bg+text */} 
+              <TabsTrigger 
+                value="stream" 
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                The Stream
+              </TabsTrigger>
+              <TabsTrigger 
+                value="actions" 
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              >
+                <ListTodo className="w-4 h-4 mr-2" />
+                The List
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          {/* Initial Loading Indicator */}
-          {isLoadingInitial && (
-            <div className="flex justify-center items-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          )}
-
-          {/* Entry Rendering Logic */}
-          {!isLoadingInitial && !errorState && (
-            <>
-              {/* No Entries Matching Filter Message */}
-              {displayEntries.length === 0 && loadedEntries.length > 0 && isAnyFilterActive && (
-                <p className="pt-4 text-center text-gray-500">No loaded entries found matching filters.</p>
-              )}
-              
-              {/* Grouped Entries Loop */}
-              {Object.entries(groupedEntries).map(([date, dayEntries]) => {
-                const entryCount = dayEntries.length;
-                const containsHighlighted = highlightedEntryId !== null && dayEntries.some(entry => entry.id === highlightedEntryId);
-                
-                return (
-                  <div key={date} className="mb-4"> 
-                    {/* Date Header */}
-                    <div className={clsx(
-                        "sticky top-0 z-10 mb-2 p-2 border rounded-md bg-muted",
-                        "text-sm font-medium text-muted-foreground",
-                        containsHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background" 
-                    )}> 
-                      {format(parseISO(date), 'MMMM do, yyyy')} 
-                      <span className="ml-2 font-normal">({entryCount} {entryCount === 1 ? 'entry' : 'entries'})</span>
+          {/* --- STREAM TAB CONTENT --- */}
+          <TabsContent value="stream" className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-4 mt-0 data-[state=inactive]:hidden"> {/* Added mt-0 and inactive hidden */} 
+            {/* Scrollable Content Area for Entries */}
+            <div ref={mainContentScrollRef} > {/* Removed classNames, now handled by TabsContent */}
+              {/* --- START Main Content Rendering (Moved inside Tab) --- */}
+              {/* Filter Active Indicator */}
+              {isAnyFilterActive && (
+                <div className="flex flex-col gap-1 flex-shrink-0 p-2 rounded-md border border-yellow-200 bg-yellow-50 dark:border-yellow-800/60 dark:bg-yellow-900/20">
+                   <div className="flex items-center gap-1 text-xs font-semibold text-yellow-800 dark:text-yellow-300">
+                        <Info className="h-3 w-3" />
+                        <span>Filtering applied only to {loadedEntries.length} loaded entries.</span>
                     </div>
+                    <div className="flex flex-wrap gap-1 items-center">
+                        <span className="text-sm font-medium mr-1">Active:</span>
+                        {/* Meta Tag Filter */} 
+                        {activeMetaTag && (() => {
+                            const lowerTag = activeMetaTag.toLowerCase();
+                            const colorInfo = highlightedTagColors[lowerTag];
+                            const activeClasses = colorInfo ? colorInfo.base : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300';
+                            const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-purple-200 dark:hover:bg-purple-800/70';
+                            return (
+                            <Badge variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => setFilters({ activeMetaTag: null })}>
+                                {activeMetaTag.toUpperCase()}
+                                <X className="ml-1 h-3 w-3" />
+                            </Badge>
+                            );
+                        })()}
+                        {/* Intent Tag Filter */}
+                        {activeIntentTag && (() => {
+                            const lowerTag = activeIntentTag.toLowerCase();
+                            const colorInfo = highlightedTagColors[lowerTag];
+                            const activeClasses = colorInfo ? colorInfo.base : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+                            const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-green-200 dark:hover:bg-green-800/70';
+                            return (
+                            <Badge variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => setFilters({ activeIntentTag: null })}>
+                                {activeIntentTag}
+                                <X className="ml-1 h-3 w-3" />
+                            </Badge>
+                            );
+                        })()}
+                        {/* Content Tags Filter */}
+                        {Array.from(activeContentTags).map(tag => {
+                            const lowerTag = tag.toLowerCase();
+                            const colorInfo = highlightedTagColors[lowerTag];
+                            const activeClasses = colorInfo ? colorInfo.base : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
+                            const hoverClasses = colorInfo ? colorInfo.hover : 'hover:bg-blue-200 dark:hover:bg-blue-800/70';
+                            return (
+                            <Badge key={tag} variant="secondary" className={clsx("cursor-pointer", activeClasses, hoverClasses)} onClick={() => {
+                                const newTags = new Set(activeContentTags);
+                                newTags.delete(tag);
+                                setFilters({ activeContentTags: newTags });
+                            }}>
+                                {tag}
+                                <X className="ml-1 h-3 w-3" />
+                            </Badge>
+                            );
+                        })}
+                        {/* Clear All Filters Button */}
+                         {(!!activeMetaTag || !!activeIntentTag || activeContentTags.size > 0) && (
+                            <Button variant="ghost" size="sm" className="h-5 px-1 text-muted-foreground hover:text-foreground" onClick={() => setFilters({ activeMetaTag: null, activeIntentTag: null, activeContentTags: new Set(), searchQuery: '' })}>
+                                Clear All
+                            </Button>
+                        )}
+                    </div>
+                </div>
+              )}
+
+              {/* Initial Loading Indicator */}
+              {isLoadingInitial && (
+                <div className="flex justify-center items-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              )}
+
+              {/* Entry Rendering Logic */}
+              {!isLoadingInitial && !errorState && (
+                <>
+                  {/* No Entries Matching Filter Message */}
+                  {displayEntries.length === 0 && loadedEntries.length > 0 && isAnyFilterActive && (
+                    <p className="pt-4 text-center text-gray-500">No loaded entries found matching filters.</p>
+                  )}
+                  
+                  {/* Grouped Entries Loop */}
+                  {Object.entries(groupedEntries).map(([date, dayEntries]) => {
+                    const entryCount = dayEntries.length;
+                    const containsHighlighted = highlightedEntryId !== null && dayEntries.some(entry => entry.id === highlightedEntryId);
                     
-                    {/* Entries for the Day */}
-                    <div className="space-y-2"> 
-                      {dayEntries.map((entry) => (
-                        <JournalEntry
-                            key={entry.id}
-                            entry={entry}
-                            highlightedTagColors={highlightedTagColors}
-                            setFilters={setFilters}
-                            onDeleteEntry={handleDeleteEntry}
-                            onEditClick={handleEditClick}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+                    return (
+                      <div key={date} className="mb-4"> 
+                        {/* Date Header */}
+                        <div className={clsx(
+                            "sticky top-0 z-10 mb-2 p-2 border rounded-md bg-muted",
+                            "text-sm font-medium text-muted-foreground",
+                            containsHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background" 
+                        )}> 
+                          {format(parseISO(date), 'MMMM do, yyyy')} 
+                          <span className="ml-2 font-normal">({entryCount} {entryCount === 1 ? 'entry' : 'entries'})</span>
+                        </div>
+                        
+                        {/* Entries for the Day */}
+                        <div className="space-y-2"> 
+                          {dayEntries.map((entry) => (
+                            <JournalEntry
+                                key={entry.id}
+                                entry={entry}
+                                highlightedTagColors={highlightedTagColors}
+                                setFilters={setFilters}
+                                onDeleteEntry={handleDeleteEntry}
+                                onEditClick={handleEditClick}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
 
-              {/* Loading More Indicator */}
-              {isLoadingMore && (
-                <div className="flex justify-center items-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  {/* Loading More Indicator */}
+                  {isLoadingMore && (
+                    <div className="flex justify-center items-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </>
+              )}
+              {/* --- END Main Content Rendering --- */}
+              
+              {/* End of list message */}
+              {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (
+                <div className="text-center text-muted-foreground text-sm py-8">
+                  {isAnyFilterActive 
+                    ? "End of loaded entries matching filters." 
+                    : "The void stares back... quick, add a thought!"
+                  }
                 </div>
               )}
 
-              {/* End of List Message (handled outside this block now) */}
-            </>
-          )}
-          {/* --- END Main Content Rendering --- */} 
-          
-          {/* End of list message (moved slightly lower) */}
-          {(!isLoadingInitial && !isLoadingMore && !hasMoreEntries) && (
-            <div className="text-center text-muted-foreground text-sm py-8">
-              {isAnyFilterActive 
-                ? "End of loaded entries matching filters." 
-                : "The void stares back... quick, add a thought!"
-              }
+              {/* Intersection observer target */}
+              <div ref={intersectionObserverRef} style={{ height: '1px' }} />
             </div>
-          )}
+          </TabsContent>
+          {/* --- END STREAM TAB CONTENT --- */}
 
-          {/* Intersection observer target */}
-          <div ref={intersectionObserverRef} style={{ height: '1px' }} />
-        </div>
+          {/* --- ACTIONS TAB CONTENT (Now with Sub-Tabs) --- */}
+          <TabsContent value="actions" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden"> {/* Ensure flex-col */} 
+            {/* Nested Tabs for Action Grouping */} 
+            <Tabs 
+              value={activeActionSubTab}
+              onValueChange={setActiveActionSubTab}
+              defaultValue={sortedActionTabKeys.length > 0 ? sortedActionTabKeys[0] : UNTAGGED_KEY}
+              className="flex flex-col flex-1 overflow-hidden pt-2" // Removed horizontal padding, handled below
+            >
+              {/* Sub-Tab List Container (Added for border and padding) */} 
+              <div className="px-4 md:px-6 lg:px-8 border-b"> {/* Moved padding here, added border */} 
+                <TabsList className="bg-transparent p-0 h-auto justify-start overflow-x-auto w-full">
+                  {sortedActionTabKeys.map(tagKey => (
+                    <TabsTrigger 
+                      key={tagKey} 
+                      value={tagKey} 
+                      className="flex-shrink-0 whitespace-nowrap rounded-none px-3 py-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary text-muted-foreground"
+                    >
+                      {tagKey === UNTAGGED_KEY ? 'Untagged' : tagKey}
+                      <Badge variant="secondary" className="ml-2 text-xs h-5 px-1.5">
+                         {groupedAndSortedActions[tagKey]?.length || 0}
+                      </Badge>
+                    </TabsTrigger>
+                  ))}
+                  {/* Show message if no actions at all */}
+                  {sortedActionTabKeys.length === 0 && (
+                      <span className="text-sm text-muted-foreground p-2">No pending actions found.</span>
+                  )}
+                </TabsList>
+              </div>
+
+              {/* Sub-Tab Content Wrapper */} 
+              <TabsContent 
+                value={activeActionSubTab}
+                className="flex-1 overflow-y-auto py-4 px-4 md:px-6 lg:px-8 mt-0" // Added padding here
+              >
+                 <AllActionsList 
+                    actionsToDisplay={groupedAndSortedActions[activeActionSubTab] || []} 
+                />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+          {/* --- END ACTIONS TAB CONTENT --- */}
+
+        </Tabs>
+        {/* --- TABS END HERE --- */}
+
       </div>
       {/* --- END Left Column --- */}
 
-      {/* --- START Right Column (Static Analysis) --- */} 
+      {/* --- START Right Column (Static Analysis) --- */}
       <StaticAnalysisColumn /> 
       {/* --- END Right Column --- */} 
 
