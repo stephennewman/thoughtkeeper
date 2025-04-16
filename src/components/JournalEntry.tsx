@@ -926,12 +926,11 @@ export function JournalEntry({
           {isGenerating && !entry.meta_tag && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
 
           {/* Meta Tag - Use the new component */}
-          <MetaTagEditor 
+          <MetaTagEditor
             entryId={entry.id}
             currentTag={entry.meta_tag ?? null}
             uniqueTags={uniqueMetaTags}
             onUpdateTag={updateEntryMetaTag}
-            getTagClasses={getTagClasses} // Pass down the existing styling helper
           />
 
           {/* Intent Tag */}
