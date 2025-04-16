@@ -26,7 +26,7 @@ import type { PostgrestSingleResponse } from '@supabase/supabase-js'; // Import 
 // import { format } from 'date-fns'; // No longer needed here due to mocking
 
 // Define PAGE_SIZE constant matching the store
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 100;
 
 // Mock dependencies
 vi.mock('@/lib/entryService');
@@ -35,6 +35,8 @@ const mockFetchEntriesPaginated = vi.mocked(entryService.fetchEntriesPaginatedSe
 const mockAddEntry = vi.mocked(entryService.addEntryService);
 const mockUpdateEntryContent = vi.mocked(entryService.updateEntryContentService);
 const mockDeleteEntry = vi.mocked(entryService.deleteEntryService);
+// Add mock for fetchTotalEntryCountService
+const mockFetchTotalEntryCount = vi.mocked(entryService.fetchTotalEntryCountService);
 // Add mocks for summary/action updates if needed later
 // const mockUpdateEntrySummary = vi.mocked(entryService.updateEntrySummaryService);
 // const mockUpdateEntryActions = vi.mocked(entryService.updateEntryActionsService);
@@ -55,6 +57,8 @@ describe('journalStore', () => {
   beforeEach(() => {
     resetStore();
     vi.clearAllMocks();
+    // Add default mock for total count service
+    mockFetchTotalEntryCount.mockResolvedValue({ data: 500, error: null }); // Default success
     vi.useFakeTimers(); 
   });
 
@@ -285,8 +289,8 @@ describe('journalStore', () => {
     });
 
     it('should set hasMoreEntries to true if exactly PAGE_SIZE entries are fetched', async () => {
-        // Arrange: Mock next page data (exactly PAGE_SIZE)
-        const nextPageEntries: Entry[] = Array.from({ length: PAGE_SIZE }, (_, i) => ({
+        // Arrange: Mock exactly PAGE_SIZE entries
+        const nextPageEntries: Entry[] = Array.from({ length: PAGE_SIZE }, (_, i) => ({ // Use PAGE_SIZE (100)
             id: `next-${i + 1}`, user_id: 'mock-user-id', date: MOCK_YESTERDAY_DATE, content: `Next Page Entry ${i + 1}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), meta_tag: null, intent_tag: null, tags: null, extracted_actions: null, extracted_summary: null, entry_type: 'text'
         }));
         mockFetchEntriesPaginated.mockResolvedValue({ data: nextPageEntries, error: null });
@@ -295,7 +299,7 @@ describe('journalStore', () => {
         await useJournalStore.getState().loadMoreEntries();
 
         // Assert
-        expect(useJournalStore.getState().hasMoreEntries).toBe(true);
+        expect(useJournalStore.getState().hasMoreEntries).toBe(true); // Should now be true
         expect(useJournalStore.getState().currentPage).toBe(2);
     });
 
