@@ -291,7 +291,7 @@ export function JournalEntry({
     const trimmedText = newActionText.trim();
     if (!trimmedText) return; // Don't add empty actions
 
-    const newAction: ActionItem = { task: trimmedText, completed: false, priorityScore: null }; // Added priorityScore: null
+    const newAction: ActionItem = { task: trimmedText, completed: false }; // Removed priorityScore: null
     // Insert the new action at the correct position
     const insertAtIndex = addActionAfterIndex === null || addActionAfterIndex === -1 
                           ? 0 
