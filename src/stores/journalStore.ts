@@ -12,6 +12,8 @@ import {
 import { format } from 'date-fns';
 import debounce from 'lodash.debounce';
 import { supabase } from '@/lib/supabaseClient';
+// Import toast from sonner
+import { toast } from 'sonner';
 
 // Define PAGE_SIZE constant
 const PAGE_SIZE = 100;
@@ -406,6 +408,8 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             totalEntryCount: (get().totalEntryCount ?? 0) + 1 // Increment total count
           });
 
+          toast.success('Entry added successfully!'); // SUCCESS TOAST
+
           // Trigger background tagging
           if (newEntry.id && newEntry.content) {
             // Use Promise.allSettled to avoid crashing on single fetch failure
@@ -424,7 +428,9 @@ export const useJournalStore = create<JournalState & JournalActions>()(
 
         } catch (error: any) {
           console.error("Failed to add entry:", error);
-          set({ errorState: `Failed to add entry: ${error.message}`, isProcessingEntry: false });
+          const errorMessage = `Failed to add entry: ${error.message}`;
+          set({ errorState: errorMessage, isProcessingEntry: false });
+          toast.error(errorMessage); // ERROR TOAST
           throw error;
         }
       },
@@ -485,9 +491,13 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             isProcessingEntry: false,
           });
 
+          toast.success('Entry updated successfully!'); // SUCCESS TOAST
+
         } catch (error: any) {
           console.error("Failed to update entry:", error);
-          set({ errorState: `Failed to update entry: ${error.message}`, isProcessingEntry: false });
+          const errorMessage = `Failed to update entry: ${error.message}`;
+          set({ errorState: errorMessage, isProcessingEntry: false });
+          toast.error(errorMessage); // ERROR TOAST
           throw error; // Re-throw to be caught in UI if needed
         }
       },
@@ -519,17 +529,20 @@ export const useJournalStore = create<JournalState & JournalActions>()(
         try {
           await deleteEntryService(entryId);
           set({ isProcessingEntry: false }); // Only processing state changes on success
+          toast.success('Entry deleted successfully!'); // SUCCESS TOAST
         } catch (error: any) {
           console.error("Failed to delete entry:", error);
+          const errorMessage = `Failed to delete entry: ${error.message}`;
           // Revert optimistic removal on failure
           set({ 
               isProcessingEntry: false, 
-              errorState: `Failed to delete entry: ${error.message}`,
+              errorState: errorMessage, // Use the error message here
               loadedEntries: originalLoadedEntries, // Revert loaded entries
               displayEntries: originalDisplayEntries, // Revert display entries
               highlightedTagColors: originalHighlightedTagColors, // Revert colors
               totalEntryCount: (get().totalEntryCount ?? 0) + 1 // Revert decrement
           });
+          toast.error(errorMessage); // ERROR TOAST
         }
       },
 
@@ -659,13 +672,16 @@ export const useJournalStore = create<JournalState & JournalActions>()(
             const failedUpdates = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value?.error));
             if (failedUpdates.length > 0) {
                 console.error("Some database updates failed:", failedUpdates);
+                const errorMessage = `Failed to save completion status for ${failedUpdates.length} ${failedUpdates.length === 1 ? 'action' : 'actions'}.`;
                 // We could attempt a revert here, but it's complex. For now, log error and leave optimistic state.
                 set({ 
-                    errorState: `Failed to save completion status for ${failedUpdates.length} entries.`,
+                    errorState: errorMessage,
                     // Don't revert here, keep optimistic state but show error
                 });
+                toast.error(errorMessage); // ERROR TOAST (Partial failure)
             } else {
                  console.log("All database updates successful.");
+                 toast.success('Action(s) marked complete!'); // SUCCESS TOAST (All successful)
                  // Optionally clear error state if it was set by a previous partial failure
                  if (get().errorState?.startsWith('Failed to save completion')) {
                     set({ errorState: null });
@@ -674,7 +690,9 @@ export const useJournalStore = create<JournalState & JournalActions>()(
 
         } catch (error: any) {
             console.error("Error executing database updates:", error);
-            set({ errorState: `Error saving completion status: ${error.message}` });
+            const errorMessage = `Error saving completion status: ${error.message}`;
+            set({ errorState: errorMessage });
+            toast.error(errorMessage); // ERROR TOAST (General DB failure)
             // Keep optimistic state, but show error
         } finally {
             set({ isProcessingEntry: false }); // Finish processing regardless of DB outcome
