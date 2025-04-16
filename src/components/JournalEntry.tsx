@@ -273,16 +273,11 @@ export function JournalEntry({
         console.error("Failed to update action item text in DB:", error);
         setLocalActions(originalActions); // Revert UI
         toast.error("Failed to save action item.");
-      } else if (updatedData) {
-        // Update the entry in the global Zustand store
-        const updatedEntryForStore = { ...entry, extracted_actions: updatedData.extracted_actions };
+      } else {
+        // Update the entry in the global Zustand store (if updatedData exists or optimistically)
+        const updatedEntryForStore = { ...entry, extracted_actions: updatedData?.extracted_actions || updatedActions };
         updateEntryTagsInStore(entry.id, updatedEntryForStore);
         toast.success("Action item saved.");
-      } else {
-        console.warn("updateEntryActionsService (edit) returned no data or error");
-        const updatedEntryForStore = { ...entry, extracted_actions: updatedActions };
-        updateEntryTagsInStore(entry.id, updatedEntryForStore); // Update store optimistically
-        toast.success("Action item saved (no confirmation).");
       }
     } catch (error) {
       console.error("Error calling updateEntryActionsService for edit:", error);
@@ -296,7 +291,7 @@ export function JournalEntry({
     const trimmedText = newActionText.trim();
     if (!trimmedText) return; // Don't add empty actions
 
-    const newAction: ActionItem = { task: trimmedText, completed: false };
+    const newAction: ActionItem = { task: trimmedText, completed: false }; // Reverted: removed priorityScore init
     // Insert the new action at the correct position
     const insertAtIndex = addActionAfterIndex === null || addActionAfterIndex === -1 
                           ? 0 
@@ -324,17 +319,12 @@ export function JournalEntry({
         setAddActionAfterIndex(addActionAfterIndex);
         setNewActionText(trimmedText);
         toast.error("Failed to add action item.");
-      } else if (updatedData) {
-        // Update the entry in the global Zustand store
-        const updatedEntryForStore = { ...entry, extracted_actions: updatedData.extracted_actions };
+      } else {
+        // Update the entry in the global Zustand store (if updatedData exists or optimistically)
+        const finalActions = updatedData?.extracted_actions || updatedActions;
+        const updatedEntryForStore = { ...entry, extracted_actions: finalActions };
         updateEntryTagsInStore(entry.id, updatedEntryForStore); 
         toast.success("Action item added.");
-      } else {
-         // If no error but no data, still update store optimistically based on local state
-         console.warn("updateEntryActionsService (add) returned no data or error");
-         const updatedEntryForStore = { ...entry, extracted_actions: updatedActions };
-         updateEntryTagsInStore(entry.id, updatedEntryForStore);
-         toast.success("Action item added (no confirmation).");
       }
     } catch (error) {
       console.error("Error calling updateEntryActionsService for add:", error);

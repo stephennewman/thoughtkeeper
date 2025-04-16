@@ -1,7 +1,7 @@
 # AI Development Instructions for ThoughtKeeper
 
-**Document Version:** 2.6.0 (Summary Backend & UI Toasts)
-**Date:** 2024-07-27
+**Document Version:** 2.7.0 (Entry Tab Order & Visibility)
+**Date:** 2024-07-28
 
 **AI Collaboration Note:** Continuously analyze for problems/risks. Notify the user if any internal/controllable risk score is assessed at 70/100 or higher.
 **Development Environment Note:** User is developing within the Cursor editor.
@@ -64,9 +64,11 @@
 *   **State Management:** Zustand central store.
 *   **UI:** Shadcn components, dark/light mode support.
 *   **Inline Editing/Adding (JournalEntry Component):**
+    *   Entry cards display content in tabs, now ordered: **Original, Summary, Actions**. 'Original' is the default tab.
+    *   The **'Summary' tab is always visible**, even if no summary points exist (displays an 'Add' button if empty).
     *   Summary points (bullet list) are editable inline using `contentEditable`.
     *   Action items (checkbox list) are editable inline using `contentEditable`.
-    *   Hovering over a summary or action item reveals Edit/Delete buttons next to the text.
+    *   Hovering over a summary or action item reveals Edit/Delete/Add buttons.
     *   Hovering also reveals a "+" button to add a new item *below* the hovered one.
     *   The add form appears inline below the relevant item.
     *   If a list is empty, an "+ Add" button appears to add the first item.
@@ -80,6 +82,7 @@
 **Current Problems:**
 1.  **Filtering/Search Scalability (85):** Current client-side filtering is not truly scalable.
 2.  **Double "Processing..." Indicator (75):** Voice note submission UI glitch.
+3.  **Summary Generation Dependency:** Summary points only appear if `extracted_summary` is populated in the database via the backend AI processing pipeline. The frontend `JournalEntry` component now *always* displays the tab but relies on backend data population.
 
 **Potential Opportunities / Incomplete Features:**
 1.  **Implement Static Analysis Column (90):** UI exists, needs backend logic.
@@ -105,6 +108,7 @@
 *   **Continuous Feed & Filtering:** Uses server-side filtering and pagination for scalability and correctness.
 *   **CRUD Refresh:** Add ops optimistically update UI; Edit/Delete modify client state directly (potential refinement needed).
 *   **Centralized Tag Color Logic:** Consistent tag appearance.
+*   **Journal Entry Tab Order:** Default order set to Original, Summary, Actions for logical flow. Summary tab always visible.
 *   **Voice Note Creation Flow:** Direct creation without editor.
 *   **Authentication/RLS:** Implemented basic Supabase Auth (Email) and RLS on `entries` table for essential security.
 
