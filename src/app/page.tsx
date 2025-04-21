@@ -4,7 +4,7 @@ import { useEffect, useRef, useMemo, Fragment, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useInView } from 'react-intersection-observer';
 import { JournalSidebar, JournalEntry, EntryEditorDialog, StaticAnalysisColumn, AllActionsList } from '@/components';
-import { X, Loader2, Plus, Info, Mic, Send, FileText, Check, Ban, Activity, ListTodo } from 'lucide-react';
+import { X, Loader2, Plus, Info, Mic, Send, FileText, Check, Ban, Activity, ListTodo, Settings, LogOut } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,10 @@ import { supabase } from '@/lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import Link from 'next/link';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from '@/components/ui/separator';
+import { toast } from "sonner";
 
 // Re-define types needed for action grouping (or import if moved to types/index.ts)
 const UNTAGGED_KEY = "_untagged_";
@@ -788,6 +792,23 @@ export default function Home() {
   }
 
   // --- Actual Logged-in UI --- 
+  const handleSignOut = async () => {
+    console.log("Sign out initiated...");
+    // Optional: Refresh session before sign out?
+    // const { error: refreshError } = await supabase.auth.refreshSession();
+    // if (refreshError) {
+    //   console.warn("Error refreshing session before sign out:", refreshError);
+    // }
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Error signing out:", error);
+      toast.error("Sign out failed", { description: error.message });
+    } else {
+      console.log("Sign out successful. Auth listener should handle redirect.");
+      // No need to manually push route, onAuthStateChange listener handles it
+    }
+  };
+
   return (
     // Outermost container: Row layout
     <div className="flex flex-row min-h-screen bg-background">
@@ -1165,48 +1186,45 @@ export default function Home() {
         />
       )}
 
-      {/* Logout Button (Fixed Position - Restored) */}
+      {/* --- Settings/Profile/Logout Popover --- */}
       {session && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            // Restore the full onClick handler with diagnostics
-            onClick={async () => {
-              console.log("(Restored) Logout button clicked. Refreshing session...");
-              const { error: refreshError } = await supabase.auth.refreshSession();
-              if (refreshError) {
-                console.warn("Error refreshing session before sign out:", refreshError);
-              }
-
-              console.log("Checking session...");
-              const { data: currentSessionData, error: sessionError } = await supabase.auth.getSession();
-              
-              if (sessionError) {
-                console.error("Error getting session after refresh:", sessionError);
-                return; 
-              }
-              
-              if (!currentSessionData.session) {
-                console.warn("No active session found by Supabase after refresh.");
-                return;
-              }
-
-              console.log("Active session confirmed. Attempting sign out...");
-              const { error: signOutError } = await supabase.auth.signOut();
-              
-              if (signOutError) {
-                console.error("Error signing out:", signOutError);
-              } else {
-                console.log("Sign out successful. Auth listener should handle redirect.");
-              }
-            }} 
-            className="fixed bottom-4 right-4 z-50 bg-background hover:bg-muted"
-            aria-label="Logout"
-            title="Logout"
-          >
-            Logout
-          </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="fixed bottom-4 right-4 z-50 bg-background hover:bg-muted rounded-full w-10 h-10" // Adjusted size/rounding
+              aria-label="Settings"
+              title="Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 mr-4 mb-2" align="end" sideOffset={10}> {/* Adjusted margin/offset */}
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <h4 className="font-medium leading-none">Account</h4>
+                <p className="text-sm text-muted-foreground">
+                  Manage your profile and settings.
+                </p>
+              </div>
+              <Separator />
+              <div className="grid gap-1"> {/* Reduced gap for buttons */}
+                <Link href="/profile" passHref legacyBehavior>
+                  <Button variant="ghost" className="w-full justify-start px-2"> {/* Align left */}
+                    Profile
+                  </Button>
+                </Link>
+                <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start px-2 text-red-600 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"> {/* Align left, add color */}
+                  <LogOut className="mr-2 h-4 w-4" /> Logout
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
+      {/* --- END Popover --- */}
+
     </div>
   );
 } 
