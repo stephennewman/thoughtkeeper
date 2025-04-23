@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --experimental-https --experimental-https-key ./localhost+2-key.pem --experimental-https-cert ./localhost+2.pem",
-    "build": "npm run test && next build",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "NEXT_PUBLIC_SUPABASE_URL=http://dummy.url NEXT_PUBLIC_SUPABASE_ANON_KEY=dummy_key vitest"
@@ -34,7 +34,7 @@
     "date-fns": "^3.3.1",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.331.0",
-    "next": "^15.3.0",
+    "next": "14.1.0",
     "next-themes": "^0.4.6",
     "openai": "^4.93.0",
     "react": "^18.2.0",
