@@ -1,15 +1,23 @@
 import React from 'react';
 import Link from 'next/link'; // Import Link for navigation
 import Image from 'next/image'; // Import Image for logo
-import { Check } from 'lucide-react'; // Import Check icon
+import { Check, Mic, Sparkles, Brain, Search, CloudLightning, Keyboard, FolderSearch, CopySlash, Users, Zap } from 'lucide-react'; // Added Zap
+import type { Metadata } from 'next'; // Import Metadata type
+
+// Add Metadata export for the page title
+export const metadata: Metadata = {
+  title: 'VibeKeep | Powering organized vibes',
+  // You can add other metadata fields here if needed, like description
+  // description: 'Capture thoughts at the speed of voice. Let AI handle the processing.',
+};
 
 const HomePage: React.FC = () => {
   const logoUrl = "https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367";
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 antialiased">
-      {/* Navigation Bar */}
-      <nav className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-white text-gray-900 antialiased font-sans">
+      {/* Navigation Bar (Sticky) */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -18,10 +26,10 @@ const HomePage: React.FC = () => {
                 <Image 
                   src={logoUrl}
                   alt="VibeKeep Logo"
-                  width={140} // Placeholder width
-                  height={32} // Placeholder height
-                  priority // Optional: Prioritize loading the logo
-                  className="h-8 w-auto" // Removed lowercase class
+                  width={140} 
+                  height={32} 
+                  priority 
+                  className="h-8 w-auto" 
                 />
               </Link>
             </div>
@@ -31,7 +39,7 @@ const HomePage: React.FC = () => {
                 href="/signin" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-gray-600 hover:text-blue-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150"
+                className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150"
               >
                 Sign In
               </Link>
@@ -39,148 +47,159 @@ const HomePage: React.FC = () => {
                 href="/signup" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="inline-block border border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-block bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm"
               >
-                Sign Up
+                Get Started Free
               </Link>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* --- NEW NARRATIVE STRUCTURE START --- */}
+      {/* --- PUNCHY NARRATIVE FOR HIGH PERFORMERS --- */}
 
-      {/* 1. Hero: Augment Your Cognitive Workflow ✨ */}
-      <section id="hero" className="bg-gradient-to-br from-purple-100 via-blue-50 to-indigo-100 py-24 text-center">
+      {/* 1. Hero: Eliminate Friction. Amplify Output. */}
+      <section id="hero" className="bg-gradient-to-br from-indigo-100 via-blue-50 to-purple-100 py-24 text-center">
         <div className="max-w-4xl mx-auto px-6">
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-purple-600 to-indigo-800 mb-6">
-            Harmorize your work / life balance with intelligence ✨
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-800 via-indigo-700 to-blue-800 mb-6">
+            Eliminate Friction. Amplify Output.
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-10">
-            Capture your thoughts, ideas, and actions with ease, and make it useful.
+            Capture thoughts at the speed of voice. Let AI handle the processing. Stay focused on high-impact work.
           </p>
           <Link
             href="/signup"
             target="_blank" 
             rel="noopener noreferrer"
-            className="inline-block bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-150 hover:from-blue-700 hover:to-indigo-800 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-700 text-white py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-150 hover:from-indigo-700 hover:to-blue-800 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md"
           >
-            Get started
+            <Zap className="w-5 h-5" />
+            Start Now (Free)
           </Link>
         </div>
       </section>
 
-      {/* 2. The Invisible Friction Hindering Peak Performance - Expanded & Painful */}
-      <section id="friction" className="py-20 bg-white">
+      {/* 2. The Situation: Your Cognitive Load is Maxed Out */}
+      <section id="situation" className="py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+            <div className="text-6xl mb-6 text-gray-400"><CloudLightning /></div>
+            <h2 className="text-4xl font-semibold text-gray-900 mb-6">
+                Your Cognitive Load is Maxed Out
+            </h2>
+            <p className="text-xl text-gray-600 leading-relaxed">
+                Constant context switching between capturing ideas, managing tasks, and finding information kills momentum. Your fragmented system creates drag, stealing focus from strategic thinking and deep work.
+            </p>
+        </div>
+      </section>
+
+      {/* 3. The Pains: The High Cost of Inefficiency */}
+      <section id="pains" className="py-20 bg-gray-50 border-t border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-4xl font-semibold text-center text-gray-900 mb-16">
-             Disorganized and disconnected trackers hold you back 😩
+             The High Cost of Inefficiency
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-             {/* Expanded Problem 1 */}
-            <div className="text-center">
-              <div className="text-5xl mb-4">🗣️⌨️</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">Too many inputs</h3>
-              <p className="text-gray-600 mb-4">Switching between text, voice, and other inputs breaks flow. Transient thoughts evaporate before being logged. Critical details from calls or quick insights get lost in the shuffle.</p>
-               <ul className="text-left text-sm text-red-700 space-y-1 list-disc list-inside">
-                 <li>Missed Opportunities: Brilliant ideas vanish before capture.</li>
-                 <li>Incomplete Context: Key details from conversations are lost.</li>
-                 <li>Wasted Momentum: Flow state is constantly interrupted.</li>
-              </ul>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-12">
+            {/* Pain Card 1: Input Bottleneck */}
+            <div className="bg-white p-8 rounded-lg border shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Keyboard className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-800">Input Bottleneck</h3>
+              </div>
+              <p className="text-gray-600 leading-relaxed">
+                Typing is slow. Voice memos become dead ends. Valuable thoughts – ideas, follow-ups, insights – evaporate before being captured effectively. This isn't just annoying, it's lost potential.
+              </p>
             </div>
-             {/* Expanded Problem 2 */}
-            <div className="text-center">
-              <div className="text-5xl mb-4">🤯⏳</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">Manual analysis</h3>
-              <p className="text-gray-600 mb-4">Your valuable cognitive energy is spent on low-level tasks: manually connecting concepts, summarizing notes after the fact, and trying to extract action items from dense text.</p>
-               <ul className="text-left text-sm text-red-700 space-y-1 list-disc list-inside">
-                 <li>Drained Energy: Mental resources wasted on repetitive organizing.</li>
-                 <li>Delayed Insights: Connections remain hidden until manually uncovered.</li>
-                 <li>Slowed Execution: Actionable steps aren't surfaced quickly enough.</li>
-              </ul>
-            </div>
-             {/* Expanded Problem 3 */}
-            <div className="text-center">
-               <div className="text-5xl mb-4">💾❓</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">Fragmented access</h3>
-              <p className="text-gray-600 mb-4">Searching across fragmented notes, project docs, and email relies on faulty memory or basic keyword matching, delaying access to critical context when you need it instantly.</p>
-              <ul className="text-left text-sm text-red-700 space-y-1 list-disc list-inside">
-                 <li>Broken Flow: Time wasted hunting for information disrupts focus.</li>
-                 <li>Incomplete Decisions: Acting without the full context readily available.</li>
-                 <li>Stalled Progress: Waiting for information retrieval blocks next steps.</li>
+            
+            {/* Pain Card 2: Organizational Tax */}
+            <div className="bg-white p-8 rounded-lg border shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                 <div className="p-2 bg-red-100 rounded-lg">
+                  <FolderSearch className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-800">Organizational Tax</h3>
+              </div>
+              <ul className="text-gray-600 space-y-3 list-inside">
+                <li className="flex items-start gap-2">
+                  <CopySlash className="w-5 h-5 text-red-500 mt-1 flex-shrink-0"/>
+                  <span>Wasting time hunting for information across silos kills flow state instantly.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                   <Users className="w-5 h-5 text-red-500 mt-1 flex-shrink-0"/>
+                   <span>Context is fragmented across work, personal, and side projects, hindering holistic thinking.</span>
+                </li>
+                 <li className="flex items-start gap-2">
+                    <span className="font-bold text-red-500 text-lg mr-1">!</span> 
+                    <span>Manual duplication and linking drains energy better spent on execution.</span>
+                </li>
               </ul>
             </div>
           </div>
-           <p className="text-center text-lg text-gray-700 mt-16 max-w-3xl mx-auto italic">
-             These micro-frictions compound, creating drag on your cognitive system and preventing you from operating at true peak capacity.
+          <p className="text-center text-lg text-gray-700 mt-12 max-w-3xl mx-auto font-medium">
+             This isn't just clutter – it's a direct drag on your performance.
           </p>
         </div>
       </section>
 
-      {/* 3. The Solution: Intelligent Workflow Acceleration ⚡ */}
-      <section id="solution" className="py-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+      {/* 4. The Solution: AI-Powered Workflow Acceleration */}
+      <section id="solution" className="py-20 bg-gradient-to-r from-indigo-700 to-blue-800 text-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl font-semibold mb-6">
-            Unlock augmented intelligence with VibeKeep ⚡
+            VibeKeep: AI-Powered Workflow Acceleration ⚡
           </h2>
           <p className="text-xl max-w-3xl mx-auto">
-            Eliminate these friction points. VibeKeep integrates intelligent automation directly into your capture-to-execution loop, augmenting your capabilities and preserving cognitive resources for strategic work.
+            Recapture lost time and focus. VibeKeep uses AI to instantly transcribe, structure, and connect your thoughts. Move from idea to action faster, without the manual overhead.
           </p>
         </div>
       </section>
       
-      {/* 4. The workflow, transformed: From capture to completion */}
+      {/* 5. How it Works: Capture -> Synthesize -> Retrieve */}
       <section id="workflow" className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-4xl font-semibold text-center text-gray-900 mb-16">
-            Your workflow, transformed
+            Capture → Synthesize → Retrieve
           </h2>
           <div className="space-y-16">
-            {/* Step 1: Seamless Capture */}
-            <div className="md:flex md:items-start md:space-x-8">
-              <div className="md:w-1/3 text-center md:text-right mb-4 md:mb-0">
-                 <div className="inline-block bg-blue-100 text-blue-700 rounded-full h-12 w-12 flex items-center justify-center font-bold text-xl mx-auto md:mr-0 md:ml-auto mb-3">1</div>
-                 <h3 className="text-2xl font-semibold text-gray-900">Capture at the Speed of Thought ✍️🗣️</h3>
+            {/* Step 1: Instant Capture */} 
+            <div className="md:flex md:items-center md:space-x-8">
+              <div className="md:w-1/3 text-center md:text-left mb-4 md:mb-0">
+                 <div className="inline-block bg-indigo-100 text-indigo-700 rounded-full p-3 mb-3">
+                   <Mic className="w-8 h-8" />
+                 </div>
+                 <h3 className="text-2xl font-semibold text-gray-900">1. Instant Capture</h3>
               </div>
               <div className="md:w-2/3">
                  <p className="text-lg text-gray-600 leading-relaxed">
-                   Stop context switching. Whether it's a fleeting voice memo during a commute or detailed typed notes from a meeting, ingest everything into a single, unified stream. VibeKeep's <strong className="font-medium">real-time voice transcription</strong> ensures verbal input is immediately processed and searchable alongside your text, eliminating capture friction.
+                   Hit record, speak your mind. Capture ideas, tasks, notes <strong className="font-medium text-indigo-700">at the speed of thought</strong>. Zero typing friction.
                  </p>
               </div>
             </div>
              {/* Step 2: Automated Synthesis */}
-            <div className="md:flex md:items-start md:space-x-8">
-              <div className="md:w-1/3 text-center md:text-right mb-4 md:mb-0">
-                 <div className="inline-block bg-purple-100 text-purple-700 rounded-full h-12 w-12 flex items-center justify-center font-bold text-xl mx-auto md:mr-0 md:ml-auto mb-3">2</div>
-                 <h3 className="text-2xl font-semibold text-gray-900">AI Synthesizes, You Strategize 🧠</h3>
+            <div className="md:flex md:items-center md:space-x-8">
+              <div className="md:w-1/3 text-center md:text-left mb-4 md:mb-0">
+                 <div className="inline-block bg-purple-100 text-purple-700 rounded-full p-3 mb-3">
+                   <Sparkles className="w-8 h-8" />
+                 </div>
+                 <h3 className="text-2xl font-semibold text-gray-900">2. Automated Synthesis</h3>
               </div>
               <div className="md:w-2/3">
                  <p className="text-lg text-gray-600 leading-relaxed">
-                    Focus on higher-level thinking while AI handles the initial processing. Leveraging advanced models, VibeKeep automatically performs <strong className="font-medium">multi-dimensional tagging</strong> (Meta, Intent, Content), generates concise <strong className="font-medium">AI summaries</strong>, and extracts potential <strong className="font-medium">action items</strong>. This automated synthesis reduces manual structuring time and surfaces key information proactively.
+                    AI gets to work instantly: transcribing, <strong className="font-medium text-purple-700">auto-tagging</strong> context (#idea, #projectX, #urgent), summarizing, and extracting actionable items. You focus, AI processes.
                  </p>
               </div>
             </div>
-             {/* Step 3: Contextual Interaction & Refinement */}
-            <div className="md:flex md:items-start md:space-x-8">
-              <div className="md:w-1/3 text-center md:text-right mb-4 md:mb-0">
-                 <div className="inline-block bg-indigo-100 text-indigo-700 rounded-full h-12 w-12 flex items-center justify-center font-bold text-xl mx-auto md:mr-0 md:ml-auto mb-3">3</div>
-                 <h3 className="text-2xl font-semibold text-gray-900">Interact Intelligently 🖱️</h3>
+             {/* Step 3: Rapid Retrieval */}
+            <div className="md:flex md:items-center md:space-x-8">
+              <div className="md:w-1/3 text-center md:text-left mb-4 md:mb-0">
+                 <div className="inline-block bg-pink-100 text-pink-700 rounded-full p-3 mb-3">
+                   <Search className="w-8 h-8" />
+                 </div>
+                 <h3 className="text-2xl font-semibold text-gray-900">3. Rapid Retrieval</h3>
               </div>
               <div className="md:w-2/3">
                  <p className="text-lg text-gray-600 leading-relaxed">
-                    Review information efficiently through <strong className="font-medium">contextual tabbed views</strong>, instantly switching between original notes, AI summaries, and action lists. Augment AI outputs directly using <strong className="font-medium">frictionless inline editing</strong> – add crucial details, correct nuances, or delete irrelevant points to ensure the structured data accurately reflects your intent.
-                 </p>
-              </div>
-            </div>
-              {/* Step 4: High-Speed Retrieval & Connection */}
-             <div className="md:flex md:items-start md:space-x-8">
-              <div className="md:w-1/3 text-center md:text-right mb-4 md:mb-0">
-                 <div className="inline-block bg-green-100 text-green-700 rounded-full h-12 w-12 flex items-center justify-center font-bold text-xl mx-auto md:mr-0 md:ml-auto mb-3">4</div>
-                 <h3 className="text-2xl font-semibold text-gray-900">Connect & Retrieve Instantly 🔗🔍</h3>
-              </div>
-              <div className="md:w-2/3">
-                 <p className="text-lg text-gray-600 leading-relaxed">
-                    Eliminate retrieval latency. Use <strong className="font-medium">dynamic tag filtering</strong> – click any AI-generated tag to immediately surface all related entries across your knowledge base. Leverage <strong className="font-medium">optimized server-side search</strong> for rapid access to specific information, transforming your notes from a static archive into a dynamic, interconnected knowledge asset.
+                    Need it later? <strong className="font-medium text-pink-700">Instantly surface related notes</strong> via smart search or tag filtering. Connect ideas across contexts without the hunt.
                  </p>
               </div>
             </div>
@@ -188,58 +207,50 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. Built for Operators: Technology & Security Transparency */}
-      <section id="transparency" className="py-20 bg-gray-50">
+      {/* 6. Built for Performance: Secure & Reliable */}
+      <section id="tech-trust" className="py-20 bg-gray-50">
         <div className="max-w-5xl mx-auto px-6">
            <h2 className="text-4xl font-semibold text-center text-gray-900 mb-16">
-            Built for operators: Secure, reliable, useable
+            Built for Performance: Secure & Reliable 🛠️🔒
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
             {/* Tech Stack */}
             <div>
-               <h3 className="text-2xl font-semibold text-gray-800 mb-6 text-center lg:text-left">Core Technology Rationale ⚙️</h3>
-               <ul className="space-y-4">
-                  <li className="flex items-start">
-                     <strong className="font-medium w-28 flex-shrink-0 text-right mr-3">Next.js:</strong> 
-                     <span className="text-gray-600">Performance-focused React framework enabling fast interfaces and efficient server communication.</span>
+               <h3 className="text-2xl font-semibold text-gray-800 mb-6 text-center lg:text-left">Core Tech</h3>
+               <ul className="space-y-4 text-gray-600">
+                  <li className="flex items-start gap-3">
+                     <strong className="font-medium text-indigo-700">Fast UI:</strong> 
+                     <span>Next.js/React on Vercel for low-latency interaction.</span>
                   </li>
-                   <li className="flex items-start">
-                     <strong className="font-medium w-28 flex-shrink-0 text-right mr-3">Vercel:</strong> 
-                     <span className="text-gray-600">Global deployment platform for low-latency access and scalable serverless API functions.</span>
+                   <li className="flex items-start gap-3">
+                     <strong className="font-medium text-purple-700">Secure Backend:</strong> 
+                     <span>Supabase (Postgres) with Row Level Security. Your data is isolated.</span>
                   </li>
-                   <li className="flex items-start">
-                     <strong className="font-medium w-28 flex-shrink-0 text-right mr-3">Supabase:</strong> 
-                     <span className="text-gray-600">Managed PostgreSQL with integrated Auth and enforced Row Level Security for data isolation and privacy.</span>
+                  <li className="flex items-start gap-3">
+                     <strong className="font-medium text-pink-700">Reliable AI:</strong> 
+                     <span>Secure OpenAI API integration for transcription & analysis.</span>
                   </li>
-                  <li className="flex items-start">
-                     <strong className="font-medium w-28 flex-shrink-0 text-right mr-3">OpenAI API:</strong> 
-                     <span className="text-gray-600">Secure access to state-of-the-art language models for reliable AI features (transcription, analysis).</span>
-                  </li>
-                   <li className="flex items-start">
-                     <strong className="font-medium w-28 flex-shrink-0 text-right mr-3">Tailwind/Shadcn:</strong> 
-                     <span className="text-gray-600">Efficient utility-first styling and composable UI components for a clean, maintainable interface.</span>
+                   <li className="flex items-start gap-3">
+                     <strong className="font-medium text-gray-700">Clean Interface:</strong> 
+                     <span>Tailwind CSS & Shadcn UI for a focused, uncluttered experience.</span>
                   </li>
                </ul>
             </div>
-            {/* Security & FAQ */}
+            {/* Security Focus */}
             <div>
-               <h3 className="text-2xl font-semibold text-gray-800 mb-6 text-center lg:text-left">Security & Data Handling 🔒</h3>
-               <div className="space-y-6 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+               <h3 className="text-2xl font-semibold text-gray-800 mb-6 text-center lg:text-left">Your Data Security</h3>
+               <div className="space-y-5 bg-white p-6 rounded-lg border border-gray-200 shadow-sm text-sm">
                  <div>
                    <h4 className="font-semibold text-gray-700 mb-1">Data Isolation?</h4>
-                   <p className="text-gray-600 text-sm">Yes. Supabase Row Level Security ensures only you can access your created content. No cross-user data access is possible.</p>
+                   <p className="text-gray-600">Absolutely. RLS ensures only you access your entries.</p>
                  </div>
                  <div>
-                   <h4 className="font-semibold text-gray-700 mb-1">AI Processing Privacy?</h4>
-                   <p className="text-gray-600 text-sm">AI tasks utilize secure API calls (e.g., OpenAI). Data is processed ephemerally for analysis and not retained or used for model training by the providers per their standard terms.</p>
+                   <h4 className="font-semibold text-gray-700 mb-1">AI Processing?</h4>
+                   <p className="text-gray-600">Secure, ephemeral processing via trusted APIs (e.g., OpenAI). Your data isn't used for training.</p>
                  </div>
                  <div>
                    <h4 className="font-semibold text-gray-700 mb-1">Encryption?</h4>
-                   <p className="text-gray-600 text-sm">All data transmission uses industry-standard HTTPS/TLS encryption. Data at rest leverages Supabase's underlying database encryption.</p>
-                 </div>
-                  <div>
-                   <h4 className="font-semibold text-gray-700 mb-1">Data Export?</h4>
-                   <p className="text-gray-600 text-sm">Functionality for user data export is on the near-term roadmap.</p>
+                   <p className="text-gray-600">Yes. HTTPS/TLS in transit, standard database encryption at rest.</p>
                  </div>
                </div>
             </div>
@@ -247,121 +258,70 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-       {/* 6. Proof: Trusted by High Performers 👍 */}
+       {/* 7. Trusted by Operators */}
        <section id="testimonials" className="py-20 bg-white">
          <div className="max-w-5xl mx-auto px-6">
            <h2 className="text-4xl font-semibold text-center text-gray-900 mb-12">
-             Trusted by high performers
+             Trusted by Operators
            </h2>
-           {/* Placeholder - Replace with actual testimonials */}
            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+             {/* Placeholder Testimonials - Need punchier versions */} 
              <blockquote className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
-               <p className="text-gray-700 italic mb-4">"VibeKeep drastically reduced the time I spend processing meeting notes. The AI action items integrate directly into my workflow."
+               <p className="text-gray-700 italic mb-4">"Voice capture + AI synthesis saves me hours weekly. I move from meetings to action items much faster."
                </p>
-               <footer className="text-gray-600">— Ex-Google, Ex-Spotify, Ex-AirBnB founder</footer>
+               <footer className="text-gray-600">— Founder, SaaS Startup</footer>
              </blockquote>
              <blockquote className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
-               <p className="text-gray-700 italic mb-4">"The seamless voice capture and immediate synthesis allow me to capture and connect ideas without breaking vibes. Indispensable."
+               <p className="text-gray-700 italic mb-4">"Finally, a way to capture fleeting ideas without breaking focus during deep work sessions. Essential tool."
                </p>
-               <footer className="text-gray-600">— Ex-Blackberry, Ex-Blockbuster, Ex-Toys-R-Us strategist</footer>
+               <footer className="text-gray-600">— Senior Engineer</footer>
              </blockquote>
            </div>
          </div>
        </section>
 
-      {/* 7. Access & Evolution: Pricing & Roadmap 📈 */}
-      <section id="access-evolution" className="py-20 bg-gray-50">
-        <div className="max-w-5xl mx-auto px-6">
-           <h2 className="text-4xl font-semibold text-center text-gray-900 mb-12">
-            Access & evolution
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start justify-items-center">
-            {/* Free Tier Card */}
-            <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 p-8 rounded-lg border border-gray-200 shadow-lg w-full max-w-md">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-4">Free Tier Access</h3>
-              <p className="text-gray-600 mb-6">
-                Utilize the core intelligent processing features with generous limits suitable for individual high-performance use.
-              </p>
-              <ul className="text-left text-gray-600 space-y-2 mb-8">
-                 <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" /> Core AI Processing Features ✅</li>
-                 <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" /> Secure Data Storage & Sync ☁️</li>
-                 <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" /> Standard Usage Limits 📊</li>
-              </ul>
-              <Link
-                href="/signup"
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-full block bg-gradient-to-r from-blue-600 to-indigo-700 text-white text-center py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-150 hover:from-blue-700 hover:to-indigo-800 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md"
-              >
-                Get Started (Free)
-              </Link>
-            </div>
-            {/* Premium Tier / Roadmap Block */}
-            <div className="bg-white p-8 rounded-lg border border-gray-200 w-full max-w-md shadow-sm">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-4">Premium & Roadmap</h3>
-               <p className="text-gray-600 mb-6">
-                 A Premium Tier with advanced AI models, higher limits, and priority support is planned. We also offer bespoke customizations now.
-               </p>
-               <h4 className="font-semibold text-gray-800 mb-2">Near-Term Roadmap:</h4>
-                <ul className="text-left text-gray-600 space-y-2 mb-8">
-                 <li className="flex items-start"><Check className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" /> Enhanced Semantic Analysis ✨</li>
-                 <li className="flex items-start"><Check className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" /> Task Prioritization Models 📊</li>
-                 <li className="flex items-start"><Check className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" /> Robust Data Export 📤</li>
-                 <li className="flex items-start"><Check className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" /> Potential Workflow Integrations 🔌</li>
-               </ul>
-               <a href="mailto:[Your Contact Email Address]?subject=VibeKeep Premium/Custom Inquiry" 
-                  className="w-full block border border-gray-400 text-gray-700 text-center py-3 px-8 rounded-lg text-lg font-semibold transition-colors duration-150 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-               >
-                 Inquire About Premium/Custom
-               </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 8. Final Call to Action 🚀 */}
-      <section id="signup" className="py-20 bg-gradient-to-br from-purple-100 via-blue-50 to-indigo-100 border-t border-gray-200">
+      {/* 8. Unlock Peak Performance - Free */}
+      <section id="get-started-cta" className="py-20 bg-gradient-to-br from-indigo-100 via-blue-50 to-purple-100 border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl font-semibold text-gray-900 mb-6">
-            Ready to operate at your peak?
+            Unlock Your Peak Performance
           </h2>
           <p className="text-xl text-gray-700 mb-8">
-            Integrate intelligent augmentation into your cognitive workflow. Access VibeKeep free today.
+            Stop the drag. Start amplifying your output. Access VibeKeep free.
           </p>
           <Link
             href="/signup" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="inline-block bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-150 hover:from-blue-700 hover:to-indigo-800 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md" 
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-700 text-white py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-150 hover:from-indigo-700 hover:to-blue-800 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md" 
           >
-            Access VibeKeep - Free
+            <Zap className="w-5 h-5" />
+            Get Started Now - Free
           </Link>
         </div>
       </section>
 
-      {/* --- NARRATIVE STRUCTURE END --- */}
-
-      {/* Footer */}
+      {/* Footer (Minimal) */}
       <footer className="py-10 border-t border-gray-200">
         <div className="max-w-6xl mx-auto px-6 text-center text-sm">
           <p className="text-gray-500 mb-2"> 
-            &copy; {new Date().getFullYear()} VibeKeep. All rights reserved.
+            &copy; {new Date().getFullYear()} VibeKeep. Amplify your output.
           </p>
           <div className="space-x-4">
             <Link href="/terms-of-service" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-gray-500 hover:text-blue-600 transition"
+                  className="text-gray-500 hover:text-indigo-600 transition"
             >
-              Terms of Service
+              Terms
             </Link>
             <span className="text-gray-400">|</span>
             <Link href="/privacy-policy" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-gray-500 hover:text-blue-600 transition"
+                  className="text-gray-500 hover:text-indigo-600 transition"
             >
-              Privacy Policy
+              Privacy
             </Link>
           </div>
         </div>
