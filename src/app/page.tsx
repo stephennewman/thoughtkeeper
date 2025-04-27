@@ -796,21 +796,18 @@ export default function Home() {
       <div className="flex flex-col flex-1 overflow-hidden border-r">
         {/* Header moved INSIDE the left column */}
         <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center justify-between px-4 md:px-6 lg:px-8">
-            {/* Left Side: Logo & Status - Removed isProcessingAudio from here */}
+          {/* Remove 'container' and 'mx-auto', restore slightly larger padding */}
+          <div className="flex h-14 items-center justify-between px-4 md:px-6 lg:px-8">
+            {/* Left Side: Logo & Status */}
             <div className="flex items-center flex-shrink-0">
-              <img 
+              <img
                 src="https://s3.ca-central-1.amazonaws.com/logojoy/logos/218272791/noBgBlack.png?865367"
                 alt="Thought Keeper Logo"
-                className="h-8 w-auto mr-4"
+                className="h-8 w-auto"
               />
               <div className="flex items-center gap-2">
-                {/* Removed direct errorState display from header */}
-                {/* {errorState && (
-                  <p className="text-red-600 text-sm">Error: {errorState}</p>
-                )} */}
                 {/* Only show initial loading here */}
-                {isLoadingInitial && ( // Removed !errorState check here too for consistency
+                {isLoadingInitial && (
                   <div className="flex items-center justify-start text-sm text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin mr-2" />
                     <span>Loading...</span>
@@ -819,15 +816,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Center: Voice Recording UI (Conditional) */}
-            {isRecording && !isProcessingAudio && (
-              <div className="flex-grow mx-2 sm:mx-4"> 
-                <canvas 
+            {/* Spacer to push elements apart (or recording UI) */}
+            {isRecording && !isProcessingAudio ? (
+              // If recording, show canvas (already has flex-grow)
+              <div className="flex-grow mx-2 sm:mx-4">
+                <canvas
                   ref={canvasRef}
-                  height="30" 
+                  height="30"
                   className="w-full h-[30px] bg-muted/50 rounded-sm"
                 ></canvas>
               </div>
+            ) : (
+              // Otherwise, add a spacer div that grows
+              <div className="flex-grow"></div>
             )}
 
             {/* Right Side: Controls */}
@@ -851,22 +852,24 @@ export default function Home() {
                 {!isRecording && !isProcessingAudio && (
                   <>
                     <Button
-                      variant="outline"
                       onClick={startRecording}
                       size="sm" // h-9 by default
                       aria-label="Add voice note"
                       title="Add voice note"
-                      className={clsx('inline-flex items-center')}
+                      className={clsx(
+                        'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:opacity-90 transition-opacity',
+                        'inline-flex items-center'
+                      )}
                     >
-                      <Mic className="h-4 w-4" /> 
+                      <Mic className="h-4 w-4" />
                       <span className="hidden sm:inline sm:ml-2">Add Voice Note</span>
                     </Button>
                     <Button
                       onClick={handleAddClick}
-                      disabled={false} 
+                      disabled={false}
                       size="sm" // h-9 by default
                       className={clsx(
-                        'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity',
+                        'bg-gradient-to-r from-teal-400 to-cyan-600 text-white hover:opacity-90 transition-opacity',
                         'inline-flex items-center'
                       )}
                       aria-label="Add text note"
